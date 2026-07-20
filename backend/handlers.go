@@ -323,7 +323,9 @@ func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_ = GlobalDB.SaveProject(newProject)
-		GlobalDB.AddAuditLog(user.Name, "新建项目", r.RemoteAddr, fmt.Sprintf("成功创建项目: %s, 预算 %.2f", newProject.Name, newProject.Budget))
+		// 自动触发大模型后台深度学习管线入队
+		EnqueueProjectLearning(newProject.ID)
+		GlobalDB.AddAuditLog(user.Name, "新建项目", r.RemoteAddr, fmt.Sprintf("成功创建项目: %s, 预算 %.2f (已自动触发后台深度研判学习)", newProject.Name, newProject.Budget))
 
 		sendJSON(w, newProject)
 		return
@@ -648,6 +650,10 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 		}
 
 		_ = GlobalDB.SaveProject(proj)
+
+		// 自动触发大模型后台深度学习管线入队 (新增文件即自动重学与对齐)
+		EnqueueProjectLearning(proj.ID)
+
 		sendJSON(w, newFile)
 		return
 	}
