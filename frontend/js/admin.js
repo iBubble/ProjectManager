@@ -916,27 +916,55 @@ function renderLearningProjectCards(projects) {
     }).join("");
 }
 
+let learningPollInterval = null;
+
+function startLearningPolling() {
+    if (learningPollInterval) clearInterval(learningPollInterval);
+    loadAdminLearningDashboard();
+    learningPollInterval = setInterval(() => {
+        apiFetch("/api/system/learning-stats")
+            .then(res => res.ok ? res.json() : null)
+            .then(stats => {
+                if (!stats) return;
+                
+                // 实时渲染当前切片数、实体数与项目状态
+                loadAdminLearningDashboard();
+
+                const percent = stats.global_percent_num || 0;
+                const hasLearning = (stats.projects_learning || []).some(p => p.status === "learning");
+
+                if (percent >= 100 && !hasLearning) {
+                    clearInterval(learningPollInterval);
+                    learningPollInterval = null;
+                    const btn = document.getElementById("btn-learn-all-projects");
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
+                    }
+                    showToast("🎉 全量项目大模型切片与知识图谱构建学习完成！", "success");
+                }
+            });
+    }, 1200);
+}
+
 function triggerLearnAllProjects() {
     const btn = document.getElementById("btn-learn-all-projects");
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 大模型全量学习中...`;
     }
-    showToast("正在启动全量项目大模型“切片+三元组图谱”学习管线，请稍候...", "info");
+    showToast("已启动全量项目大模型“切片+三元组图谱”后台学习管线...", "info");
 
     apiFetch("/api/projects/learn-all", {
         method: "POST",
         headers: { "X-CSRF-Token": getCsrfToken() }
     })
-    .then(res => res.ok ? res.json() : Promise.reject(new Error("全量学习失败")))
+    .then(res => res.ok ? res.json() : Promise.reject(new Error("全量学习启动失败")))
     .then(data => {
-        showToast(data.message || "🎉 成功完成全量项目大模型学习！", "success");
-        loadAdminLearningDashboard();
+        startLearningPolling();
     })
     .catch(err => {
-        showToast("全量项目学习失败: " + err.message, "error");
-    })
-    .finally(() => {
+        showToast("全量项目学习启动失败: " + err.message, "error");
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
@@ -945,15 +973,14 @@ function triggerLearnAllProjects() {
 }
 
 function triggerAdminProjectLearn(projectId) {
-    showToast("正在启动大模型全量“切片+知识图谱”后台学习管线...", "info");
+    showToast("正在启动大模型“切片+知识图谱”后台学习管线...", "info");
     apiFetch(`/api/projects/${projectId}/learn`, {
         method: "POST",
         headers: { "X-CSRF-Token": getCsrfToken() }
     })
     .then(res => res.ok ? res.json() : Promise.reject(new Error("学习失败")))
     .then(data => {
-        showToast("🎉 项目深度切片与知识图谱全量学习成功！", "success");
-        loadAdminLearningDashboard();
+        startLearningPolling();
     })
     .catch(e => showToast("学习管线错误: " + e.message, "error"));
 }

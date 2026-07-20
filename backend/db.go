@@ -20,6 +20,7 @@ type Database struct {
 	Files        map[string]FileMetadata `json:"files"`        // fileID -> FileMetadata
 	Alerts       map[string]Alert        `json:"alerts"`       // alertID -> Alert
 	LLMCache     map[string]LLMCacheEntry `json:"llm_cache"`   // key -> LLMCacheEntry (RAG/对比/通用缓存)
+	Sessions     map[string]User          `json:"sessions"`    // token -> User (会话持久化)
 	AuditLogs    []AuditLog              `json:"audit_logs"`   // 审计日志列表
 	SystemConfig SystemConfig            `json:"system_config"`// 系统配置
 }
@@ -28,6 +29,28 @@ var (
 	GlobalDB *Database
 	once     sync.Once
 )
+
+// GetSession 获取持久化 Session
+func (db *Database) GetSession(token string) (User, bool) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	if db.Sessions == nil {
+		return User{}, false
+	}
+	u, ok := db.Sessions[token]
+	return u, ok
+}
+
+// SetSession 保存持久化 Session
+func (db *Database) SetSession(token string, u User) {
+	db.mu.Lock()
+	if db.Sessions == nil {
+		db.Sessions = make(map[string]User)
+	}
+	db.Sessions[token] = u
+	db.mu.Unlock()
+	_ = db.Save()
+}
 
 // InitDB 初始化数据库实例并加载数据
 func InitDB(dbDir string) (*Database, error) {

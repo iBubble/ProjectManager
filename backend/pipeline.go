@@ -240,7 +240,7 @@ func RunProjectLearningPipeline(projectID string) (*Project, error) {
 	relationMap := make(map[string]KGRelation)
 
 	// 2. 遍历项目下所有文件，执行智能切片与三元组抽取
-	for _, f := range files {
+	for idx, f := range files {
 		filePath := filepath.Join("data/uploads", f.SavedName)
 		fileBytes, err := ioutil.ReadFile(filePath)
 		if err != nil {
@@ -261,6 +261,28 @@ func RunProjectLearningPipeline(projectID string) (*Project, error) {
 			relKey := fmt.Sprintf("%s--%s-->%s", r.Source, r.Relation, r.Target)
 			relationMap[relKey] = r
 		}
+
+		// 实时增量落盘，供前端每秒轮询看板实时显示进度增量
+		var currentEnts []KGEntity
+		for _, e := range entityMap {
+			currentEnts = append(currentEnts, e)
+		}
+		var currentRels []KGRelation
+		for _, r := range relationMap {
+			currentRels = append(currentRels, r)
+		}
+
+		proj.Chunks = allChunks
+		proj.KnowledgeGraph = ProjectKnowledgeGraph{
+			Status:      "learning",
+			LearnedAt:   time.Now().Format("2006-01-02 15:04:05"),
+			TotalChunks: len(allChunks),
+			Entities:    currentEnts,
+			Relations:   currentRels,
+			Summary:     fmt.Sprintf("大模型正在深度解析第 %d/%d 份文件《%s》...", idx+1, len(files), f.FileName),
+		}
+		_ = GlobalDB.SaveProject(proj)
+		time.Sleep(200 * time.Millisecond) // 平滑微延迟，使前端产生顺畅的实时滚动体验
 	}
 
 	// 整理去重后的实体与关系
