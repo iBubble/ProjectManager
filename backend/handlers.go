@@ -2390,7 +2390,7 @@ func HandlerLearnAllProjects(w http.ResponseWriter, r *http.Request) {
 
 	GlobalDB.AddAuditLog(user.Name, "一键项目全量学习", r.RemoteAddr, fmt.Sprintf("全量触发 %d 个项目的大模型切片与图谱学习", successCount))
 	sendJSON(w, map[string]interface{}{
-		"message": fmt.Sprintf("成功对 %d 个项目完成真实大模型深度切片与知识图谱全量构建学习！", successCount),
+		"message": fmt.Sprintf("成功对 %d 个项目完成大模型深度切片与知识图谱全量构建学习！", successCount),
 		"learned_projects": successCount,
 	})
 }

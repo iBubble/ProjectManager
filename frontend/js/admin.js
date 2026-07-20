@@ -920,9 +920,9 @@ function triggerLearnAllProjects() {
     const btn = document.getElementById("btn-learn-all-projects");
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 真实大模型全量学习中...`;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 大模型全量学习中...`;
     }
-    showToast("正在启动全量项目真实大模型“切片+三元组图谱”学习管线，请稍候...", "info");
+    showToast("正在启动全量项目大模型“切片+三元组图谱”学习管线，请稍候...", "info");
 
     apiFetch("/api/projects/learn-all", {
         method: "POST",
@@ -930,7 +930,7 @@ function triggerLearnAllProjects() {
     })
     .then(res => res.ok ? res.json() : Promise.reject(new Error("全量学习失败")))
     .then(data => {
-        showToast(data.message || "🎉 成功完成全量项目大模型真实学习！", "success");
+        showToast(data.message || "🎉 成功完成全量项目大模型学习！", "success");
         loadAdminLearningDashboard();
     })
     .catch(err => {
