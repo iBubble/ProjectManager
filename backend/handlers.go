@@ -2433,3 +2433,84 @@ func HandlerLearnAllProjects(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// HandlerUpdateProjectPriority 修改项目学习优先级 (1级/2级/3级)
+func HandlerUpdateProjectPriority(w http.ResponseWriter, r *http.Request) {
+	user, err := GetCurrentUser(r)
+	if err != nil {
+		sendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	if r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "仅支持 POST 请求")
+		return
+	}
+
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 3 {
+		sendError(w, http.StatusBadRequest, "URL 格式错误")
+		return
+	}
+	projectID := parts[1]
+
+	var req struct {
+		Priority int `json:"priority"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.Priority < 1 || req.Priority > 3 {
+		req.Priority = 2
+	}
+
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	proj.Priority = req.Priority
+	_ = GlobalDB.SaveProject(proj)
+
+	GlobalDB.AddAuditLog(user.Name, "修改学习优先级", r.RemoteAddr, fmt.Sprintf("项目 [%s] 优先级修改为 %d 级", proj.Name, req.Priority))
+	sendJSON(w, map[string]interface{}{"message": fmt.Sprintf("项目 [%s] 优先级已更新为 %d 级", proj.Name, req.Priority)})
+}
+
+// HandlerTogglePauseProjectLearning 切换项目学习挂起/恢复状态
+func HandlerTogglePauseProjectLearning(w http.ResponseWriter, r *http.Request) {
+	user, err := GetCurrentUser(r)
+	if err != nil {
+		sendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	if r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "仅支持 POST 请求")
+		return
+	}
+
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 3 {
+		sendError(w, http.StatusBadRequest, "URL 格式错误")
+		return
+	}
+	projectID := parts[1]
+
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	if proj.IsPaused == 1 {
+		proj.IsPaused = 0
+	} else {
+		proj.IsPaused = 1
+	}
+	_ = GlobalDB.SaveProject(proj)
+
+	statusStr := "已暂停"
+	if proj.IsPaused == 0 {
+		statusStr = "已恢复"
+	}
+
+	GlobalDB.AddAuditLog(user.Name, "切换学习暂停状态", r.RemoteAddr, fmt.Sprintf("项目 [%s] 学习状态切换为 %s", proj.Name, statusStr))
+	sendJSON(w, map[string]interface{}{"message": fmt.Sprintf("项目 [%s] 学习状态%s", proj.Name, statusStr), "is_paused": proj.IsPaused})
+}
+

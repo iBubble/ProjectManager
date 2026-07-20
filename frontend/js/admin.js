@@ -849,6 +849,33 @@ function loadAdminLearningDashboard() {
         });
 }
 
+function updateProjectPriority(projectId, priority) {
+    apiFetch(`/api/projects/${projectId}/priority`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": getCsrfToken() },
+        body: JSON.stringify({ priority: parseInt(priority) })
+    })
+    .then(res => res.ok ? res.json() : Promise.reject(new Error("修改失败")))
+    .then(data => {
+        showToast(data.message || "学习优先级修改成功", "success");
+        loadAdminLearningDashboard();
+    })
+    .catch(e => showToast(e.message, "error"));
+}
+
+function togglePauseProject(projectId) {
+    apiFetch(`/api/projects/${projectId}/toggle-pause`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": getCsrfToken() }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject(new Error("操作失败")))
+    .then(data => {
+        showToast(data.message || "学习状态切换成功", "info");
+        loadAdminLearningDashboard();
+    })
+    .catch(e => showToast(e.message, "error"));
+}
+
 function renderLearningProjectCards(projects) {
     const box = document.getElementById("learning-projects-list");
     if (!box) return;
@@ -862,14 +889,18 @@ function renderLearningProjectCards(projects) {
         const isLearned = p.status === "learned";
         const isLearning = p.status === "learning";
         const isQueued = p.status === "queued";
+        const isPaused = p.is_paused === 1;
 
         const percentNum = isLearned ? 100 : (isLearning ? (p.progress_percent || 25) : 0);
         const percentStr = percentNum.toFixed(2) + "%";
 
         let statusBadgeClass = "bg-secondary";
-        let statusBadgeText = "未开始学习";
+        let statusBadgeText = "未开始";
 
-        if (isLearned) {
+        if (isPaused) {
+            statusBadgeClass = "bg-secondary text-dark";
+            statusBadgeText = "⏸ 暂停中";
+        } else if (isLearned) {
             statusBadgeClass = "bg-success";
             statusBadgeText = "已完成";
         } else if (isLearning) {
@@ -886,7 +917,7 @@ function renderLearningProjectCards(projects) {
         } else if (isQueued) {
             actionBtnHtml = `<button class="btn-gov-secondary disabled" style="font-size:12px; padding:4px 10px;" disabled>⏳ 算力排队中 (${p.queue_position || 1})</button>`;
         } else if (isLearned) {
-            actionBtnHtml = `<button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🔄 重新研判学习</button>`;
+            actionBtnHtml = `<button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">已完成</button>`;
         }
 
         const processedFiles = isLearned ? p.files_count : (isLearning ? (p.processed_files || 1) : 0);
@@ -894,62 +925,82 @@ function renderLearningProjectCards(projects) {
         return `
         <div class="learning-project-card">
             <div class="project-card-header">
-                <div class="project-card-title">📁 ${escapeHtml(p.project_name)}</div>
+                <div class="project-card-title">${escapeHtml(p.project_name)}</div>
                 <div class="project-card-actions">
-                    ${actionBtnHtml}
-                    <select class="form-select form-select-sm" style="width: auto; font-size:12px; display:inline-block;">
-                        <option>优先级 ${p.priority || "2级"}</option>
-                        <option>优先级 1级 (最高)</option>
-                        <option>优先级 3级</option>
+                    <button class="btn-pause-toggle" onclick="togglePauseProject('${p.project_id}')" style="background:#fff; border:1px solid #cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; color:#475569; font-weight:600;">
+                        ${isPaused ? "▶ 恢复" : "⏸ 暂停"}
+                    </button>
+                    <select class="form-select form-select-sm" style="width: auto; font-size:12px; display:inline-block; border-radius:6px;" onchange="updateProjectPriority('${p.project_id}', this.value)">
+                        <option value="2" ${p.priority === 2 ? "selected" : ""}>优先级 2级</option>
+                        <option value="1" ${p.priority === 1 ? "selected" : ""}>优先级 1级 (最高)</option>
+                        <option value="3" ${p.priority === 3 ? "selected" : ""}>优先级 3级</option>
                     </select>
                     <span class="badge ${statusBadgeClass}" style="font-size:12px; padding:6px 10px;">${statusBadgeText}</span>
-                    <button class="btn-kg-preview" onclick="openAdminKGModal('${p.project_id}', '${escapeHtml(p.project_name)}')">👁 预览知识图谱星空图</button>
+                    ${actionBtnHtml}
                 </div>
             </div>
             
-            <div class="pipeline-steps-grid">
-                <div class="step-progress-item">
-                    <div class="step-head">
-                        <span>🗄️ 1. 向量化入库</span>
-                        <span class="step-num">${p.chunks_count || 0} 切片 · ${processedFiles} / ${p.files_count || 0} 文件</span>
+            <div class="pipeline-4cols-grid">
+                <!-- Col 1 -->
+                <div class="pipeline-col">
+                    <div class="col-head">
+                        <span>💾 1. 向量化入库</span>
+                        <span class="badge-col-purple">${p.chunks_count || 0} 切片</span>
+                    </div>
+                    <div class="col-subtext">${isLearned ? "索引构建完成" : (isLearning ? "正在切片与向量化..." : "待处理")}</div>
+                    <div class="col-stat-row">
+                        <span>${processedFiles} / ${p.files_count || 0}</span>
+                        <span class="col-percent">${percentStr}</span>
                     </div>
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-purple-blue" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percentStr}</div>
                 </div>
 
-                <div class="step-progress-item">
-                    <div class="step-head">
+                <!-- Col 2 -->
+                <div class="pipeline-col">
+                    <div class="col-head">
                         <span>🔗 2. 知识图谱提取</span>
-                        <span class="step-num">${p.entities_count || 0} 实体节点 · ${p.relations_count || 0} 条三元组</span>
+                        <span class="badge-col-green">${p.entities_count || 0} 实体</span>
+                    </div>
+                    <div class="col-subtext">${isLearned ? "实体关系提取完毕" : (isLearning ? "三元组抽取中..." : "待处理")}</div>
+                    <div class="col-stat-row">
+                        <span>${processedFiles} / ${p.files_count || 0}</span>
+                        <span class="col-percent">${percentStr}</span>
                     </div>
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-cyan" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percentStr}</div>
                 </div>
 
-                <div class="step-progress-item">
-                    <div class="step-head">
+                <!-- Col 3 -->
+                <div class="pipeline-col">
+                    <div class="col-head">
                         <span>🌺 3. 图谱社区摘要</span>
-                        <span class="step-num">${isLearned ? "全局知识摘要完毕" : (isLearning ? "正在提炼社区关系摘要..." : "待计算")}</span>
+                    </div>
+                    <div class="col-subtext">${isLearned ? "全局知识摘要完毕" : (isLearning ? "图社区聚类提炼中..." : "待处理")}</div>
+                    <div class="col-stat-row">
+                        <span>${isLearned ? (p.files_count || 0) * 2 : 0} / ${(p.files_count || 0) * 2}</span>
+                        <span class="col-percent">${percentStr}</span>
                     </div>
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-pink" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percentStr}</div>
                 </div>
 
-                <div class="step-progress-item">
-                    <div class="step-head">
+                <!-- Col 4 -->
+                <div class="pipeline-col col-precompute">
+                    <div class="col-head">
                         <span>⚡ 4. 智能学习预计计算</span>
-                        <span class="step-num">${isLearned ? "全文生效 / 督办提炼已完成" : (isLearning ? "智能算力预计中..." : "待生成")}</span>
                     </div>
-                    <div class="progress-bar-thick">
-                        <div class="progress-bar-fill grad-light-purple" style="width: ${percentNum}%;"></div>
+                    <div class="precompute-subitems">
+                        <div class="subitem"><span>全文生成: ${isLearned ? "已生成" : "待触发"}</span><span class="muted-num">0/22</span></div>
+                        <div class="subitem"><span>智能替换: 未配置</span><span class="muted-num">0/0</span></div>
+                        <div class="subitem"><span>精确复制: 未配置</span><span class="muted-num">0/0</span></div>
                     </div>
-                    <div class="step-percent">${percentStr}</div>
+                    <div style="margin-top:10px; text-align:right;">
+                        <button class="btn-kg-preview" onclick="openAdminKGModal('${p.project_id}', '${escapeHtml(p.project_name)}')">👁 预览知识图谱星空图</button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -147,6 +147,18 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// /api/projects/:id/priority
+			if len(parts) == 4 && parts[3] == "priority" {
+				backend.HandlerUpdateProjectPriority(w, r)
+				return
+			}
+
+			// /api/projects/:id/toggle-pause
+			if len(parts) == 4 && parts[3] == "toggle-pause" {
+				backend.HandlerTogglePauseProjectLearning(w, r)
+				return
+			}
+
 			// /api/projects/:id/saved-docs
 			if len(parts) == 4 && parts[3] == "saved-docs" {
 				backend.HandlerSavedDocs(w, r, projectID)

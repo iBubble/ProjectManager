@@ -97,6 +97,8 @@ type Project struct {
 	SavedDocs             []SavedDoc       `json:"saved_docs"`           // 编辑保存的公文列表
 	KnowledgeGraph        ProjectKnowledgeGraph `json:"knowledge_graph"` // 项目知识图谱学习成果
 	Chunks                []DocumentChunk       `json:"chunks"`          // 项目文档切片知识库
+	Priority              int                   `json:"priority"`        // 学习优先级 (1级/2级/3级)
+	IsPaused              int                   `json:"is_paused"`       // 学习挂起标志 (0正常, 1暂停)
 	CreatedAt             string           `json:"created_at"`
 	StartDate             string           `json:"start_date"`             // 开始日期 (YYYY-MM-DD)
 	PlannedCompletionDate string           `json:"planned_completion_date"` // 计划完工日期 (YYYY-MM-DD)

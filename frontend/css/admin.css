@@ -616,3 +616,85 @@
 }
 
 .btn-kg-preview:hover { background: #cff4fc; }
+
+/* 4列独立学习步骤 Grid (镜像 AILeaning 效果) */
+.pipeline-4cols-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.pipeline-col {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.col-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.badge-col-purple {
+    background: #f3e8ff;
+    color: #9333ea;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.badge-col-green {
+    background: #dcfce7;
+    color: #16a34a;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.col-subtext {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+
+.col-stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.col-percent {
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.precompute-subitems {
+    font-size: 11px;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 4px;
+}
+
+.precompute-subitems .subitem {
+    display: flex;
+    justify-content: space-between;
+}
+
+.precompute-subitems .muted-num {
+    color: #94a3b8;
+}
