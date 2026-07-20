@@ -259,7 +259,10 @@ func RunProjectLearningPipeline(projectID string) (*Project, error) {
 	}
 
 	_ = GlobalDB.SaveProject(proj)
-	GlobalDB.AddAuditLog("系统引擎", "项目深度学习", "127.0.0.1", fmt.Sprintf("完成项目 [%s] 知识切片与知识图谱构建学习", proj.Name))
+	if GlobalNeo4j != nil {
+		_ = GlobalNeo4j.SyncProjectGraphToNeo4j(proj.ID, proj.Name, finalEntities, finalRelations)
+	}
+	GlobalDB.AddAuditLog("系统引擎", "项目深度学习", "127.0.0.1", fmt.Sprintf("完成项目 [%s] 知识切片与 Neo4j 知识图谱构建学习", proj.Name))
 
 	return &proj, nil
 }

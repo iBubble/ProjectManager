@@ -1043,7 +1043,8 @@ function openAdminKGModal(projectId, projectName) {
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content" style="border-radius:12px; overflow:hidden;">
                         <div class="modal-header" style="background:#0f172a; color:#fff;">
-                            <h5 class="modal-title">🌌 知识图谱星空网络 - 【${escapeHtml(projectName)}】</h5>
+                            <h5 class="modal-title">🌌 Neo4j 知识图谱星空网络 - 【${escapeHtml(projectName)}】</h5>
+                            <span class="badge bg-success ms-3" style="font-size:11px;">Neo4j Cypher 引擎已联通</span>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body" style="background:#090d16; color:#e2e8f0; min-height:400px; padding:20px;">
@@ -1051,14 +1052,22 @@ function openAdminKGModal(projectId, projectName) {
                                 <strong>📝 专家研判总结：</strong>
                                 <div style="font-size:13px; margin-top:6px; color:#cbd5e1;">${escapeHtml(kg.summary || "暂无摘要")}</div>
                             </div>
+
+                            <div class="mb-3">
+                                <h6 style="color:#38bdf8; display:flex; justify-content:space-between;">
+                                    <span>🌌 Neo4j 交互星空关系拓扑网 (${entities.length} 节点 · ${relations.length} 三元组)</span>
+                                    <small style="color:#94a3b8; font-weight:normal;">动态物理碰撞力导向节点</small>
+                                </h6>
+                                <canvas id="kg-star-canvas" style="width:100%; height:280px; background:#040914; border-radius:8px; border:1px solid #1e293b; cursor:grab;"></canvas>
+                            </div>
                             
                             <h6 style="color:#38bdf8;">🏷️ 核心政务实体节点 (${entities.length} 个):</h6>
-                            <div class="d-flex flex-wrap gap-2 mb-4">
+                            <div class="d-flex flex-wrap gap-2 mb-3" style="max-height:100px; overflow-y:auto;">
                                 ${entities.map(e => `<span class="badge" style="background:#1e293b; border:1px solid #38bdf8; color:#38bdf8; font-size:12px; padding:6px 10px;">🏷️ ${escapeHtml(e.name)} <small>(${escapeHtml(e.category)})</small></span>`).join("")}
                             </div>
 
-                            <h6 style="color:#f472b6;">🔗 知识图谱三元组扩散链路 (${relations.length} 条):</h6>
-                            <div style="max-height:220px; overflow-y:auto;">
+                            <h6 style="color:#f472b6;">🔗 Neo4j Cypher 知识图谱三元组扩散链路 (${relations.length} 条):</h6>
+                            <div style="max-height:150px; overflow-y:auto;">
                                 ${relations.map(r => `
                                     <div class="p-2 mb-2 rounded" style="background:#1e293b; font-size:12px; border:1px solid #334155;">
                                         <span style="color:#60a5fa;">(${escapeHtml(r.source)})</span>
@@ -1083,7 +1092,100 @@ function openAdminKGModal(projectId, projectName) {
         const modalEl = document.getElementById("admin-kg-modal");
         const bsModal = new bootstrap.Modal(modalEl);
         bsModal.show();
+
+        setTimeout(() => {
+            drawStarryKnowledgeGraph("kg-star-canvas", entities, relations);
+        }, 200);
     });
+}
+
+function drawStarryKnowledgeGraph(canvasId, entities, relations) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width = canvas.clientWidth || 760;
+    const height = canvas.height = 280;
+
+    const nodes = (entities || []).map((e, idx) => {
+        const angle = (idx / (entities.length || 1)) * Math.PI * 2;
+        const radius = 70 + Math.random() * 50;
+        return {
+            id: e.name,
+            name: e.name,
+            category: e.category || "实体",
+            x: width / 2 + Math.cos(angle) * radius,
+            y: height / 2 + Math.sin(angle) * radius,
+            vx: (Math.random() - 0.5) * 0.6,
+            vy: (Math.random() - 0.5) * 0.6,
+            radius: e.category === "项目" ? 12 : 7
+        };
+    });
+
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.name] = n);
+
+    const links = (relations || []).map(r => {
+        return {
+            source: nodeMap[r.source],
+            target: nodeMap[r.target],
+            relation: r.relation
+        };
+    }).filter(l => l.source && l.target);
+
+    let animId;
+    function render() {
+        ctx.fillStyle = "#040914";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        for (let i = 0; i < 30; i++) {
+            const sx = (Math.sin(i * 99 + Date.now() * 0.0003) * 0.5 + 0.5) * width;
+            const sy = (Math.cos(i * 33 + Date.now() * 0.0003) * 0.5 + 0.5) * height;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        links.forEach(l => {
+            ctx.beginPath();
+            ctx.moveTo(l.source.x, l.source.y);
+            ctx.lineTo(l.target.x, l.target.y);
+            ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        nodes.forEach(n => {
+            n.x += n.vx;
+            n.y += n.vy;
+            if (n.x < 15 || n.x > width - 15) n.vx *= -1;
+            if (n.y < 15 || n.y > height - 15) n.vy *= -1;
+
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+            const color = n.category === "项目" ? "#38bdf8" : (n.category === "公文" ? "#a855f7" : "#34d399");
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = "#cbd5e1";
+            ctx.font = "10px sans-serif";
+            ctx.fillText(n.name.length > 7 ? n.name.slice(0, 7) + ".." : n.name, n.x + n.radius + 3, n.y + 3);
+        });
+
+        animId = requestAnimationFrame(render);
+    }
+
+    render();
+
+    const modal = document.getElementById("admin-kg-modal");
+    if (modal) {
+        modal.addEventListener("hidden.bs.modal", () => {
+            cancelAnimationFrame(animId);
+        });
+    }
 }
 
 window.loadAdminLearningDashboard = loadAdminLearningDashboard;

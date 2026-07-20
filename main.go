@@ -228,6 +228,7 @@ func main() {
 	}
 	backend.InitializeKeys("data")
 	backend.InitUploadDir("data/uploads")
+	backend.InitNeo4j("http://127.0.0.1:7474", "neo4j", "neo4j")
 
 	log.Printf("成功加载项目管理平台数据库，当前在办项目共: %d 个", len(db.Projects))
 
