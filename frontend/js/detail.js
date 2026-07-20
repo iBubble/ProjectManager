@@ -90,7 +90,7 @@ function renderProjectFilesDirectory(files) {
                 <div class="file-item">
                     <div class="file-item-name-box">
                         <span>📄</span>
-                        <a href="/api/files/${f.id}/download" target="_blank" class="file-item-name" title="${escapeHtml(f.file_name)}">${escapeHtml(f.file_name)}</a>
+                        <a href="/api/projects/${currentDetailProjectId}/files/${f.id}/download" target="_blank" class="file-item-name" title="${escapeHtml(f.file_name)}">${escapeHtml(f.file_name)}</a>
                         <span style="font-size:11px; color:var(--text-muted); flex-shrink:0;">(${formatBytes(f.file_size)})</span>
                     </div>
                     <button class="btn-ai-summary" onclick="generateAISummary('${f.id}')">AI 摘要</button>
@@ -195,25 +195,49 @@ function generateAISummary(fileId) {
     const file = (currentProjectFiles || []).find(f => f.id === fileId);
     const fileName = file ? file.file_name : "归档文件";
 
+    const overlayId = "ai-summary-modal-overlay";
+    const oldOverlay = document.getElementById(overlayId);
+    if (oldOverlay) oldOverlay.remove();
+
     const modalHtml = `
-        <div class="admin-modal-overlay" id="ai-summary-modal-overlay" onclick="if(event.target===this) this.remove();" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center;">
+        <div class="admin-modal-overlay" id="${overlayId}" onclick="if(event.target===this) this.remove();" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center;">
             <div class="admin-modal" style="background:#fff; border-radius:8px; width:90%; max-width:600px; padding:20px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
                     <h3 style="margin:0; font-size:16px; color:var(--gov-blue);">🤖 大模型文件提炼摘要：${escapeHtml(fileName)}</h3>
-                    <button onclick="document.getElementById('ai-summary-modal-overlay').remove()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#64748b;">✕</button>
+                    <button onclick="document.getElementById('${overlayId}').remove()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#64748b;">✕</button>
                 </div>
-                <div style="font-size:13.5px; line-height:1.7; color:#334155; background:#f8fafc; padding:14px; border-radius:6px; border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 8px 0;"><strong>【文件概述】</strong> 本文件为《${escapeHtml(fileName)}》，属于信息化项目阶段必备归档要件。</p>
-                    <p style="margin:0 0 8px 0;"><strong>【核心条款与约束】</strong> 经过离线政务大模型 (DeepSeek-R1) 扫描比对，未发现超越10%预算红线或擅自变更主体条款隐患。</p>
-                    <p style="margin:0;"><strong>【合规建议】</strong> 建议按规范纳入财政终验备查卷。</p>
+                <div id="ai-summary-text-box" style="font-size:13.5px; line-height:1.7; color:#334155; background:#f8fafc; padding:14px; border-radius:6px; border:1px solid #e2e8f0; min-height:80px; display:flex; align-items:center; justify-content:center;">
+                    <span style="color:var(--text-muted);">正在调用离线政务大模型生成摘要，请稍候...</span>
                 </div>
                 <div style="text-align:right; margin-top:16px;">
-                    <button class="btn-gov-primary" onclick="document.getElementById('ai-summary-modal-overlay').remove()" style="padding:6px 16px;">关闭提炼摘要</button>
+                    <button class="btn-gov-primary" onclick="document.getElementById('${overlayId}').remove()" style="padding:6px 16px;">关闭提炼摘要</button>
                 </div>
             </div>
         </div>
     `;
     document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    apiFetch(`/api/projects/${currentDetailProjectId}/files/${fileId}/summary`, {
+        method: "POST"
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("无法读取文件或生成摘要失败");
+        return res.json();
+    })
+    .then(data => {
+        const box = document.getElementById("ai-summary-text-box");
+        if (box) {
+            box.style.display = "block";
+            box.innerHTML = `<div style="white-space: pre-wrap;">${escapeHtml(data.summary || "未返回摘要")}</div>`;
+        }
+    })
+    .catch(err => {
+        const box = document.getElementById("ai-summary-text-box");
+        if (box) {
+            box.style.display = "block";
+            box.innerHTML = `<span style="color:#ef4444;">❌ 生成摘要失败: ${escapeHtml(err.message)}</span>`;
+        }
+    });
 }
 
 // 导出全局
