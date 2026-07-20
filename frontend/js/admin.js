@@ -845,17 +845,27 @@ function renderLearningProjectCards(projects) {
     box.innerHTML = projects.map(p => {
         const isLearned = p.status === "learned";
         const isLearning = p.status === "learning";
-        const percent = isLearned ? "100.00%" : (isLearning ? "50.00%" : "0.00%");
-        const percentNum = isLearned ? 100 : (isLearning ? 50 : 0);
+        const percentNum = isLearned ? 100 : (isLearning ? (p.progress_percent || 25) : 0);
+        const percentStr = percentNum.toFixed(2) + "%";
+
         const statusBadgeClass = isLearned ? "bg-success" : (isLearning ? "bg-warning text-dark" : "bg-secondary");
-        const statusBadgeText = isLearned ? "已完成" : (isLearning ? "学习中..." : "未开始学习");
+        const statusBadgeText = isLearned ? "已完成" : (isLearning ? "⏳ 学习中..." : "未开始学习");
+
+        let actionBtnHtml = `<button class="btn-gov-primary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>`;
+        if (isLearning) {
+            actionBtnHtml = `<button class="btn-gov-warning disabled" style="font-size:12px; padding:4px 10px;" disabled><span class="spinner-border spinner-border-sm"></span> 学习中...</button>`;
+        } else if (isLearned) {
+            actionBtnHtml = `<button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🔄 重新研判学习</button>`;
+        }
+
+        const processedFiles = isLearned ? p.files_count : (isLearning ? (p.processed_files || 1) : 0);
 
         return `
         <div class="learning-project-card">
             <div class="project-card-header">
                 <div class="project-card-title">📁 ${escapeHtml(p.project_name)}</div>
                 <div class="project-card-actions">
-                    <button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>
+                    ${actionBtnHtml}
                     <select class="form-select form-select-sm" style="width: auto; font-size:12px; display:inline-block;">
                         <option>优先级 ${p.priority || "2级"}</option>
                         <option>优先级 1级 (最高)</option>
@@ -870,12 +880,12 @@ function renderLearningProjectCards(projects) {
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>🗄️ 1. 向量化入库</span>
-                        <span class="step-num">${p.chunks_count || 0} 切片 · ${isLearned ? p.files_count : 0} / ${p.files_count || 0} 文件</span>
+                        <span class="step-num">${p.chunks_count || 0} 切片 · ${processedFiles} / ${p.files_count || 0} 文件</span>
                     </div>
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-purple-blue" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percent}</div>
+                    <div class="step-percent">${percentStr}</div>
                 </div>
 
                 <div class="step-progress-item">
@@ -886,29 +896,29 @@ function renderLearningProjectCards(projects) {
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-cyan" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percent}</div>
+                    <div class="step-percent">${percentStr}</div>
                 </div>
 
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>🌺 3. 图谱社区摘要</span>
-                        <span class="step-num">${isLearned ? "全局知识摘要完毕" : "待计算"}</span>
+                        <span class="step-num">${isLearned ? "全局知识摘要完毕" : (isLearning ? "正在提炼社区关系摘要..." : "待计算")}</span>
                     </div>
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-pink" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percent}</div>
+                    <div class="step-percent">${percentStr}</div>
                 </div>
 
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>⚡ 4. 智能学习预计计算</span>
-                        <span class="step-num">${isLearned ? "全文生效 / 督办提炼已完成" : "待生成"}</span>
+                        <span class="step-num">${isLearned ? "全文生效 / 督办提炼已完成" : (isLearning ? "智能算力预计中..." : "待生成")}</span>
                     </div>
                     <div class="progress-bar-thick">
                         <div class="progress-bar-fill grad-light-purple" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">${percent}</div>
+                    <div class="step-percent">${percentStr}</div>
                 </div>
             </div>
         </div>

@@ -2279,7 +2279,7 @@ func HandlerProjectKnowledgeGraph(w http.ResponseWriter, r *http.Request, projec
 	})
 }
 
-// HandlerLearningStats 全局学习进度看板统计 (完全基于真实大模型深度学习与切片图谱数据)
+// HandlerLearningStats 全局学习进度看板统计 (包含 CPU/内存利用率、Celery引擎、Qdrant切片、Neo4j图谱及各项目学习状态)
 func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	_, err := GetCurrentUser(r)
 	if err != nil {
@@ -2294,13 +2294,16 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	totalChunks := 0
 	totalEntities := 0
 	totalRelations := 0
-	learnedProjectsCount := 0
+	totalProgressSum := 0.0
 
 	projectLearningItems := make([]map[string]interface{}, 0)
 
 	for _, p := range projects {
 		pFiles := GlobalDB.ListFiles(p.ID)
 		fileCount := len(pFiles)
+		if fileCount == 0 {
+			fileCount = 1
+		}
 
 		chunkCount := len(p.Chunks)
 		entityCount := len(p.KnowledgeGraph.Entities)
@@ -2316,13 +2319,29 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 		}
 
 		progressPercent := 0.0
+		processedFiles := 0
+
 		if status == "learned" {
-			learnedProjectsCount++
-			learnedFilesCount += fileCount
 			progressPercent = 100.0
+			processedFiles = fileCount
 		} else if status == "learning" {
-			progressPercent = 50.0
+			if chunkCount > 0 {
+				processedFiles = (chunkCount / 8) + 1
+				if processedFiles > fileCount {
+					processedFiles = fileCount
+				}
+				progressPercent = (float64(processedFiles) / float64(fileCount)) * 90.0
+			} else {
+				processedFiles = 0
+				progressPercent = 15.0
+			}
+		} else {
+			progressPercent = 0.0
+			processedFiles = 0
 		}
+
+		learnedFilesCount += processedFiles
+		totalProgressSum += progressPercent
 
 		item := map[string]interface{}{
 			"project_id":        p.ID,
@@ -2330,6 +2349,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 			"status":            status,
 			"learned_at":        p.KnowledgeGraph.LearnedAt,
 			"files_count":       fileCount,
+			"processed_files":   processedFiles,
 			"chunks_count":      chunkCount,
 			"entities_count":    entityCount,
 			"relations_count":   relCount,
@@ -2346,7 +2366,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	totalProjects := len(projects)
 	globalCompletion := 0.0
 	if totalProjects > 0 {
-		globalCompletion = float64(learnedProjectsCount) / float64(totalProjects) * 100.0
+		globalCompletion = totalProgressSum / float64(totalProjects)
 	}
 
 	stats := map[string]interface{}{
