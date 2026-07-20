@@ -999,7 +999,7 @@ function renderLearningProjectCards(projects) {
                         <div class="subitem"><span>精确复制: 未配置</span><span class="muted-num">0/0</span></div>
                     </div>
                     <div style="margin-top:10px; text-align:right;">
-                        <button class="btn-kg-preview" onclick="openAdminKGModal('${p.project_id}', '${escapeHtml(p.project_name)}')">👁 预览知识图谱星空图</button>
+                        <button class="btn-kg-preview" onclick="toggleInlineKGVisualizer(this, '${p.project_id}', '${escapeHtml(p.project_name)}')">👁 预览知识图谱星空图</button>
                     </div>
                 </div>
             </div>
@@ -1239,10 +1239,259 @@ function drawStarryKnowledgeGraph(canvasId, entities, relations) {
     }
 }
 
+const activeGraphSims = {};
+
+function toggleInlineKGVisualizer(btnEl, projectId, projectName) {
+    const cardEl = btnEl ? btnEl.closest(".learning-project-card") : null;
+    if (!cardEl) return;
+
+    const existingPanel = document.getElementById(`kg-panel-${projectId}`);
+    if (existingPanel) {
+        existingPanel.remove();
+        if (btnEl) {
+            btnEl.innerHTML = `👁 预览知识图谱星空图`;
+            btnEl.style.background = "#ecfeff";
+            btnEl.style.color = "#0891b2";
+        }
+        return;
+    }
+
+    if (btnEl) {
+        btnEl.innerHTML = `👁 收起图谱可视化`;
+        btnEl.style.background = "#e0f2fe";
+        btnEl.style.color = "#0284c7";
+    }
+
+    apiFetch(`/api/projects/${projectId}/knowledge-graph`)
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+        const kg = (data && data.knowledge_graph) || { entities: [], relations: [] };
+        const entities = kg.entities || [];
+        const relations = kg.relations || [];
+
+        const panelHtml = `
+            <div id="kg-panel-${projectId}" class="inline-kg-panel" style="margin-top:16px; background:#090d16; border-radius:12px; padding:16px; border:1px solid #1e293b; position:relative; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="font-size:12px; color:#38bdf8; font-weight:700; display:flex; align-items:center; gap:6px;">
+                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8;"></span>
+                        <span>星空图谱预览 (Nodes: ${entities.length}, Edges: ${relations.length}, Canvas: 1388x398)</span>
+                    </div>
+                    <button class="btn-reset-view" onclick="resetGraphView('${projectId}')" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; font-size:11px; padding:4px 12px; border-radius:6px; cursor:pointer;">重置视角</button>
+                </div>
+                
+                <div style="position:relative; width:100%; height:398px; background:#040914; border-radius:8px; overflow:hidden;">
+                    <canvas id="kg-canvas-${projectId}" style="width:100%; height:398px; display:block; cursor:grab;"></canvas>
+                    
+                    <div style="position:absolute; top:12px; right:12px; width:100px; height:100px; border-radius:50%; background:rgba(15, 23, 42, 0.85); border:1px solid rgba(56, 189, 248, 0.3); backdrop-filter:blur(4px); overflow:hidden; pointer-events:none;">
+                        <canvas id="kg-minimap-${projectId}" width="100" height="100" style="width:100px; height:100px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        cardEl.insertAdjacentHTML("beforeend", panelHtml);
+
+        setTimeout(() => {
+            initInteractiveStarGraph(`kg-canvas-${projectId}`, `kg-minimap-${projectId}`, entities, relations);
+        }, 100);
+    })
+    .catch(e => showToast("加载知识图谱失败: " + e.message, "error"));
+}
+
+function initInteractiveStarGraph(canvasId, minimapId, entities, relations) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const width = canvas.width = canvas.clientWidth || 1388;
+    const height = canvas.height = 398;
+
+    const minimap = document.getElementById(minimapId);
+    const mCtx = minimap ? minimap.getContext("2d") : null;
+
+    const colors = ["#38bdf8", "#a855f7", "#34d399", "#f43f5e", "#fbbf24", "#60a5fa", "#e879f9"];
+
+    const nodes = (entities || []).map((e, idx) => {
+        const angle = (idx / (entities.length || 1)) * Math.PI * 2;
+        const radius = 80 + Math.random() * 100;
+        const colIdx = Math.abs(hashCode(e.category || e.name)) % colors.length;
+        return {
+            id: e.name,
+            name: e.name,
+            category: e.category || "实体",
+            x: width / 2 + Math.cos(angle) * radius,
+            y: height / 2 + Math.sin(angle) * radius,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: (Math.random() - 0.5) * 0.5,
+            color: colors[colIdx],
+            radius: e.category === "项目" ? 14 : (e.category === "公文" ? 10 : 7)
+        };
+    });
+
+    const nodeMap = {};
+    nodes.forEach(n => nodeMap[n.name] = n);
+
+    const links = (relations || []).map(r => {
+        return {
+            source: nodeMap[r.source],
+            target: nodeMap[r.target],
+            relation: r.relation
+        };
+    }).filter(l => l.source && l.target);
+
+    let scale = 1.0;
+    let offsetX = 0;
+    let offsetY = 0;
+    let isDragging = false;
+    let dragNode = null;
+    let startX = 0, startY = 0;
+
+    canvas.onmousedown = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left - offsetX) / scale;
+        const my = (e.clientY - rect.top - offsetY) / scale;
+
+        dragNode = nodes.find(n => Math.hypot(n.x - mx, n.y - my) < n.radius + 6);
+        if (dragNode) {
+            isDragging = true;
+        } else {
+            isDragging = true;
+            startX = e.clientX - offsetX;
+            startY = e.clientY - offsetY;
+        }
+    };
+
+    canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        if (dragNode) {
+            dragNode.x = (e.clientX - rect.left - offsetX) / scale;
+            dragNode.y = (e.clientY - rect.top - offsetY) / scale;
+        } else if (isDragging) {
+            offsetX = e.clientX - startX;
+            offsetY = e.clientY - startY;
+        }
+    };
+
+    canvas.onmouseup = canvas.onmouseleave = () => {
+        isDragging = false;
+        dragNode = null;
+    };
+
+    canvas.onwheel = (e) => {
+        e.preventDefault();
+        const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+        scale *= zoom;
+        scale = Math.max(0.4, Math.min(scale, 3.0));
+    };
+
+    activeGraphSims[canvasId] = {
+        reset: () => {
+            scale = 1.0;
+            offsetX = 0;
+            offsetY = 0;
+        }
+    };
+
+    let animId;
+    function render() {
+        if (!document.getElementById(canvasId)) {
+            cancelAnimationFrame(animId);
+            return;
+        }
+
+        ctx.fillStyle = "#040914";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        for (let i = 0; i < 40; i++) {
+            const sx = (Math.sin(i * 77 + Date.now() * 0.0003) * 0.5 + 0.5) * width;
+            const sy = (Math.cos(i * 44 + Date.now() * 0.0003) * 0.5 + 0.5) * height;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        links.forEach(l => {
+            ctx.beginPath();
+            ctx.moveTo(l.source.x, l.source.y);
+            ctx.lineTo(l.target.x, l.target.y);
+            ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            const midX = (l.source.x + l.target.x) / 2;
+            const midY = (l.source.y + l.target.y) / 2;
+            ctx.fillStyle = "rgba(148, 163, 184, 0.8)";
+            ctx.font = "9px sans-serif";
+            ctx.fillText(l.relation, midX, midY);
+        });
+
+        nodes.forEach(n => {
+            if (!dragNode || dragNode !== n) {
+                n.x += n.vx;
+                n.y += n.vy;
+                if (n.x < 30 || n.x > width - 30) n.vx *= -1;
+                if (n.y < 30 || n.y > height - 30) n.vy *= -1;
+            }
+
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+            ctx.fillStyle = n.color;
+            ctx.shadowColor = n.color;
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = "#e2e8f0";
+            ctx.font = "10px sans-serif";
+            ctx.fillText(n.name.length > 8 ? n.name.slice(0, 8) + ".." : n.name, n.x + n.radius + 3, n.y + 3);
+        });
+
+        ctx.restore();
+
+        if (mCtx) {
+            mCtx.fillStyle = "#0f172a";
+            mCtx.fillRect(0, 0, 100, 100);
+
+            nodes.forEach(n => {
+                const mx = (n.x / width) * 100;
+                const my = (n.y / height) * 100;
+                mCtx.beginPath();
+                mCtx.arc(mx, my, 2, 0, Math.PI * 2);
+                mCtx.fillStyle = n.color;
+                mCtx.fill();
+            });
+        }
+
+        animId = requestAnimationFrame(render);
+    }
+
+    render();
+}
+
+function resetGraphView(projectId) {
+    const sim = activeGraphSims[`kg-canvas-${projectId}`];
+    if (sim && sim.reset) sim.reset();
+}
+
+function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash;
+}
+
 window.loadAdminLearningDashboard = loadAdminLearningDashboard;
 window.triggerAdminProjectLearn = triggerAdminProjectLearn;
 window.triggerLearnAllProjects = triggerLearnAllProjects;
 window.openAdminKGModal = openAdminKGModal;
+window.toggleInlineKGVisualizer = toggleInlineKGVisualizer;
+window.resetGraphView = resetGraphView;
 window.loadSettingsForm = loadSettingsForm;
 window.saveSecurityConfig = saveSecurityConfig;
 window.saveLLMConfig = saveLLMConfig;
