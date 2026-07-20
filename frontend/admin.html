@@ -176,9 +176,12 @@
 
                     <!-- 子面板：学习进度看板 (镜像完美对齐 貔貅/LawRAG 学习看板设计) -->
                     <div class="admin-panel" id="admin-panel-learning">
-                        <div class="admin-panel-header">
-                            <h2>🧠 学习进度看板</h2>
-                            <span class="admin-panel-desc">全局监控所有项目的向量化入库、知识图谱提取与智能学习预计计算状态</span>
+                        <div class="admin-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h2>🧠 学习进度看板</h2>
+                                <span class="admin-panel-desc">全局监控所有项目的向量化入库、知识图谱提取与智能学习预计计算状态</span>
+                            </div>
+                            <button id="btn-learn-all-projects" class="btn-gov-primary" onclick="triggerLearnAllProjects()" style="font-size:13px; padding:8px 16px;">🚀 开启全量项目大模型深度学习</button>
                         </div>
                         <div class="admin-panel-body">
                             

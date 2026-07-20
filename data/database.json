@@ -115,6 +115,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-01-10",
       "planned_completion_date": "2026-06-30"
@@ -210,6 +219,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-01-20",
       "planned_completion_date": "2026-07-20"
@@ -299,6 +317,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-03-01",
       "planned_completion_date": "2026-09-30"
@@ -385,6 +412,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-02-15",
       "planned_completion_date": "2026-06-15"
@@ -468,6 +504,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-04-01",
       "planned_completion_date": "2026-07-01"
@@ -524,6 +569,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-05-15",
       "planned_completion_date": "2026-09-15"
@@ -596,6 +650,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-06-05",
       "planned_completion_date": "2026-08-05"
@@ -677,6 +740,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2025-12-01",
       "planned_completion_date": "2026-04-01"
@@ -732,6 +804,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2026-07-01",
       "planned_completion_date": "2026-11-01"
@@ -817,6 +898,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:09:44",
       "start_date": "2025-11-15",
       "planned_completion_date": "2026-03-15"
@@ -872,6 +962,15 @@
         }
       },
       "saved_docs": null,
+      "knowledge_graph": {
+        "status": "",
+        "learned_at": "",
+        "total_chunks": 0,
+        "entities": null,
+        "relations": null,
+        "summary": ""
+      },
+      "chunks": null,
       "created_at": "2026-07-20 10:14:09",
       "start_date": "2026-03-15",
       "planned_completion_date": "2026-09-15"
@@ -888,7 +987,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-18 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p10_f102_1_mock"
+      "hash": "hash_f_p10_f102_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_2_mock": {
       "id": "f_p10_f102_2_mock",
@@ -900,7 +1002,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p10_f102_2_mock"
+      "hash": "hash_f_p10_f102_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_3_mock": {
       "id": "f_p10_f102_3_mock",
@@ -912,7 +1017,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p10_f102_3_mock"
+      "hash": "hash_f_p10_f102_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_4_mock": {
       "id": "f_p10_f102_4_mock",
@@ -924,7 +1032,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p10_f102_4_mock"
+      "hash": "hash_f_p10_f102_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_5_mock": {
       "id": "f_p10_f102_5_mock",
@@ -936,7 +1047,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p10_f102_5_mock"
+      "hash": "hash_f_p10_f102_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_6_mock": {
       "id": "f_p10_f102_6_mock",
@@ -948,7 +1062,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p10_f102_6_mock"
+      "hash": "hash_f_p10_f102_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_7_mock": {
       "id": "f_p10_f102_7_mock",
@@ -960,7 +1077,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-27 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p10_f102_7_mock"
+      "hash": "hash_f_p10_f102_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p10_f102_8_mock": {
       "id": "f_p10_f102_8_mock",
@@ -972,7 +1092,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-17 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p10_f102_8_mock"
+      "hash": "hash_f_p10_f102_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_1_mock": {
       "id": "f_p1_f101_1_mock",
@@ -984,7 +1107,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p1_f101_1_mock"
+      "hash": "hash_f_p1_f101_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_2_mock": {
       "id": "f_p1_f101_2_mock",
@@ -996,7 +1122,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-18 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p1_f101_2_mock"
+      "hash": "hash_f_p1_f101_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_3_mock": {
       "id": "f_p1_f101_3_mock",
@@ -1008,7 +1137,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p1_f101_3_mock"
+      "hash": "hash_f_p1_f101_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_4_mock": {
       "id": "f_p1_f101_4_mock",
@@ -1020,7 +1152,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p1_f101_4_mock"
+      "hash": "hash_f_p1_f101_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_5_mock": {
       "id": "f_p1_f101_5_mock",
@@ -1032,7 +1167,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p1_f101_5_mock"
+      "hash": "hash_f_p1_f101_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_6_mock": {
       "id": "f_p1_f101_6_mock",
@@ -1044,7 +1182,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-20 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p1_f101_6_mock"
+      "hash": "hash_f_p1_f101_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_7_mock": {
       "id": "f_p1_f101_7_mock",
@@ -1056,7 +1197,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-14 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p1_f101_7_mock"
+      "hash": "hash_f_p1_f101_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p1_f101_8_mock": {
       "id": "f_p1_f101_8_mock",
@@ -1068,7 +1212,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-15 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p1_f101_8_mock"
+      "hash": "hash_f_p1_f101_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_1_mock": {
       "id": "f_p2_f103_1_mock",
@@ -1080,7 +1227,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-15 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p2_f103_1_mock"
+      "hash": "hash_f_p2_f103_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_2_mock": {
       "id": "f_p2_f103_2_mock",
@@ -1092,7 +1242,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-24 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p2_f103_2_mock"
+      "hash": "hash_f_p2_f103_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_3_mock": {
       "id": "f_p2_f103_3_mock",
@@ -1104,7 +1257,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-21 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p2_f103_3_mock"
+      "hash": "hash_f_p2_f103_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_4_mock": {
       "id": "f_p2_f103_4_mock",
@@ -1116,7 +1272,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-10 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p2_f103_4_mock"
+      "hash": "hash_f_p2_f103_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_5_mock": {
       "id": "f_p2_f103_5_mock",
@@ -1128,7 +1287,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-12 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p2_f103_5_mock"
+      "hash": "hash_f_p2_f103_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_6_mock": {
       "id": "f_p2_f103_6_mock",
@@ -1140,7 +1302,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-10 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p2_f103_6_mock"
+      "hash": "hash_f_p2_f103_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_7_mock": {
       "id": "f_p2_f103_7_mock",
@@ -1152,7 +1317,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-23 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p2_f103_7_mock"
+      "hash": "hash_f_p2_f103_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p2_f103_8_mock": {
       "id": "f_p2_f103_8_mock",
@@ -1164,7 +1332,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-26 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p2_f103_8_mock"
+      "hash": "hash_f_p2_f103_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_1_mock": {
       "id": "f_p3_f104_1_mock",
@@ -1176,7 +1347,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p3_f104_1_mock"
+      "hash": "hash_f_p3_f104_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_2_mock": {
       "id": "f_p3_f104_2_mock",
@@ -1188,7 +1362,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-21 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p3_f104_2_mock"
+      "hash": "hash_f_p3_f104_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_3_mock": {
       "id": "f_p3_f104_3_mock",
@@ -1200,7 +1377,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p3_f104_3_mock"
+      "hash": "hash_f_p3_f104_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_4_mock": {
       "id": "f_p3_f104_4_mock",
@@ -1212,7 +1392,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-20 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p3_f104_4_mock"
+      "hash": "hash_f_p3_f104_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_5_mock": {
       "id": "f_p3_f104_5_mock",
@@ -1224,7 +1407,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-15 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p3_f104_5_mock"
+      "hash": "hash_f_p3_f104_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_6_mock": {
       "id": "f_p3_f104_6_mock",
@@ -1236,7 +1422,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p3_f104_6_mock"
+      "hash": "hash_f_p3_f104_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_7_mock": {
       "id": "f_p3_f104_7_mock",
@@ -1248,7 +1437,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-17 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p3_f104_7_mock"
+      "hash": "hash_f_p3_f104_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p3_f104_8_mock": {
       "id": "f_p3_f104_8_mock",
@@ -1260,7 +1452,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-18 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p3_f104_8_mock"
+      "hash": "hash_f_p3_f104_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_1_mock": {
       "id": "f_p4_f105_1_mock",
@@ -1272,7 +1467,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p4_f105_1_mock"
+      "hash": "hash_f_p4_f105_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_2_mock": {
       "id": "f_p4_f105_2_mock",
@@ -1284,7 +1482,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-27 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p4_f105_2_mock"
+      "hash": "hash_f_p4_f105_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_3_mock": {
       "id": "f_p4_f105_3_mock",
@@ -1296,7 +1497,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-20 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p4_f105_3_mock"
+      "hash": "hash_f_p4_f105_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_4_mock": {
       "id": "f_p4_f105_4_mock",
@@ -1308,7 +1512,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p4_f105_4_mock"
+      "hash": "hash_f_p4_f105_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_5_mock": {
       "id": "f_p4_f105_5_mock",
@@ -1320,7 +1527,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-21 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p4_f105_5_mock"
+      "hash": "hash_f_p4_f105_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_6_mock": {
       "id": "f_p4_f105_6_mock",
@@ -1332,7 +1542,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-20 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p4_f105_6_mock"
+      "hash": "hash_f_p4_f105_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_7_mock": {
       "id": "f_p4_f105_7_mock",
@@ -1344,7 +1557,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-18 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p4_f105_7_mock"
+      "hash": "hash_f_p4_f105_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p4_f105_8_mock": {
       "id": "f_p4_f105_8_mock",
@@ -1356,7 +1572,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p4_f105_8_mock"
+      "hash": "hash_f_p4_f105_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_1_mock": {
       "id": "f_p5_f106_1_mock",
@@ -1368,7 +1587,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-18 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p5_f106_1_mock"
+      "hash": "hash_f_p5_f106_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_2_mock": {
       "id": "f_p5_f106_2_mock",
@@ -1380,7 +1602,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-13 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p5_f106_2_mock"
+      "hash": "hash_f_p5_f106_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_3_mock": {
       "id": "f_p5_f106_3_mock",
@@ -1392,7 +1617,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-17 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p5_f106_3_mock"
+      "hash": "hash_f_p5_f106_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_4_mock": {
       "id": "f_p5_f106_4_mock",
@@ -1404,7 +1632,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p5_f106_4_mock"
+      "hash": "hash_f_p5_f106_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_5_mock": {
       "id": "f_p5_f106_5_mock",
@@ -1416,7 +1647,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p5_f106_5_mock"
+      "hash": "hash_f_p5_f106_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_6_mock": {
       "id": "f_p5_f106_6_mock",
@@ -1428,7 +1662,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-24 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p5_f106_6_mock"
+      "hash": "hash_f_p5_f106_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_7_mock": {
       "id": "f_p5_f106_7_mock",
@@ -1440,7 +1677,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p5_f106_7_mock"
+      "hash": "hash_f_p5_f106_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p5_f106_8_mock": {
       "id": "f_p5_f106_8_mock",
@@ -1452,7 +1692,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-13 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p5_f106_8_mock"
+      "hash": "hash_f_p5_f106_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_1_mock": {
       "id": "f_p6_f107_1_mock",
@@ -1464,7 +1707,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-12 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p6_f107_1_mock"
+      "hash": "hash_f_p6_f107_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_2_mock": {
       "id": "f_p6_f107_2_mock",
@@ -1476,7 +1722,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p6_f107_2_mock"
+      "hash": "hash_f_p6_f107_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_3_mock": {
       "id": "f_p6_f107_3_mock",
@@ -1488,7 +1737,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p6_f107_3_mock"
+      "hash": "hash_f_p6_f107_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_4_mock": {
       "id": "f_p6_f107_4_mock",
@@ -1500,7 +1752,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-15 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p6_f107_4_mock"
+      "hash": "hash_f_p6_f107_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_5_mock": {
       "id": "f_p6_f107_5_mock",
@@ -1512,7 +1767,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-28 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p6_f107_5_mock"
+      "hash": "hash_f_p6_f107_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_6_mock": {
       "id": "f_p6_f107_6_mock",
@@ -1524,7 +1782,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p6_f107_6_mock"
+      "hash": "hash_f_p6_f107_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_7_mock": {
       "id": "f_p6_f107_7_mock",
@@ -1536,7 +1797,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-24 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p6_f107_7_mock"
+      "hash": "hash_f_p6_f107_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p6_f107_8_mock": {
       "id": "f_p6_f107_8_mock",
@@ -1548,7 +1812,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p6_f107_8_mock"
+      "hash": "hash_f_p6_f107_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_1_mock": {
       "id": "f_p7_f108_1_mock",
@@ -1560,7 +1827,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p7_f108_1_mock"
+      "hash": "hash_f_p7_f108_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_2_mock": {
       "id": "f_p7_f108_2_mock",
@@ -1572,7 +1842,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-24 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p7_f108_2_mock"
+      "hash": "hash_f_p7_f108_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_3_mock": {
       "id": "f_p7_f108_3_mock",
@@ -1584,7 +1857,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-21 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p7_f108_3_mock"
+      "hash": "hash_f_p7_f108_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_4_mock": {
       "id": "f_p7_f108_4_mock",
@@ -1596,7 +1872,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-23 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p7_f108_4_mock"
+      "hash": "hash_f_p7_f108_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_5_mock": {
       "id": "f_p7_f108_5_mock",
@@ -1608,7 +1887,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-15 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p7_f108_5_mock"
+      "hash": "hash_f_p7_f108_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_6_mock": {
       "id": "f_p7_f108_6_mock",
@@ -1620,7 +1902,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p7_f108_6_mock"
+      "hash": "hash_f_p7_f108_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_7_mock": {
       "id": "f_p7_f108_7_mock",
@@ -1632,7 +1917,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-23 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p7_f108_7_mock"
+      "hash": "hash_f_p7_f108_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p7_f108_8_mock": {
       "id": "f_p7_f108_8_mock",
@@ -1644,7 +1932,10 @@
       "uploaded_by": "张主任 (项目负责人)",
       "uploaded_at": "2026-03-12 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p7_f108_8_mock"
+      "hash": "hash_f_p7_f108_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_1_mock": {
       "id": "f_p8_f109_1_mock",
@@ -1656,7 +1947,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-14 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p8_f109_1_mock"
+      "hash": "hash_f_p8_f109_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_2_mock": {
       "id": "f_p8_f109_2_mock",
@@ -1668,7 +1962,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p8_f109_2_mock"
+      "hash": "hash_f_p8_f109_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_3_mock": {
       "id": "f_p8_f109_3_mock",
@@ -1680,7 +1977,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p8_f109_3_mock"
+      "hash": "hash_f_p8_f109_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_4_mock": {
       "id": "f_p8_f109_4_mock",
@@ -1692,7 +1992,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p8_f109_4_mock"
+      "hash": "hash_f_p8_f109_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_5_mock": {
       "id": "f_p8_f109_5_mock",
@@ -1704,7 +2007,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-22 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p8_f109_5_mock"
+      "hash": "hash_f_p8_f109_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_6_mock": {
       "id": "f_p8_f109_6_mock",
@@ -1716,7 +2022,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p8_f109_6_mock"
+      "hash": "hash_f_p8_f109_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_7_mock": {
       "id": "f_p8_f109_7_mock",
@@ -1728,7 +2037,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-21 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p8_f109_7_mock"
+      "hash": "hash_f_p8_f109_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p8_f109_8_mock": {
       "id": "f_p8_f109_8_mock",
@@ -1740,7 +2052,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p8_f109_8_mock"
+      "hash": "hash_f_p8_f109_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_1_mock": {
       "id": "f_p9_f110_1_mock",
@@ -1752,7 +2067,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p9_f110_1_mock"
+      "hash": "hash_f_p9_f110_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_2_mock": {
       "id": "f_p9_f110_2_mock",
@@ -1764,7 +2082,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-11 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p9_f110_2_mock"
+      "hash": "hash_f_p9_f110_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_3_mock": {
       "id": "f_p9_f110_3_mock",
@@ -1776,7 +2097,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-18 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p9_f110_3_mock"
+      "hash": "hash_f_p9_f110_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_4_mock": {
       "id": "f_p9_f110_4_mock",
@@ -1788,7 +2112,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p9_f110_4_mock"
+      "hash": "hash_f_p9_f110_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_5_mock": {
       "id": "f_p9_f110_5_mock",
@@ -1800,7 +2127,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p9_f110_5_mock"
+      "hash": "hash_f_p9_f110_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_6_mock": {
       "id": "f_p9_f110_6_mock",
@@ -1812,7 +2142,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p9_f110_6_mock"
+      "hash": "hash_f_p9_f110_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_7_mock": {
       "id": "f_p9_f110_7_mock",
@@ -1824,7 +2157,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-19 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p9_f110_7_mock"
+      "hash": "hash_f_p9_f110_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p9_f110_8_mock": {
       "id": "f_p9_f110_8_mock",
@@ -1836,7 +2172,10 @@
       "uploaded_by": "李科长 (项目负责人)",
       "uploaded_at": "2026-03-24 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p9_f110_8_mock"
+      "hash": "hash_f_p9_f110_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_1_mock": {
       "id": "f_p_654f295d13e0bf70_f111_1_mock",
@@ -1848,7 +2187,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-14 10:00:00",
       "stage_folder": "立项",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_1_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_1_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_2_mock": {
       "id": "f_p_654f295d13e0bf70_f111_2_mock",
@@ -1860,7 +2202,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-12 10:00:00",
       "stage_folder": "招标",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_2_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_2_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_3_mock": {
       "id": "f_p_654f295d13e0bf70_f111_3_mock",
@@ -1872,7 +2217,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-25 10:00:00",
       "stage_folder": "合同",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_3_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_3_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_4_mock": {
       "id": "f_p_654f295d13e0bf70_f111_4_mock",
@@ -1884,7 +2232,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-16 10:00:00",
       "stage_folder": "实施",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_4_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_4_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_5_mock": {
       "id": "f_p_654f295d13e0bf70_f111_5_mock",
@@ -1896,7 +2247,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-27 10:00:00",
       "stage_folder": "监理",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_5_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_5_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_6_mock": {
       "id": "f_p_654f295d13e0bf70_f111_6_mock",
@@ -1908,7 +2262,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-21 10:00:00",
       "stage_folder": "过程",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_6_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_6_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_7_mock": {
       "id": "f_p_654f295d13e0bf70_f111_7_mock",
@@ -1920,7 +2277,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-17 10:00:00",
       "stage_folder": "验收",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_7_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_7_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     },
     "f_p_654f295d13e0bf70_f111_8_mock": {
       "id": "f_p_654f295d13e0bf70_f111_8_mock",
@@ -1932,7 +2292,10 @@
       "uploaded_by": "小王 (项目负责人)",
       "uploaded_at": "2026-03-26 10:00:00",
       "stage_folder": "运维",
-      "hash": "hash_f_p_654f295d13e0bf70_f111_8_mock"
+      "hash": "hash_f_p_654f295d13e0bf70_f111_8_mock",
+      "summary": "",
+      "summary_model": "",
+      "summary_hash": ""
     }
   },
   "alerts": {
@@ -2015,7 +2378,40 @@
       "read_at": ""
     }
   },
+  "llm_cache": {},
   "audit_logs": [
+    {
+      "id": "log_1784564443322286829",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:41788",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 16:20:43"
+    },
+    {
+      "id": "log_1784564443112175247",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:41794",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 16:20:43"
+    },
+    {
+      "id": "log_1784564439227352733",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:41802",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 16:20:39"
+    },
+    {
+      "id": "log_1784564438590737400",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:41802",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 16:20:38"
+    },
     {
       "id": "log_1784563072342408011",
       "user": "张主任 (信息中心主任)",

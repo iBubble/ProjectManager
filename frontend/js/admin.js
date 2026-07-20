@@ -801,19 +801,30 @@ function loadAdminLearningDashboard() {
 
             if (cpuEl) cpuEl.textContent = stats.cpu_load || "0.6%";
             if (memEl) memEl.textContent = stats.memory_usage || "23.5GB / 48.0GB";
-            if (chunksEl) chunksEl.textContent = Number(stats.total_vector_chunks || 19853).toLocaleString();
-            if (entitiesEl) entitiesEl.textContent = Number(stats.total_kg_entities || 67328).toLocaleString();
-            if (relationsEl) relationsEl.textContent = Number(stats.total_kg_relations || 150774).toLocaleString();
-            if (activeNoteEl) activeNoteEl.textContent = `共监控 ${stats.active_projects || 11} 个活跃项目`;
-            if (globalPercentEl) globalPercentEl.textContent = stats.global_completion || "100.00%";
+            if (chunksEl) chunksEl.textContent = Number(stats.total_vector_chunks || 0).toLocaleString();
+            if (entitiesEl) entitiesEl.textContent = Number(stats.total_kg_entities || 0).toLocaleString();
+            if (relationsEl) relationsEl.textContent = Number(stats.total_kg_relations || 0).toLocaleString();
+            if (activeNoteEl) activeNoteEl.textContent = `共监控 ${stats.active_projects || 0} 个活跃项目`;
+            if (globalPercentEl) globalPercentEl.textContent = stats.global_completion || "0.00%";
+
+            // 动态调节环形进度条 strokeDashoffset (总周长为 251.2)
+            const circleBar = document.querySelector(".circle-bar");
+            if (circleBar) {
+                const percent = stats.global_percent_num || 0;
+                const offset = 251.2 - (251.2 * percent / 100);
+                circleBar.style.strokeDashoffset = offset;
+            }
 
             const vectorCountEl = document.getElementById("step-vector-count");
             const kgCountEl = document.getElementById("step-kg-count");
             const summaryCountEl = document.getElementById("step-summary-count");
 
-            if (vectorCountEl) vectorCountEl.textContent = `${stats.total_files || 1454} / ${stats.total_files || 1454} 文件`;
-            if (kgCountEl) kgCountEl.textContent = `${stats.total_files || 1454} / ${stats.total_files || 1454} 文件`;
-            if (summaryCountEl) summaryCountEl.textContent = `${(stats.total_files || 100) * 2} / ${(stats.total_files || 100) * 2} 段`;
+            const totalFiles = stats.total_files || 0;
+            const learnedFiles = stats.learned_files || 0;
+
+            if (vectorCountEl) vectorCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
+            if (kgCountEl) kgCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
+            if (summaryCountEl) summaryCountEl.textContent = `${learnedFiles * 2} / ${totalFiles * 2} 段`;
 
             renderLearningProjectCards(stats.projects_learning || []);
         })
@@ -831,18 +842,26 @@ function renderLearningProjectCards(projects) {
         return;
     }
 
-    box.innerHTML = projects.map(p => `
+    box.innerHTML = projects.map(p => {
+        const isLearned = p.status === "learned";
+        const isLearning = p.status === "learning";
+        const percent = isLearned ? "100.00%" : (isLearning ? "50.00%" : "0.00%");
+        const percentNum = isLearned ? 100 : (isLearning ? 50 : 0);
+        const statusBadgeClass = isLearned ? "bg-success" : (isLearning ? "bg-warning text-dark" : "bg-secondary");
+        const statusBadgeText = isLearned ? "已完成" : (isLearning ? "学习中..." : "未开始学习");
+
+        return `
         <div class="learning-project-card">
             <div class="project-card-header">
                 <div class="project-card-title">📁 ${escapeHtml(p.project_name)}</div>
                 <div class="project-card-actions">
-                    <button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">⏸ 重新研判学习</button>
+                    <button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>
                     <select class="form-select form-select-sm" style="width: auto; font-size:12px; display:inline-block;">
                         <option>优先级 ${p.priority || "2级"}</option>
                         <option>优先级 1级 (最高)</option>
                         <option>优先级 3级</option>
                     </select>
-                    <span class="badge bg-success" style="font-size:12px; padding:6px 10px;">${p.status === "learning" ? "学习中..." : "已完成"}</span>
+                    <span class="badge ${statusBadgeClass}" style="font-size:12px; padding:6px 10px;">${statusBadgeText}</span>
                     <button class="btn-kg-preview" onclick="openAdminKGModal('${p.project_id}', '${escapeHtml(p.project_name)}')">👁 预览知识图谱星空图</button>
                 </div>
             </div>
@@ -851,49 +870,78 @@ function renderLearningProjectCards(projects) {
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>🗄️ 1. 向量化入库</span>
-                        <span class="step-num">${p.chunks_count || 301} 切片 · ${p.files_count || 2} / ${p.files_count || 2} 文件</span>
+                        <span class="step-num">${p.chunks_count || 0} 切片 · ${isLearned ? p.files_count : 0} / ${p.files_count || 0} 文件</span>
                     </div>
                     <div class="progress-bar-thick">
-                        <div class="progress-bar-fill grad-purple-blue" style="width: 100%;"></div>
+                        <div class="progress-bar-fill grad-purple-blue" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">100.00%</div>
+                    <div class="step-percent">${percent}</div>
                 </div>
 
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>🔗 2. 知识图谱提取</span>
-                        <span class="step-num">${p.entities_count || 18} 实体节点 · ${p.relations_count || 32} 条三元组</span>
+                        <span class="step-num">${p.entities_count || 0} 实体节点 · ${p.relations_count || 0} 条三元组</span>
                     </div>
                     <div class="progress-bar-thick">
-                        <div class="progress-bar-fill grad-cyan" style="width: 100%;"></div>
+                        <div class="progress-bar-fill grad-cyan" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">100.00%</div>
+                    <div class="step-percent">${percent}</div>
                 </div>
 
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>🌺 3. 图谱社区摘要</span>
-                        <span class="step-num">全局知识摘要完毕</span>
+                        <span class="step-num">${isLearned ? "全局知识摘要完毕" : "待计算"}</span>
                     </div>
                     <div class="progress-bar-thick">
-                        <div class="progress-bar-fill grad-pink" style="width: 100%;"></div>
+                        <div class="progress-bar-fill grad-pink" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">100.00%</div>
+                    <div class="step-percent">${percent}</div>
                 </div>
 
                 <div class="step-progress-item">
                     <div class="step-head">
                         <span>⚡ 4. 智能学习预计计算</span>
-                        <span class="step-num">全文生效 / 督办提炼已完成</span>
+                        <span class="step-num">${isLearned ? "全文生效 / 督办提炼已完成" : "待生成"}</span>
                     </div>
                     <div class="progress-bar-thick">
-                        <div class="progress-bar-fill grad-light-purple" style="width: 100%;"></div>
+                        <div class="progress-bar-fill grad-light-purple" style="width: ${percentNum}%;"></div>
                     </div>
-                    <div class="step-percent">100.00%</div>
+                    <div class="step-percent">${percent}</div>
                 </div>
             </div>
         </div>
-    `).join("");
+    `;
+    }).join("");
+}
+
+function triggerLearnAllProjects() {
+    const btn = document.getElementById("btn-learn-all-projects");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 真实大模型全量学习中...`;
+    }
+    showToast("正在启动全量项目真实大模型“切片+三元组图谱”学习管线，请稍候...", "info");
+
+    apiFetch("/api/projects/learn-all", {
+        method: "POST",
+        headers: { "X-CSRF-Token": getCsrfToken() }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject(new Error("全量学习失败")))
+    .then(data => {
+        showToast(data.message || "🎉 成功完成全量项目大模型真实学习！", "success");
+        loadAdminLearningDashboard();
+    })
+    .catch(err => {
+        showToast("全量项目学习失败: " + err.message, "error");
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
+        }
+    });
 }
 
 function triggerAdminProjectLearn(projectId) {
@@ -972,6 +1020,7 @@ function openAdminKGModal(projectId, projectName) {
 
 window.loadAdminLearningDashboard = loadAdminLearningDashboard;
 window.triggerAdminProjectLearn = triggerAdminProjectLearn;
+window.triggerLearnAllProjects = triggerLearnAllProjects;
 window.openAdminKGModal = openAdminKGModal;
 window.loadSettingsForm = loadSettingsForm;
 window.saveSecurityConfig = saveSecurityConfig;

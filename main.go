@@ -85,6 +85,9 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 	case "/api/projects/batch-update":
 		backend.HandlerBatchUpdateProjects(w, r)
 		return
+	case "/api/projects/learn-all":
+		backend.HandlerLearnAllProjects(w, r)
+		return
 	case "/api/system/llm/test":
 		backend.HandlerTestLLM(w, r)
 		return

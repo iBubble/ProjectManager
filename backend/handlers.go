@@ -2272,7 +2272,7 @@ func HandlerProjectKnowledgeGraph(w http.ResponseWriter, r *http.Request, projec
 	})
 }
 
-// HandlerLearningStats 全局学习进度看板统计 (包含 CPU/内存利用率、Celery引擎、Qdrant切片、Neo4j图谱及各项目学习状态)
+// HandlerLearningStats 全局学习进度看板统计 (完全基于真实大模型深度学习与切片图谱数据)
 func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	_, err := GetCurrentUser(r)
 	if err != nil {
@@ -2283,6 +2283,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	projects := GlobalDB.ListProjects()
 
 	totalFilesCount := len(GlobalDB.Files)
+	learnedFilesCount := 0
 	totalChunks := 0
 	totalEntities := 0
 	totalRelations := 0
@@ -2291,46 +2292,44 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	projectLearningItems := make([]map[string]interface{}, 0)
 
 	for _, p := range projects {
+		pFiles := GlobalDB.ListFiles(p.ID)
+		fileCount := len(pFiles)
+
 		chunkCount := len(p.Chunks)
-		if chunkCount == 0 && len(GlobalDB.ListFiles(p.ID)) > 0 {
-			chunkCount = len(GlobalDB.ListFiles(p.ID)) * 15
-		}
-		totalChunks += chunkCount
-
 		entityCount := len(p.KnowledgeGraph.Entities)
-		if entityCount == 0 {
-			entityCount = len(GlobalDB.ListFiles(p.ID)) * 6
-		}
-		totalEntities += entityCount
-
 		relCount := len(p.KnowledgeGraph.Relations)
-		if relCount == 0 {
-			relCount = len(GlobalDB.ListFiles(p.ID)) * 12
-		}
+
+		totalChunks += chunkCount
+		totalEntities += entityCount
 		totalRelations += relCount
 
 		status := p.KnowledgeGraph.Status
 		if status == "" {
-			status = "learned"
-		}
-		if status == "learned" {
-			learnedProjectsCount++
+			status = "unlearned" // 默认未开始学习
 		}
 
-		pFiles := GlobalDB.ListFiles(p.ID)
+		progressPercent := 0.0
+		if status == "learned" {
+			learnedProjectsCount++
+			learnedFilesCount += fileCount
+			progressPercent = 100.0
+		} else if status == "learning" {
+			progressPercent = 50.0
+		}
 
 		item := map[string]interface{}{
 			"project_id":        p.ID,
 			"project_name":      p.Name,
 			"status":            status,
 			"learned_at":        p.KnowledgeGraph.LearnedAt,
-			"files_count":       len(pFiles),
+			"files_count":       fileCount,
 			"chunks_count":      chunkCount,
 			"entities_count":    entityCount,
 			"relations_count":   relCount,
-			"vector_progress":   100.0,
-			"kg_progress":       100.0,
-			"summary_progress":  100.0,
+			"progress_percent":  progressPercent,
+			"vector_progress":   progressPercent,
+			"kg_progress":       progressPercent,
+			"summary_progress":  progressPercent,
 			"predict_progress":  0.0,
 			"priority":          "2级",
 		}
@@ -2338,7 +2337,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalProjects := len(projects)
-	globalCompletion := 100.0
+	globalCompletion := 0.0
 	if totalProjects > 0 {
 		globalCompletion = float64(learnedProjectsCount) / float64(totalProjects) * 100.0
 	}
@@ -2351,15 +2350,48 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 		"celery_slow_queue":    0,
 		"celery_workers":       2,
 		"active_projects":      totalProjects,
-		"total_vector_chunks":  totalChunks + 19850,
-		"total_kg_entities":    totalEntities + 67300,
-		"total_kg_relations":   totalRelations + 150700,
+		"total_vector_chunks":  totalChunks,
+		"total_kg_entities":    totalEntities,
+		"total_kg_relations":   totalRelations,
 		"global_completion":    fmt.Sprintf("%.2f%%", globalCompletion),
+		"global_percent_num":   globalCompletion,
 		"total_files":          totalFilesCount,
-		"learned_files":        totalFilesCount,
+		"learned_files":        learnedFilesCount,
 		"projects_learning":    projectLearningItems,
 	}
 
 	sendJSON(w, stats)
+}
+
+// HandlerLearnAllProjects 一键全量对所有项目触发真实大模型深度学习管线
+func HandlerLearnAllProjects(w http.ResponseWriter, r *http.Request) {
+	user, err := GetCurrentUser(r)
+	if err != nil {
+		sendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	if r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "仅支持 POST 请求")
+		return
+	}
+	if !CheckCSRF(r) {
+		sendError(w, http.StatusForbidden, "CSRF 验证失败")
+		return
+	}
+
+	projects := GlobalDB.ListProjects()
+	successCount := 0
+
+	for _, p := range projects {
+		if _, errL := RunProjectLearningPipeline(p.ID); errL == nil {
+			successCount++
+		}
+	}
+
+	GlobalDB.AddAuditLog(user.Name, "一键项目全量学习", r.RemoteAddr, fmt.Sprintf("全量触发 %d 个项目的大模型切片与图谱学习", successCount))
+	sendJSON(w, map[string]interface{}{
+		"message": fmt.Sprintf("成功对 %d 个项目完成真实大模型深度切片与知识图谱全量构建学习！", successCount),
+		"learned_projects": successCount,
+	})
 }
 
