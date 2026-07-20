@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目详情档案 - 政务智管</title>
+    <link rel="stylesheet" href="css/main.css?v=20260720M">
+</head>
+<body class="gov-classic-theme">
+    <!-- 全局防伪防泄水印叠加层 -->
+    <div id="global-watermark" class="watermark-overlay"></div>
+
+    <div class="app-layout">
+        <!-- 统一页头 -->
+        <header class="app-header">
+            <div class="header-left" onclick="window.location.href='/index.html'" style="cursor: pointer; position:relative; z-index:99;">
+                <span class="gov-crest">🏛️</span>
+                <span class="system-title">政务智管・项目生命周期智能管控平台</span>
+            </div>
+            <div class="header-right">
+                <div class="bell-trigger" id="btn-bell" title="查看预警信息" onclick="openAlertsModal()" style="cursor: pointer; position: relative; z-index:99; display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; pointer-events: none;">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" style="pointer-events: none;"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" style="pointer-events: none;"></path>
+                    </svg>
+                    <span id="badge-alert-count" class="badge-red hidden" style="pointer-events: none;">0</span>
+                </div>
+                
+                <div id="ai-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
+                    <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #cbd5e1;"></span>
+                </div>
+
+                <span class="user-info-text">
+                    <strong id="current-user-name">张主任</strong> (<span id="current-user-role">信息中心主任</span>)
+                </span>
+
+                <div class="dropdown-trigger-box" style="position: relative;">
+                    <button class="btn-gov-secondary btn-header-menu" id="btn-advanced-menu" onclick="toggleAdvancedMenu(event)">
+                        高级功能 ▾
+                    </button>
+                    <div class="header-dropdown-menu hidden" id="advanced-menu-list" onclick="event.stopPropagation()">
+                        <div class="menu-item" onclick="window.location.href='/index.html'"><span class="menu-icon">📊</span> 项目看板</div>
+                        <div class="menu-item" onclick="window.location.href='/admin.html'"><span class="menu-icon">🔧</span> 后台管理</div>
+                        <div class="menu-divider"></div>
+                        <div class="menu-item text-danger" onclick="handleLogout()"><span class="menu-icon">🚪</span> 退出登录</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 详情独立主视图容器 -->
+        <main class="main-content-pane">
+            <!-- 详情页头部栏 -->
+            <div class="detail-header-bar">
+                <button id="btn-back-to-ledger" class="btn-gov-secondary" onclick="window.location.href='/index.html';" style="position:relative; z-index:99; cursor:pointer;">← 返回总览看板</button>
+                <div class="detail-title-group">
+                    <h2 id="detail-project-title">加载项目中...</h2>
+                    <span class="detail-stage-badge" id="detail-project-stage">阶段</span>
+                </div>
+            </div>
+
+            <!-- 核心两大区域网格布局 -->
+            <div class="gov-two-column-layout">
+                
+                <!-- 左侧区域：文件归档目录 (8个阶段文件夹树) -->
+                <section class="detail-column-left">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 style="font-size:15px; margin:0;">📁 阶段资料智能归档</h3>
+                        <button class="btn-gov-secondary" onclick="openFileCompareModal()" style="font-size:12px; padding:4px 10px;">⚖️ AI 版本对比校验</button>
+                    </div>
+                    
+                    <!-- 文件拖拽/点击上传区 -->
+                    <div class="upload-dropzone" id="file-dropzone">
+                        <span>📥 拖拽文件到此处或点击选择上传文件进行归档</span>
+                        <input type="file" id="input-file-uploader" multiple class="hidden">
+                    </div>
+                    <div class="upload-options-row">
+                        <label for="upload-stage-select">智能自动分流至指定阶段文件夹：</label>
+                        <select id="upload-stage-select">
+                            <option value="auto">🌟 自动识别分流归档</option>
+                            <option value="立项">1. 立项阶段</option>
+                            <option value="招标">2. 招标阶段</option>
+                            <option value="合同">3. 合同阶段</option>
+                            <option value="实施">4. 实施阶段</option>
+                            <option value="监理">5. 监理阶段</option>
+                            <option value="过程">6. 过程阶段</option>
+                            <option value="验收">7. 验收阶段</option>
+                            <option value="运维">8. 运维阶段</option>
+                        </select>
+                    </div>
+
+                    <!-- 8大阶段文件目录列表 -->
+                    <div class="folder-directory-tree">
+                        <div class="folder-node">
+                            <div class="folder-title">1. 立项阶段文件</div>
+                            <div class="folder-content" id="files-立项"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">2. 招标阶段文件</div>
+                            <div class="folder-content" id="files-招标"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">3. 合同阶段文件</div>
+                            <div class="folder-content" id="files-合同"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">4. 实施阶段文件</div>
+                            <div class="folder-content" id="files-实施"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">5. 监理阶段文件</div>
+                            <div class="folder-content" id="files-监理"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">6. 过程资料</div>
+                            <div class="folder-content" id="files-过程"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">7. 验收阶段文件</div>
+                            <div class="folder-content" id="files-验收"></div>
+                        </div>
+                        <div class="folder-node">
+                            <div class="folder-title">8. 质保与运维资料</div>
+                            <div class="folder-content" id="files-运维"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 右侧区域：AI 智能分析与研判 -->
+                <section class="detail-column-right">
+                    
+                    <!-- 顶层主选项卡 -->
+                    <div class="pane-tab-header">
+                        <button class="pane-tab-btn active" id="tab-btn-compliance" data-pane="compliance" onclick="switchDetailRightTab('compliance')" style="cursor:pointer; position:relative; z-index:99;">🏛️ 项目合规研判与预警</button>
+                        <button class="pane-tab-btn" id="tab-btn-rag-chat" data-pane="rag-chat" onclick="switchDetailRightTab('rag-chat')" style="cursor:pointer; position:relative; z-index:99;">💬 智能助手与公文定稿</button>
+                        <button class="pane-tab-btn" id="tab-btn-todos" data-pane="todos" onclick="switchDetailRightTab('todos')" style="cursor:pointer; position:relative; z-index:99;">📌 待办事项清单</button>
+                    </div>
+
+                    <!-- 选项卡一：合规研判与预警 -->
+                    <div id="pane-tab-compliance" class="pane-tab-content active">
+                        <div class="ai-analysis-card" style="margin-top: 15px;">
+                            <div class="card-header-flex">
+                                <h3>🤖 大模型项目合规研判报告</h3>
+                                <button id="btn-reanalyze-ai" class="btn-gov-primary" style="padding: 4px 10px; font-size:12.5px;">重新AI研判</button>
+                            </div>
+
+                            <div class="score-summary-bar">
+                                <div class="score-circle-box">
+                                    <div class="score-circle" id="ai-health-circle">
+                                        <span class="score-number" id="ai-health-score">--</span>
+                                        <span class="score-label">合规健康度</span>
+                                    </div>
+                                </div>
+                                <div class="score-text-box">
+                                    <h4 id="ai-health-status">系统正在多维分析项目合规度...</h4>
+                                    <p id="ai-health-desc">根据大模型规则比对，自动侦测财务超支、阶段停滞与归档资料缺失风险。</p>
+                                </div>
+                            </div>
+
+                            <div class="analysis-dimension-grid">
+                                <div class="dim-card" id="dim-progress">
+                                    <div class="dim-header">
+                                        <span>📅 进度延期预警</span>
+                                        <span class="dim-badge badge-green" id="badge-progress">正常</span>
+                                    </div>
+                                    <p class="dim-detail" id="detail-progress">进度符合预期目标。</p>
+                                </div>
+                                <div class="dim-card" id="dim-finance">
+                                    <div class="dim-header">
+                                        <span>💰 资金拨付合规</span>
+                                        <span class="dim-badge badge-green" id="badge-finance">正常</span>
+                                    </div>
+                                    <p class="dim-detail" id="detail-finance">拨款节点符合合同规定。</p>
+                                </div>
+                                <div class="dim-card" id="dim-quality">
+                                    <div class="dim-header">
+                                        <span>🔍 质量问题与初验</span>
+                                        <span class="dim-badge badge-green" id="badge-quality">正常</span>
+                                    </div>
+                                    <p class="dim-detail" id="detail-quality">暂无未解决的质量缺陷。</p>
+                                </div>
+                                <div class="dim-card" id="dim-change">
+                                    <div class="dim-header">
+                                        <span>⚖️ 变更越权红线</span>
+                                        <span class="dim-badge badge-green" id="badge-change">无变更</span>
+                                    </div>
+                                    <p class="dim-detail" id="detail-change">未触发10%强审核红线。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 智能预警列表 -->
+                        <div class="ai-analysis-card" style="margin-top: 16px;">
+                            <h3>⚠️ 关联预警提醒项</h3>
+                            <div class="project-alerts-box" id="project-alerts-list">
+                                <!-- 动态加载 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 选项卡二：智能助手与公文定稿助手 (RAG) -->
+                    <div id="pane-tab-rag-chat" class="pane-tab-content hidden">
+                        <div class="rag-chat-container" style="margin-top: 15px;">
+                            <div class="chat-header">
+                                <div>
+                                    <span class="chat-title">💬 项目知识库 AI 助理</span>
+                                    <span class="chat-subtitle" id="chat-rag-status">内置离线政务大模型 (DeepSeek-R1) · 强物理隔离</span>
+                                </div>
+                                <div class="chat-mode-selector">
+                                    <button class="btn-chat-mode active" data-mode="fast" onclick="setChatMode('fast')">⚡ 快速查询</button>
+                                    <button class="btn-chat-mode" data-mode="deep" onclick="setChatMode('deep')">🧠 深度规则研判</button>
+                                </div>
+                            </div>
+
+                            <div class="chat-messages-box" id="chat-messages-history">
+                                <div class="chat-msg system">
+                                    <div class="msg-avatar">🤖</div>
+                                    <div class="msg-bubble">
+                                        您好！我是您的项目合规助手。已调取当前项目全部归档文件。您可以向我询问项目预算、变更协议或初验结果。
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chat-input-area">
+                                <div class="chat-quick-tags">
+                                    <span class="quick-tag" onclick="sendQuickQuery('提炼本项目核心合同要点与付款逻辑')">💡 合同要点提炼</span>
+                                    <span class="quick-tag" onclick="sendQuickQuery('检查本项目是否存在预算超支风险或合规隐患')">⚠️ 查重排验隐患</span>
+                                    <span class="quick-tag" onclick="sendQuickQuery('生成本项目验收评审会议纪要草稿')">📝 拟定验收纪要</span>
+                                </div>
+                                <div class="input-wrapper">
+                                    <textarea id="chat-input-text" placeholder="输入问题，按 Enter 发送... (例: 请对比补充协议与主合同条款)" rows="2"></textarea>
+                                    <button class="btn-gov-primary btn-send" id="btn-chat-send">发送研判</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 交互式拟稿定稿在线编辑器 -->
+                        <div class="rag-doc-editor-card" style="margin-top: 16px;">
+                            <div class="card-header-flex">
+                                <h3>📝 拟稿定稿在线文档编辑器</h3>
+                                <button class="btn-gov-primary" id="btn-rag-save-doc" style="font-size:12px; padding:4px 10px;">💾 存为项目归档公文</button>
+                            </div>
+                            <div class="editor-toolbar">
+                                <span class="editor-status" id="editor-status-text">未选择公文草稿</span>
+                                <input type="text" id="rag-doc-filename" placeholder="输入拟定文档文件名 (例: 验收评审意见-定稿.docx)" style="font-size:12.5px; width:260px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+                            </div>
+                            <textarea id="rag-editor-content" rows="8" placeholder="AI 研判建议与公文草稿将自动生成于此处，您可以直接在线编辑定稿..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 选项卡三：待办事项清单 -->
+                    <div id="pane-tab-todos" class="pane-tab-content hidden">
+                        <div class="todo-list-card" style="margin-top: 15px;">
+                            <div class="card-header-flex">
+                                <h3>📌 项目生命周期待办清单</h3>
+                                <span style="font-size:12px; color:var(--text-muted);">自动跟进验收与付款节点</span>
+                            </div>
+                            <div class="todo-input-row" style="display:flex; gap:10px; margin: 12px 0;">
+                                <input type="text" id="new-todo-text" placeholder="添加新待办事项..." style="flex:1; padding:6px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px;">
+                                <button class="btn-gov-primary" onclick="addProjectTodo()" style="font-size:12.5px; padding:6px 14px;">添加待办</button>
+                            </div>
+                            <ul class="todo-item-list" id="project-todo-list">
+                                <!-- 动态填充待办项 -->
+                            </ul>
+                        </div>
+                    </div>
+
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI 文件差异对比 Modal -->
+    <div class="admin-modal-overlay hidden" id="modal-file-compare" onclick="if(event.target===this) closeFileCompareModal();">
+        <div class="admin-modal" style="max-width:720px;">
+            <div class="admin-modal-header">
+                <h3>⚖️ AI 文件版本差异对比与合规校验</h3>
+                <button class="admin-modal-close" onclick="closeFileCompareModal()">✕</button>
+            </div>
+            <div class="admin-modal-body">
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>选择基线文件 (基准版本)</label>
+                        <select id="compare-file-a"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>选择对比文件 (变更/补充协议)</label>
+                        <select id="compare-file-b"></select>
+                    </div>
+                </div>
+                <div style="text-align:center; margin:12px 0;">
+                    <button class="btn-gov-primary" onclick="submitFileCompare()">🔍 启动大模型条款差异对比</button>
+                </div>
+                <div id="compare-results-box" style="margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js?v=20260720N"></script>
+    <script src="js/auth.js?v=20260720N"></script>
+    <script src="js/detail.js?v=20260720N"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            checkAuthAndInitHeader();
+            // 从 URL 参数获取 project id (例: ?id=p1)
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get("id") || "p1";
+            initProjectDetailPage(pid);
+        });
+    </script>
+</body>
+</html>

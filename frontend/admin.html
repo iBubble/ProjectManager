@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理中心 - 政务智管</title>
+    <link rel="stylesheet" href="css/main.css?v=20260720M">
+    <link rel="stylesheet" href="css/admin.css?v=20260720M">
+</head>
+<body class="gov-classic-theme">
+    <!-- 全局防伪防泄水印叠加层 -->
+    <div id="global-watermark" class="watermark-overlay"></div>
+
+    <div class="app-layout">
+        <!-- 统一页头 -->
+        <header class="app-header">
+            <div class="header-left" onclick="window.location.href='/index.html'" style="cursor: pointer; position:relative; z-index:99;">
+                <span class="gov-crest">🏛️</span>
+                <span class="system-title">政务智管・项目生命周期智能管控平台</span>
+            </div>
+            <div class="header-right">
+                <div class="bell-trigger" id="btn-bell" title="查看预警信息" onclick="openAlertsModal()" style="cursor: pointer; position: relative; z-index:99; display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; pointer-events: none;">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" style="pointer-events: none;"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" style="pointer-events: none;"></path>
+                    </svg>
+                    <span id="badge-alert-count" class="badge-red hidden" style="pointer-events: none;">0</span>
+                </div>
+                
+                <div id="ai-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
+                    <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #cbd5e1;"></span>
+                </div>
+
+                <span class="user-info-text">
+                    <strong id="current-user-name">张主任</strong> (<span id="current-user-role">信息中心主任</span>)
+                </span>
+
+                <div class="dropdown-trigger-box" style="position: relative;">
+                    <button class="btn-gov-secondary btn-header-menu" id="btn-advanced-menu" onclick="toggleAdvancedMenu(event)">
+                        高级功能 ▾
+                    </button>
+                    <div class="header-dropdown-menu hidden" id="advanced-menu-list" onclick="event.stopPropagation()">
+                        <div class="menu-item" onclick="window.location.href='/index.html'"><span class="menu-icon">📊</span> 项目看板</div>
+                        <div class="menu-item" onclick="window.location.href='/admin.html'"><span class="menu-icon">🔧</span> 后台管理</div>
+                        <div class="menu-divider"></div>
+                        <div class="menu-item text-danger" onclick="handleLogout()"><span class="menu-icon">🚪</span> 退出登录</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 后台独立主视图容器 -->
+        <main class="main-content-pane">
+            <div class="admin-layout">
+                <!-- 左侧功能导航栏 -->
+                <aside class="admin-sidebar">
+                    <div class="admin-sidebar-header">
+                        <h3>🔧 后台管理中心</h3>
+                        <p>系统管理员控制面板</p>
+                    </div>
+                    <nav class="admin-nav">
+                        <button class="admin-nav-item active" data-admin-tab="project-mgmt" onclick="switchAdminTab('project-mgmt')">
+                            <span class="nav-icon">📊</span>
+                            <span class="nav-label">项目管理</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="users" onclick="switchAdminTab('users')">
+                            <span class="nav-icon">👥</span>
+                            <span class="nav-label">用户与权限管理</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="monitor" onclick="switchAdminTab('monitor')">
+                            <span class="nav-icon">📈</span>
+                            <span class="nav-label">系统监控</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="security" onclick="switchAdminTab('security')">
+                            <span class="nav-icon">🛡️</span>
+                            <span class="nav-label">安全加固设置</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="llm" onclick="switchAdminTab('llm')">
+                            <span class="nav-icon">🤖</span>
+                            <span class="nav-label">大模型接口配置</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="audit" onclick="switchAdminTab('audit')">
+                            <span class="nav-icon">📋</span>
+                            <span class="nav-label">操作审计日志</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="data" onclick="switchAdminTab('data')">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">数据导出与备份</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="about" onclick="switchAdminTab('about')">
+                            <span class="nav-icon">ℹ️</span>
+                            <span class="nav-label">系统版本信息</span>
+                        </button>
+                    </nav>
+                    <div class="admin-sidebar-footer">
+                        <button id="btn-admin-back-home" class="btn-gov-secondary" onclick="window.location.href='/index.html';" style="width:100%; font-size:13px; cursor:pointer; position:relative; z-index:99;">← 返回项目看板</button>
+                    </div>
+                </aside>
+
+                <!-- 右侧内容区域 -->
+                <div class="admin-content">
+
+                    <!-- 子面板：项目管理 -->
+                    <div class="admin-panel active" id="admin-panel-project-mgmt">
+                        <div class="admin-panel-header">
+                            <h2>📊 项目全生命周期管理</h2>
+                            <span class="admin-panel-desc">查看、编辑、归档所有信息化项目，管理项目阶段与状态</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-project-toolbar">
+                                <input type="text" id="admin-project-search" placeholder="🔍 搜索项目名称/文号/负责人...">
+                                <div class="filter-group">
+                                    <select id="admin-project-stage-filter">
+                                        <option value="">全部阶段</option>
+                                        <option value="立项">立项</option>
+                                        <option value="招标">招标</option>
+                                        <option value="合同">合同</option>
+                                        <option value="实施">实施</option>
+                                        <option value="监理">监理</option>
+                                        <option value="过程">过程资料</option>
+                                        <option value="验收">验收</option>
+                                        <option value="运维">质保运维</option>
+                                    </select>
+                                    <select id="admin-project-health-filter">
+                                        <option value="">全部健康度</option>
+                                        <option value="good">健康 (≥80)</option>
+                                        <option value="warning">警告 (60-79)</option>
+                                        <option value="danger">危险 (&lt;60)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="batch-action-bar" style="margin: 12px 0; display:flex; gap:10px; align-items:center; background:#f8fafc; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; flex-wrap:wrap;">
+                                <span style="font-size:13px; font-weight:600; color:#475569;">批量选中操作：</span>
+                                <select id="batch-stage-select" style="font-size:12.5px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    <option value="">-- 批量修改阶段 --</option>
+                                    <option value="立项">立项</option>
+                                    <option value="招标">招标</option>
+                                    <option value="合同">合同</option>
+                                    <option value="实施">实施</option>
+                                    <option value="监理">监理</option>
+                                    <option value="过程">过程资料</option>
+                                    <option value="验收">验收</option>
+                                    <option value="运维">质保运维</option>
+                                </select>
+                                <button class="btn-gov-secondary" onclick="executeBatchUpdateStage()" style="font-size:12px; padding:4px 10px;">执行批量变更</button>
+                                <input type="text" id="batch-label-input" placeholder="输入批量标签 (如: 硬件采购)" style="font-size:12.5px; width:180px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+                                <button class="btn-gov-secondary" onclick="executeBatchAddLabel()" style="font-size:12px; padding:4px 10px;">批量添加标签</button>
+                            </div>
+                            <div class="admin-form-card" style="padding:0; max-width:none;">
+                                <table class="gov-table admin-projects-table" style="margin:0;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:30px;"><input type="checkbox" id="admin-select-all-projects"></th>
+                                            <th>项目名称</th>
+                                            <th>立项文号</th>
+                                            <th>负责人</th>
+                                            <th>预算(万)</th>
+                                            <th>当前阶段</th>
+                                            <th>健康度</th>
+                                            <th>标签</th>
+                                            <th>创建时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-projects-table-body">
+                                        <!-- 动态载入 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：用户与权限管理 -->
+                    <div class="admin-panel" id="admin-panel-users">
+                        <div class="admin-panel-header">
+                            <h2>👥 系统用户账号与权限管理</h2>
+                            <span class="admin-panel-desc">管理平台登录账号、政务角色分配与企业微信绑定</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="role-desc-bar">
+                                <span class="role-desc-title">政务标准四级权限体系：</span>
+                                <span>超级管理员（信息中心主任）→ 项目管理员（科长）→ 项目负责人（仅看自己项目）→ 只读领导（仅查看总览）</span>
+                            </div>
+                            <div class="admin-form-card" style="margin-bottom: 24px;">
+                                <h3>➕ 新增系统用户</h3>
+                                <form id="form-create-user" onsubmit="event.preventDefault(); createAdminUser();">
+                                    <div class="form-row-2">
+                                        <div class="form-group">
+                                            <label>登录账号</label>
+                                            <input type="text" id="new-user-name" placeholder="英文账号名" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>姓名与职级</label>
+                                            <input type="text" id="new-user-fullname" placeholder="例: 刘科员 (项目科)" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row-2">
+                                        <div class="form-group">
+                                            <label>权限角色</label>
+                                            <select id="new-user-role">
+                                                <option value="project_owner">项目负责人</option>
+                                                <option value="project_admin">项目管理员 (科长)</option>
+                                                <option value="reader">只读领导</option>
+                                                <option value="super_admin">超级管理员 (信息中心主任)</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>企业微信ID</label>
+                                            <input type="text" id="new-user-wechat" placeholder="例: wx_liu_staff">
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-gov-primary" style="margin-top: 8px;">创建用户（默认密码 admin123）</button>
+                                </form>
+                            </div>
+                            <div class="admin-form-card" style="padding:0; max-width:none;">
+                                <table class="gov-table">
+                                    <thead>
+                                        <tr>
+                                            <th>管理账号</th>
+                                            <th>姓名与职级</th>
+                                            <th>政务角色</th>
+                                            <th>企业微信对接ID</th>
+                                            <th>安全操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-users-table-body">
+                                        <!-- 动态载入 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：系统监控 -->
+                    <div class="admin-panel" id="admin-panel-monitor">
+                        <div class="admin-panel-header">
+                            <h2>📈 系统运行监控面板</h2>
+                            <span class="admin-panel-desc">实时查看系统运行状态、资源使用与项目分布统计</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-icon">📁</div>
+                                    <div class="stat-value" id="monitor-project-count">-</div>
+                                    <div class="stat-label">在办项目总数</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">📄</div>
+                                    <div class="stat-value" id="monitor-file-count">-</div>
+                                    <div class="stat-label">归档文件总数</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">👤</div>
+                                    <div class="stat-value" id="monitor-user-count">-</div>
+                                    <div class="stat-label">注册用户数</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">⚠️</div>
+                                    <div class="stat-value text-danger" id="monitor-risk-count">-</div>
+                                    <div class="stat-label">预警预警项</div>
+                                </div>
+                            </div>
+                            <div class="admin-form-card" style="margin-top: 24px; max-width: none;">
+                                <h3>📊 项目阶段分布统计</h3>
+                                <div id="monitor-stage-distribution" style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px;">
+                                    <!-- 动态渲染阶段分布柱状样式 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：安全加固设置 -->
+                    <div class="admin-panel" id="admin-panel-security">
+                        <div class="admin-panel-header">
+                            <h2>🛡️ 系统安全加固设置</h2>
+                            <span class="admin-panel-desc">配置水印防泄密、IP 白名单控制与文件加密策略</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-form-card">
+                                <form id="form-security-config" onsubmit="event.preventDefault(); saveSecurityConfig();">
+                                    <div class="form-group">
+                                        <label>全局动态水印模板</label>
+                                        <input type="text" id="setting-watermark" placeholder="例: 政务内网安全审计 {user} {date}">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>允许访问 IP 白名单 (半角逗号分隔)</label>
+                                        <input type="text" id="setting-iplist" placeholder="例: 127.0.0.1, 10.0.0.0/8">
+                                    </div>
+                                    <div class="form-group checkbox-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="setting-encrypt" checked>
+                                            <span>启用归档文件 AES-GCM 强物理加密存储</span>
+                                        </label>
+                                    </div>
+                                    <button type="submit" class="btn-gov-primary" style="margin-top: 12px;">保存安全规则配置</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：大模型接口配置 -->
+                    <div class="admin-panel" id="admin-panel-llm">
+                        <div class="admin-panel-header">
+                            <h2>🤖 离线政务大模型 API 配置</h2>
+                            <span class="admin-panel-desc">配置本地 DeepSeek / 规则引擎 Gateway 接口与密钥</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-form-card">
+                                <form id="form-llm-config" onsubmit="event.preventDefault(); saveLLMConfig();">
+                                    <div class="form-group">
+                                        <label>模型引擎服务商</label>
+                                        <select id="setting-llm-provider">
+                                            <option value="mock">DeepSeek-R1 (离线规则研判内置引擎)</option>
+                                            <option value="openai">OpenAI 兼容 Gateway</option>
+                                            <option value="ollama">Ollama 本地私有化部署</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>API 服务端点 (Endpoint URL)</label>
+                                        <input type="text" id="setting-llm-endpoint" placeholder="http://127.0.0.1:11434/api/generate">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>API Key 访问密钥</label>
+                                        <input type="password" id="setting-llm-key" value="******">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>选用的大模型名称 (Model Name)</label>
+                                        <select id="setting-llm-model" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 12px;">
+                                            <option value="">(请先测试连接以加载模型)</option>
+                                        </select>
+                                    </div>
+                                    <div style="display:flex; gap:10px; margin-top: 16px;">
+                                        <button type="submit" class="btn-gov-primary">保存大模型配置</button>
+                                        <button type="button" class="btn-gov-secondary" onclick="testLLMConnection()">测试 Gateway 连通性</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：操作审计日志 -->
+                    <div class="admin-panel" id="admin-panel-audit">
+                        <div class="admin-panel-header">
+                            <h2>📋 操作审计追溯日志</h2>
+                            <span class="admin-panel-desc">所有上传、查看、下载、修改操作全程留痕，满足纪检与财政审计追溯要求</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-form-card" style="padding:0; max-width:none;">
+                                <table class="gov-table">
+                                    <thead>
+                                        <tr>
+                                            <th>操作时间</th>
+                                            <th>操作员</th>
+                                            <th>行为</th>
+                                            <th>参数细节</th>
+                                            <th>来源IP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-audit-table-body">
+                                        <!-- 动态载入 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：数据导出与备份 -->
+                    <div class="admin-panel" id="admin-panel-data">
+                        <div class="admin-panel-header">
+                            <h2>📦 数据导出与台账备份</h2>
+                            <span class="admin-panel-desc">一键导出全部项目台账、风险清单、文件目录，适配审计与绩效检查</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-export-grid">
+                                <div class="export-card">
+                                    <div class="export-icon">📊</div>
+                                    <h4>全量项目台账</h4>
+                                    <p>导出所有在办项目的基础档案、阶段状态、负责人与预算信息</p>
+                                    <button class="btn-gov-primary" onclick="exportCSVDirectly('ledger')">导出台账 CSV</button>
+                                </div>
+                                <div class="export-card">
+                                    <div class="export-icon">⚠️</div>
+                                    <h4>风险项目清单</h4>
+                                    <p>导出健康度低于70分的项目及其风险详情与整改建议</p>
+                                    <button class="btn-gov-primary" onclick="exportCSVDirectly('risk')">导出风险 CSV</button>
+                                </div>
+                                <div class="export-card">
+                                    <div class="export-icon">📁</div>
+                                    <h4>归档文件目录</h4>
+                                    <p>导出所有项目的文件归档清单，含文件名、类型、上传时间</p>
+                                    <button class="btn-gov-primary" onclick="exportCSVDirectly('files')">导出文件目录 CSV</button>
+                                </div>
+                                <div class="export-card">
+                                    <div class="export-icon">🔐</div>
+                                    <h4>审计日志备份</h4>
+                                    <p>导出全量操作审计日志，含操作员、时间、IP、操作详情</p>
+                                    <button class="btn-gov-primary" onclick="exportCSVDirectly('audit')">导出审计日志 CSV</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：系统版本信息 -->
+                    <div class="admin-panel" id="admin-panel-about">
+                        <div class="admin-panel-header">
+                            <h2>ℹ️ 系统版本与部署信息</h2>
+                            <span class="admin-panel-desc">当前系统运行状态与技术参数</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            <div class="admin-form-card">
+                                <table class="gov-table" style="font-size: 14px;">
+                                    <tbody>
+                                        <tr><td style="font-weight:700; width:200px;">系统名称</td><td>政务智管・信息化项目全生命周期智能管控平台</td></tr>
+                                        <tr><td style="font-weight:700;">系统版本</td><td>v1.0.0-beta (2026-07-20)</td></tr>
+                                        <tr><td style="font-weight:700;">部署模式</td><td>内网涉密场景 · 本地私有化部署</td></tr>
+                                        <tr><td style="font-weight:700;">大模型引擎</td><td>DeepSeek-R1 政务自训版 (离线规则研判)</td></tr>
+                                        <tr><td style="font-weight:700;">数据存储</td><td>本地 JSON 文件数据库 + AES-GCM 文件加密</td></tr>
+                                        <tr><td style="font-weight:700;">服务端口</td><td>127.0.0.1:7897 (FRP 外网穿透)</td></tr>
+                                        <tr><td style="font-weight:700;">安全标准</td><td>等保 2.0 · CSRF 防护 · XSS 转义 · 操作审计留痕</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 批量项目编辑模态框 -->
+    <div class="admin-modal-overlay hidden" id="modal-edit-project" onclick="if(event.target===this) closeEditProjectModal();">
+        <div class="admin-modal" style="max-width:560px;">
+            <div class="admin-modal-header">
+                <h3>✏️ 编辑项目基本属性</h3>
+                <button class="admin-modal-close" onclick="closeEditProjectModal()">✕</button>
+            </div>
+            <div class="admin-modal-body" id="modal-edit-project-body">
+                <!-- 动态载入编辑表单 -->
+            </div>
+            <div class="admin-modal-footer">
+                <button class="btn-gov-secondary" onclick="closeEditProjectModal()">取消</button>
+                <button class="btn-gov-primary" onclick="submitEditProjectForm()">保存更新</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js?v=20260720N"></script>
+    <script src="js/auth.js?v=20260720N"></script>
+    <script src="js/admin.js?v=20260720N"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            checkAuthAndInitHeader();
+            switchAdminTab("project-mgmt");
+        });
+    </script>
+</body>
+</html>

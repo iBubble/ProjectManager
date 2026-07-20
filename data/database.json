@@ -1,0 +1,2997 @@
+{
+  "users": {
+    "admin": {
+      "id": "u1",
+      "username": "admin",
+      "password_hash": "4a33294d42e79c6d8d437ce8e160c45df68cc77516851c20e3601353a2e7fe49",
+      "role": "super_admin",
+      "name": "张主任 (信息中心主任)",
+      "wechat_id": "wx_director_zhang",
+      "is_disabled": false
+    },
+    "leader": {
+      "id": "u4",
+      "username": "leader",
+      "password_hash": "01235feb2ca77df035a1dce9a39128d7d66d20b6504d225c006b0e635096a5e3",
+      "role": "reader",
+      "name": "赵局长 (分管领导)",
+      "wechat_id": "wx_leader_zhao",
+      "is_disabled": false
+    },
+    "manager": {
+      "id": "u2",
+      "username": "manager",
+      "password_hash": "01235feb2ca77df035a1dce9a39128d7d66d20b6504d225c006b0e635096a5e3",
+      "role": "project_admin",
+      "name": "李科长 (项目管理员)",
+      "wechat_id": "wx_section_li",
+      "is_disabled": false
+    },
+    "owner": {
+      "id": "u3",
+      "username": "owner",
+      "password_hash": "01235feb2ca77df035a1dce9a39128d7d66d20b6504d225c006b0e635096a5e3",
+      "role": "project_owner",
+      "name": "小王 (项目负责人)",
+      "wechat_id": "wx_owner_wang",
+      "is_disabled": false
+    }
+  },
+  "projects": {
+    "p1": {
+      "id": "p1",
+      "name": "政务云数据中心升级项目",
+      "approval_doc_num": "国发〔2026〕102号",
+      "owner": "小王 (项目负责人)",
+      "budget": 12000000,
+      "construction_content": "采购国产高性能服务器30台，高可用存储2套，完成政务外网核心网备份，并对物理机房环境温湿度及安防系统进行升级改造。",
+      "construction_period": 12,
+      "approved_duration": 365,
+      "funding_source": "区级财政信息化专项基金",
+      "acceptance_standard": "设备全面上线稳定运行2周；数据备份丢包率小于0.01%；机房安防联动报警延迟低于1秒，且通过第三方等保测评。",
+      "vendor": "华夏信息云技术有限公司",
+      "win_amount": 11500000,
+      "service_scope": "提供服务器与存储设备供货、物理机房改造工程、核心网改造监理，以及3年的系统硬件维保服务。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "合同签订并提供履约保函后，支付首付款",
+          "ratio": 30,
+          "amount": 3450000,
+          "is_paid": true,
+          "invoice_file": "inv_p1_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "全部硬件设备到货并完成初验后，支付进度款",
+          "ratio": 40,
+          "amount": 4600000,
+          "is_paid": true,
+          "invoice_file": "inv_p1_02.pdf"
+        },
+        {
+          "node_index": 3,
+          "description": "项目整体终验合格且稳定运行半年后，支付尾款",
+          "ratio": 30,
+          "amount": 3450000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "2026-12-15",
+      "warranty_period": 36,
+      "change_terms": "任何追加变更金额均不得超过合同总价的 8%，且必须经由信息中心主任和区财政评审中心联合审批方可生效。",
+      "stage": "实施",
+      "labels": [
+        "硬件采购",
+        "机房改造"
+      ],
+      "health_score": 95,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": []
+        },
+        "finance": {
+          "paid_amount": 8050000,
+          "unpaid_amount": 3450000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": []
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": [],
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": [],
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-01-10",
+      "planned_completion_date": "2026-06-30"
+    },
+    "p10": {
+      "id": "p10",
+      "name": "信息中心年度办公设备租赁与运维服务",
+      "approval_doc_num": "信中发〔2026〕2号",
+      "owner": "张主任 (信息中心主任)",
+      "budget": 800000,
+      "construction_content": "租赁信息中心各科室日常办公用电脑、多功能数码复印机、打印机，并提供全年的桌面IT软硬件运维包干技术支持。",
+      "construction_period": 12,
+      "approved_duration": 365,
+      "funding_source": "信息中心经常性公用经费",
+      "acceptance_standard": "打印机和复印机月度故障率低于3次，日常桌面技术支持响应时效低于30分钟，月度满意度评分不低于90分。",
+      "vendor": "恒利办公设备租赁公司",
+      "win_amount": 780000,
+      "service_scope": "提供电脑与打印机设备租赁维护、局域网安全排障、机房例行巡检及耗材配送。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "第一季度服务费",
+          "ratio": 25,
+          "amount": 195000,
+          "is_paid": true,
+          "invoice_file": "inv_p10_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "第二季度服务费",
+          "ratio": 25,
+          "amount": 195000,
+          "is_paid": false,
+          "invoice_file": ""
+        },
+        {
+          "node_index": 3,
+          "description": "第三季度服务费",
+          "ratio": 25,
+          "amount": 195000,
+          "is_paid": false,
+          "invoice_file": ""
+        },
+        {
+          "node_index": 4,
+          "description": "第四季度服务费",
+          "ratio": 25,
+          "amount": 195000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "2026-12-31",
+      "warranty_period": 0,
+      "change_terms": "",
+      "stage": "运维",
+      "labels": [
+        "运维服务"
+      ],
+      "health_score": 45,
+      "health_report": {
+        "progress": {
+          "status": "滞后",
+          "delay_days": 30,
+          "risk_level": "高",
+          "delay_reasons": [
+            "因第二季度租赁服务款逾期30天未付，供应商发起服务违约警告，运维工程师已暂停机房例行巡检与部分故障响应"
+          ]
+        },
+        "finance": {
+          "paid_amount": 195000,
+          "unpaid_amount": 585000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": [
+            "第二季度租赁款付款凭证及财务发票缺失，付款流程受阻"
+          ]
+        },
+        "quality": {
+          "unresolved_issues_count": 3,
+          "repeated_failures": [
+            "多科室反馈故障报修无人受理",
+            "局域网打印机缺粉无法正常打印"
+          ],
+          "impact_acceptance": true
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-01-20",
+      "planned_completion_date": "2026-07-20"
+    },
+    "p2": {
+      "id": "p2",
+      "name": "智慧城市运行指挥平台建设",
+      "approval_doc_num": "市政办发〔2026〕44号",
+      "owner": "小王 (项目负责人)",
+      "budget": 8000000,
+      "construction_content": "开发集融合通信、视频调度、应急指挥、事件流转、多屏联动于一体的智慧城市运行可视化指挥平台，并适配接入多地市探头接口。",
+      "construction_period": 8,
+      "approved_duration": 240,
+      "funding_source": "市级智慧城市专项规划拨付资金",
+      "acceptance_standard": "系统能够支持100路视频会议无卡顿，且完成安全漏洞修复，无中高级漏洞，具备健全的数据脱敏逻辑，测试用例覆盖率达80%以上并提供阶段测试报告。",
+      "vendor": "中科政务信息技术有限公司",
+      "win_amount": 7800000,
+      "service_scope": "前端页面设计开发、应急模块、GIS地图聚合中间件、监理月报及售后1年维保。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "合同签订后支付启动资金",
+          "ratio": 20,
+          "amount": 1560000,
+          "is_paid": true,
+          "invoice_file": "inv_p2_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "系统核心功能开发完毕并通过阶段测试后，支付进度款",
+          "ratio": 40,
+          "amount": 3120000,
+          "is_paid": true,
+          "invoice_file": ""
+        },
+        {
+          "node_index": 3,
+          "description": "整体验收通过后支付尾款",
+          "ratio": 40,
+          "amount": 3120000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "2026-09-30",
+      "warranty_period": 12,
+      "change_terms": "变更需提前发起立项审核，超过合同金额5%的重大调整需重新开展需求评审并走补充合同报备程序。",
+      "stage": "实施",
+      "labels": [
+        "软件开发",
+        "政务平台建设"
+      ],
+      "health_score": 72,
+      "health_report": {
+        "progress": {
+          "status": "滞后",
+          "delay_days": 14,
+          "risk_level": "中",
+          "delay_reasons": [
+            "由于第三方接口迟迟未开放，开发进度已延期 14 天"
+          ]
+        },
+        "finance": {
+          "paid_amount": 4680000,
+          "unpaid_amount": 3120000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": [
+            "第二期进度款未上传阶段测试报告",
+            "第二期进度款未见有效增值税发票"
+          ]
+        },
+        "quality": {
+          "unresolved_issues_count": 2,
+          "repeated_failures": [
+            "视频会商模块偶发掉线",
+            "GIS聚合图层存在部分内存泄露"
+          ],
+          "impact_acceptance": true
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": [],
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-03-01",
+      "planned_completion_date": "2026-09-30"
+    },
+    "p3": {
+      "id": "p3",
+      "name": "电子政务外网骨干网升级项目",
+      "approval_doc_num": "信中发〔2026〕8号",
+      "owner": "小王 (项目负责人)",
+      "budget": 5000000,
+      "construction_content": "对核心网络交换机和接入路由器进行全面国产替代升级，增加网闸隔离并扩容出口骨干带宽至 10Gbps，改善科室办公网络体验。",
+      "construction_period": 4,
+      "approved_duration": 120,
+      "funding_source": "本级预算信息化改造资金",
+      "acceptance_standard": "所有改造边界网闸阻断率达100%，骨干带宽实测吞吐量不低于 9.5Gbps，新采购路由器具备完整的3层路由配置能力。",
+      "vendor": "神州网络系统集成有限公司",
+      "win_amount": 4800000,
+      "service_scope": "核心万兆路由交换设备采购、安装调测、光纤铺设及整体验收。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "合同生效且提交履约担保后支付预付款",
+          "ratio": 30,
+          "amount": 1440000,
+          "is_paid": true,
+          "invoice_file": "inv_p3_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "竣工初验合格后支付进度款",
+          "ratio": 50,
+          "amount": 2400000,
+          "is_paid": false,
+          "invoice_file": ""
+        },
+        {
+          "node_index": 3,
+          "description": "质保期满1年且运行正常无违约情况后支付余款",
+          "ratio": 20,
+          "amount": 960000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "2026-07-15",
+      "warranty_period": 12,
+      "change_terms": "变更累计金额需在合同总额10%内。超10%属超概算，根据政府项目管理办法需重走招投标审核。",
+      "stage": "实施",
+      "labels": [
+        "网络升级"
+      ],
+      "health_score": 55,
+      "health_report": {
+        "progress": {
+          "status": "滞后",
+          "delay_days": 5,
+          "risk_level": "高",
+          "delay_reasons": [
+            "合同约定竣工初验时间为2026-07-15，截至当前2026-07-20尚未进行初验申请，构成红色严重逾期"
+          ]
+        },
+        "finance": {
+          "paid_amount": 1440000,
+          "unpaid_amount": 3360000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": []
+        },
+        "quality": {
+          "unresolved_issues_count": 1,
+          "repeated_failures": [
+            "国产替换路由器丢包率偏高"
+          ],
+          "impact_acceptance": true
+        },
+        "change": {
+          "has_changes": true,
+          "change_details": [
+            "新增路由备用板卡和部分端口扩容"
+          ],
+          "unapproved_changes": true,
+          "total_change_amount": 800000,
+          "is_over_gaisan": true
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-02-15",
+      "planned_completion_date": "2026-06-15"
+    },
+    "p4": {
+      "id": "p4",
+      "name": "一网通办便民服务小程序",
+      "approval_doc_num": "信中发〔2026〕12号",
+      "owner": "小王 (项目负责人)",
+      "budget": 2000000,
+      "construction_content": "针对移动端政务办事场景，开发面向普通市民的一网通办微信小程序，支持线上社保查询、违章缴费和公积金自助提取。",
+      "construction_period": 6,
+      "approved_duration": 180,
+      "funding_source": "区县数字政务深化发展基金",
+      "acceptance_standard": "应用在主流机型上滑动流畅，主要办事接口响应时间低于1.5秒，且通过安全性与兼容性评测。",
+      "vendor": "众联政务软件开发有限公司",
+      "win_amount": 1900000,
+      "service_scope": "小程序系统架构设计、核心API集成、UI界面美化及初验终验全套文档整理。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "合同签订后支付启动资金",
+          "ratio": 30,
+          "amount": 570000,
+          "is_paid": true,
+          "invoice_file": "inv_p4_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "系统全面提报初验合格后支付进度款",
+          "ratio": 50,
+          "amount": 950000,
+          "is_paid": true,
+          "invoice_file": "inv_p4_02.pdf"
+        },
+        {
+          "node_index": 3,
+          "description": "终验合格且运行半年后结清尾款",
+          "ratio": 20,
+          "amount": 380000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "2026-08-01",
+      "warranty_period": 12,
+      "change_terms": "严控无序变更，单次变更申请上限为2万元，累计变更金额不得突破合同额的5%。",
+      "stage": "验收",
+      "labels": [
+        "软件开发",
+        "政务平台建设"
+      ],
+      "health_score": 88,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 1520000,
+          "unpaid_amount": 380000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": null
+        },
+        "quality": {
+          "unresolved_issues_count": 1,
+          "repeated_failures": [
+            "部分用户反映老旧Android机型微信授权登录偶发超时限制"
+          ],
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-04-01",
+      "planned_completion_date": "2026-07-01"
+    },
+    "p5": {
+      "id": "p5",
+      "name": "数字政府网络安全大脑系统",
+      "approval_doc_num": "国发〔2026〕204号",
+      "owner": "李科长 (项目管理员)",
+      "budget": 6000000,
+      "construction_content": "构建全区一体化数字政府网络安全监测与联动处置大脑，支持主动防御、态势感知及内网流量威胁审计分析。",
+      "construction_period": 10,
+      "approved_duration": 300,
+      "funding_source": "国家数字政府安全统筹专项款",
+      "acceptance_standard": "覆盖全区核心交换节点流量审计率达100%，具备微秒级威胁阻断响应时延，完成等保三级备案及测评。",
+      "vendor": "",
+      "win_amount": 5760000,
+      "service_scope": "",
+      "payment_nodes": null,
+      "completion_time": "",
+      "warranty_period": 0,
+      "change_terms": "",
+      "stage": "合同",
+      "labels": [
+        "网络升级",
+        "软件开发"
+      ],
+      "health_score": 100,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 0,
+          "unpaid_amount": 6000000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": null
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": null,
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-05-15",
+      "planned_completion_date": "2026-09-15"
+    },
+    "p6": {
+      "id": "p6",
+      "name": "政务数据备份一体机采购项目",
+      "approval_doc_num": "信中发〔2026〕15号",
+      "owner": "李科长 (项目管理员)",
+      "budget": 1500000,
+      "construction_content": "为确保核心业务数据库高可靠，采购高性能国产自主可控备份一体机2台，并配置数据同步增量备份授权软件。",
+      "construction_period": 3,
+      "approved_duration": 90,
+      "funding_source": "信息中心年度备用设备采购资金",
+      "acceptance_standard": "一体机顺利通电上架，实现跨机房数据备份链路畅通，完成物理磁盘冗余阵列配置并出具厂商到货验收单。",
+      "vendor": "国产红星存储技术有限公司",
+      "win_amount": 1450000,
+      "service_scope": "提供备份一体机硬件供货、机架部署服务、数据灾备策略设计及3年质保支持。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "设备到货并完成安装调试后一次性付清90%",
+          "ratio": 90,
+          "amount": 1305000,
+          "is_paid": false,
+          "invoice_file": ""
+        },
+        {
+          "node_index": 2,
+          "description": "质保期届满1年后支付尾款10%",
+          "ratio": 10,
+          "amount": 145000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "",
+      "warranty_period": 0,
+      "change_terms": "",
+      "stage": "招标",
+      "labels": [
+        "硬件采购"
+      ],
+      "health_score": 98,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 0,
+          "unpaid_amount": 1450000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": null
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": null,
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-06-05",
+      "planned_completion_date": "2026-08-05"
+    },
+    "p7": {
+      "id": "p7",
+      "name": "区县融媒体大屏改造工程",
+      "approval_doc_num": "融媒字〔2026〕3号",
+      "owner": "张主任 (信息中心主任)",
+      "budget": 3500000,
+      "construction_content": "针对老旧演播大厅及监控指挥大屏进行小间距LED升级，更换分布式大屏中控调度主机，实现画面无缝切换和低延时分屏显示。",
+      "construction_period": 5,
+      "approved_duration": 150,
+      "funding_source": "宣传部融媒体改造专项基金",
+      "acceptance_standard": "LED屏体无死点、坏点，分布式调度系统无画面畸变或声画不同步，通过电磁兼容及消防安全标准验收。",
+      "vendor": "视讯科技大屏系统有限公司",
+      "win_amount": 3400000,
+      "service_scope": "LED屏体采购安装、演播室中控系统集成、综合音响改造及售后2年全包维保。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "合同签订后支付预付款",
+          "ratio": 30,
+          "amount": 1020000,
+          "is_paid": true,
+          "invoice_file": "inv_p7_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "屏体安装通电通过初验支付进度款",
+          "ratio": 50,
+          "amount": 1700000,
+          "is_paid": true,
+          "invoice_file": "inv_p7_02.pdf"
+        },
+        {
+          "node_index": 3,
+          "description": "终验合格且运行满1年后支付尾款",
+          "ratio": 20,
+          "amount": 680000,
+          "is_paid": true,
+          "invoice_file": "inv_p7_03.pdf"
+        }
+      ],
+      "completion_time": "2026-01-10",
+      "warranty_period": 24,
+      "change_terms": "",
+      "stage": "运维",
+      "labels": [
+        "机房改造",
+        "硬件采购"
+      ],
+      "health_score": 92,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 3400000,
+          "unpaid_amount": 0,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": null
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": [],
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2025-12-01",
+      "planned_completion_date": "2026-04-01"
+    },
+    "p8": {
+      "id": "p8",
+      "name": "数字乡村综合治理平台",
+      "approval_doc_num": "农基发〔2026〕5号",
+      "owner": "小王 (项目负责人)",
+      "budget": 2800000,
+      "construction_content": "面向乡村网格化治理需求，开发集网格上报、随手拍、智慧党建、村务公开及农产品电商推介于一体的综合治理云平台。",
+      "construction_period": 8,
+      "approved_duration": 240,
+      "funding_source": "省财政厅数字乡村建设专项补助",
+      "acceptance_standard": "小程序端办事流转率达98%以上，符合政务云数据传输加密技术要求，具备用户数据防篡改、防窃取保护机制。",
+      "vendor": "",
+      "win_amount": 2688000,
+      "service_scope": "",
+      "payment_nodes": null,
+      "completion_time": "",
+      "warranty_period": 0,
+      "change_terms": "",
+      "stage": "立项",
+      "labels": [
+        "软件开发"
+      ],
+      "health_score": 100,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 0,
+          "unpaid_amount": 2800000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": null
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": null,
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2026-07-01",
+      "planned_completion_date": "2026-11-01"
+    },
+    "p9": {
+      "id": "p9",
+      "name": "政府外网接入交换机扩容服务",
+      "approval_doc_num": "信中发〔2026〕22号",
+      "owner": "李科长 (项目管理员)",
+      "budget": 4000000,
+      "construction_content": "扩容改造多栋政府大楼接入交换机，实现千兆桌面上联至万兆骨干通道，提供冗余光纤链路联调及测试服务。",
+      "construction_period": 5,
+      "approved_duration": 150,
+      "funding_source": "信息中心基础网改造备用金",
+      "acceptance_standard": "所有改造点桌面接入速率实测不低于900Mbps，万兆链路丢包率为0，核心日志上报无死锁。",
+      "vendor": "迅捷网络设备有限公司",
+      "win_amount": 3800000,
+      "service_scope": "提供100台千兆PoE交换机、200个万兆光模块采购及全网策略调优部署。",
+      "payment_nodes": [
+        {
+          "node_index": 1,
+          "description": "合同生效支付首付款",
+          "ratio": 30,
+          "amount": 1140000,
+          "is_paid": true,
+          "invoice_file": "inv_p9_01.pdf"
+        },
+        {
+          "node_index": 2,
+          "description": "硬件设备到场完成布线支付进度款",
+          "ratio": 50,
+          "amount": 1900000,
+          "is_paid": true,
+          "invoice_file": ""
+        },
+        {
+          "node_index": 3,
+          "description": "全网竣工验收合格支付尾款",
+          "ratio": 20,
+          "amount": 760000,
+          "is_paid": false,
+          "invoice_file": ""
+        }
+      ],
+      "completion_time": "2026-10-15",
+      "warranty_period": 12,
+      "change_terms": "变更追加最高不可超合同额 10% 红线。",
+      "stage": "实施",
+      "labels": [
+        "网络升级",
+        "运维服务"
+      ],
+      "health_score": 60,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 3040000,
+          "unpaid_amount": 760000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": [
+            "第二期进度款未见增值税发票，存在挂账隐患"
+          ]
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": [],
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": true,
+          "change_details": [
+            "因旧楼光纤老化增改铺设多模光纤"
+          ],
+          "unapproved_changes": true,
+          "total_change_amount": 600000,
+          "is_over_gaisan": true
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:09:44",
+      "start_date": "2025-11-15",
+      "planned_completion_date": "2026-03-15"
+    },
+    "p_654f295d13e0bf70": {
+      "id": "p_654f295d13e0bf70",
+      "name": "测试项目",
+      "approval_doc_num": "国发[2026]0001",
+      "owner": "小王 (项目负责人)",
+      "budget": 10000000,
+      "construction_content": "",
+      "construction_period": 0,
+      "approved_duration": 0,
+      "funding_source": "",
+      "acceptance_standard": "",
+      "vendor": "",
+      "win_amount": 9600000,
+      "service_scope": "",
+      "payment_nodes": null,
+      "completion_time": "",
+      "warranty_period": 0,
+      "change_terms": "",
+      "stage": "立项",
+      "labels": [
+        "其他服务"
+      ],
+      "health_score": 100,
+      "health_report": {
+        "progress": {
+          "status": "正常",
+          "delay_days": 0,
+          "risk_level": "低",
+          "delay_reasons": null
+        },
+        "finance": {
+          "paid_amount": 0,
+          "unpaid_amount": 10000000,
+          "is_over_budget": false,
+          "is_over_payment": false,
+          "missing_docs": null
+        },
+        "quality": {
+          "unresolved_issues_count": 0,
+          "repeated_failures": null,
+          "impact_acceptance": false
+        },
+        "change": {
+          "has_changes": false,
+          "change_details": null,
+          "unapproved_changes": false,
+          "total_change_amount": 0,
+          "is_over_gaisan": false
+        }
+      },
+      "saved_docs": null,
+      "created_at": "2026-07-20 10:14:09",
+      "start_date": "2026-03-15",
+      "planned_completion_date": "2026-09-15"
+    }
+  },
+  "files": {
+    "f_p10_f102_1_mock": {
+      "id": "f_p10_f102_1_mock",
+      "project_id": "p10",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p10_f102_1_mock",
+      "file_size": 2991775,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-18 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p10_f102_1_mock"
+    },
+    "f_p10_f102_2_mock": {
+      "id": "f_p10_f102_2_mock",
+      "project_id": "p10",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p10_f102_2_mock",
+      "file_size": 2877706,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p10_f102_2_mock"
+    },
+    "f_p10_f102_3_mock": {
+      "id": "f_p10_f102_3_mock",
+      "project_id": "p10",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p10_f102_3_mock",
+      "file_size": 2864351,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p10_f102_3_mock"
+    },
+    "f_p10_f102_4_mock": {
+      "id": "f_p10_f102_4_mock",
+      "project_id": "p10",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p10_f102_4_mock",
+      "file_size": 1404308,
+      "file_type": "docx",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p10_f102_4_mock"
+    },
+    "f_p10_f102_5_mock": {
+      "id": "f_p10_f102_5_mock",
+      "project_id": "p10",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p10_f102_5_mock",
+      "file_size": 2991243,
+      "file_type": "docx",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p10_f102_5_mock"
+    },
+    "f_p10_f102_6_mock": {
+      "id": "f_p10_f102_6_mock",
+      "project_id": "p10",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p10_f102_6_mock",
+      "file_size": 1435732,
+      "file_type": "docx",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p10_f102_6_mock"
+    },
+    "f_p10_f102_7_mock": {
+      "id": "f_p10_f102_7_mock",
+      "project_id": "p10",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p10_f102_7_mock",
+      "file_size": 629892,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-27 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p10_f102_7_mock"
+    },
+    "f_p10_f102_8_mock": {
+      "id": "f_p10_f102_8_mock",
+      "project_id": "p10",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p10_f102_8_mock",
+      "file_size": 2184220,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-17 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p10_f102_8_mock"
+    },
+    "f_p1_f101_1_mock": {
+      "id": "f_p1_f101_1_mock",
+      "project_id": "p1",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p1_f101_1_mock",
+      "file_size": 1570383,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p1_f101_1_mock"
+    },
+    "f_p1_f101_2_mock": {
+      "id": "f_p1_f101_2_mock",
+      "project_id": "p1",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p1_f101_2_mock",
+      "file_size": 987918,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-18 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p1_f101_2_mock"
+    },
+    "f_p1_f101_3_mock": {
+      "id": "f_p1_f101_3_mock",
+      "project_id": "p1",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p1_f101_3_mock",
+      "file_size": 1635151,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p1_f101_3_mock"
+    },
+    "f_p1_f101_4_mock": {
+      "id": "f_p1_f101_4_mock",
+      "project_id": "p1",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p1_f101_4_mock",
+      "file_size": 1080005,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p1_f101_4_mock"
+    },
+    "f_p1_f101_5_mock": {
+      "id": "f_p1_f101_5_mock",
+      "project_id": "p1",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p1_f101_5_mock",
+      "file_size": 2637688,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p1_f101_5_mock"
+    },
+    "f_p1_f101_6_mock": {
+      "id": "f_p1_f101_6_mock",
+      "project_id": "p1",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p1_f101_6_mock",
+      "file_size": 2807967,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-20 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p1_f101_6_mock"
+    },
+    "f_p1_f101_7_mock": {
+      "id": "f_p1_f101_7_mock",
+      "project_id": "p1",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p1_f101_7_mock",
+      "file_size": 2579027,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-14 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p1_f101_7_mock"
+    },
+    "f_p1_f101_8_mock": {
+      "id": "f_p1_f101_8_mock",
+      "project_id": "p1",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p1_f101_8_mock",
+      "file_size": 2386150,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-15 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p1_f101_8_mock"
+    },
+    "f_p2_f103_1_mock": {
+      "id": "f_p2_f103_1_mock",
+      "project_id": "p2",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p2_f103_1_mock",
+      "file_size": 997867,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-15 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p2_f103_1_mock"
+    },
+    "f_p2_f103_2_mock": {
+      "id": "f_p2_f103_2_mock",
+      "project_id": "p2",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p2_f103_2_mock",
+      "file_size": 2101248,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-24 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p2_f103_2_mock"
+    },
+    "f_p2_f103_3_mock": {
+      "id": "f_p2_f103_3_mock",
+      "project_id": "p2",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p2_f103_3_mock",
+      "file_size": 1126211,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-21 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p2_f103_3_mock"
+    },
+    "f_p2_f103_4_mock": {
+      "id": "f_p2_f103_4_mock",
+      "project_id": "p2",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p2_f103_4_mock",
+      "file_size": 1041900,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-10 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p2_f103_4_mock"
+    },
+    "f_p2_f103_5_mock": {
+      "id": "f_p2_f103_5_mock",
+      "project_id": "p2",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p2_f103_5_mock",
+      "file_size": 1025886,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-12 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p2_f103_5_mock"
+    },
+    "f_p2_f103_6_mock": {
+      "id": "f_p2_f103_6_mock",
+      "project_id": "p2",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p2_f103_6_mock",
+      "file_size": 1518654,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-10 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p2_f103_6_mock"
+    },
+    "f_p2_f103_7_mock": {
+      "id": "f_p2_f103_7_mock",
+      "project_id": "p2",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p2_f103_7_mock",
+      "file_size": 668633,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-23 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p2_f103_7_mock"
+    },
+    "f_p2_f103_8_mock": {
+      "id": "f_p2_f103_8_mock",
+      "project_id": "p2",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p2_f103_8_mock",
+      "file_size": 1327917,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-26 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p2_f103_8_mock"
+    },
+    "f_p3_f104_1_mock": {
+      "id": "f_p3_f104_1_mock",
+      "project_id": "p3",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p3_f104_1_mock",
+      "file_size": 1309618,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p3_f104_1_mock"
+    },
+    "f_p3_f104_2_mock": {
+      "id": "f_p3_f104_2_mock",
+      "project_id": "p3",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p3_f104_2_mock",
+      "file_size": 1267256,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-21 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p3_f104_2_mock"
+    },
+    "f_p3_f104_3_mock": {
+      "id": "f_p3_f104_3_mock",
+      "project_id": "p3",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p3_f104_3_mock",
+      "file_size": 2536755,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p3_f104_3_mock"
+    },
+    "f_p3_f104_4_mock": {
+      "id": "f_p3_f104_4_mock",
+      "project_id": "p3",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p3_f104_4_mock",
+      "file_size": 633162,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-20 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p3_f104_4_mock"
+    },
+    "f_p3_f104_5_mock": {
+      "id": "f_p3_f104_5_mock",
+      "project_id": "p3",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p3_f104_5_mock",
+      "file_size": 1075299,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-15 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p3_f104_5_mock"
+    },
+    "f_p3_f104_6_mock": {
+      "id": "f_p3_f104_6_mock",
+      "project_id": "p3",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p3_f104_6_mock",
+      "file_size": 2009857,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p3_f104_6_mock"
+    },
+    "f_p3_f104_7_mock": {
+      "id": "f_p3_f104_7_mock",
+      "project_id": "p3",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p3_f104_7_mock",
+      "file_size": 1690438,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-17 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p3_f104_7_mock"
+    },
+    "f_p3_f104_8_mock": {
+      "id": "f_p3_f104_8_mock",
+      "project_id": "p3",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p3_f104_8_mock",
+      "file_size": 1378533,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-18 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p3_f104_8_mock"
+    },
+    "f_p4_f105_1_mock": {
+      "id": "f_p4_f105_1_mock",
+      "project_id": "p4",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p4_f105_1_mock",
+      "file_size": 2629877,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p4_f105_1_mock"
+    },
+    "f_p4_f105_2_mock": {
+      "id": "f_p4_f105_2_mock",
+      "project_id": "p4",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p4_f105_2_mock",
+      "file_size": 1685257,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-27 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p4_f105_2_mock"
+    },
+    "f_p4_f105_3_mock": {
+      "id": "f_p4_f105_3_mock",
+      "project_id": "p4",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p4_f105_3_mock",
+      "file_size": 2777289,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-20 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p4_f105_3_mock"
+    },
+    "f_p4_f105_4_mock": {
+      "id": "f_p4_f105_4_mock",
+      "project_id": "p4",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p4_f105_4_mock",
+      "file_size": 2894356,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p4_f105_4_mock"
+    },
+    "f_p4_f105_5_mock": {
+      "id": "f_p4_f105_5_mock",
+      "project_id": "p4",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p4_f105_5_mock",
+      "file_size": 944383,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-21 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p4_f105_5_mock"
+    },
+    "f_p4_f105_6_mock": {
+      "id": "f_p4_f105_6_mock",
+      "project_id": "p4",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p4_f105_6_mock",
+      "file_size": 1316076,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-20 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p4_f105_6_mock"
+    },
+    "f_p4_f105_7_mock": {
+      "id": "f_p4_f105_7_mock",
+      "project_id": "p4",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p4_f105_7_mock",
+      "file_size": 1124145,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-18 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p4_f105_7_mock"
+    },
+    "f_p4_f105_8_mock": {
+      "id": "f_p4_f105_8_mock",
+      "project_id": "p4",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p4_f105_8_mock",
+      "file_size": 2468094,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p4_f105_8_mock"
+    },
+    "f_p5_f106_1_mock": {
+      "id": "f_p5_f106_1_mock",
+      "project_id": "p5",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p5_f106_1_mock",
+      "file_size": 1491085,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-18 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p5_f106_1_mock"
+    },
+    "f_p5_f106_2_mock": {
+      "id": "f_p5_f106_2_mock",
+      "project_id": "p5",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p5_f106_2_mock",
+      "file_size": 800816,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-13 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p5_f106_2_mock"
+    },
+    "f_p5_f106_3_mock": {
+      "id": "f_p5_f106_3_mock",
+      "project_id": "p5",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p5_f106_3_mock",
+      "file_size": 1414674,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-17 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p5_f106_3_mock"
+    },
+    "f_p5_f106_4_mock": {
+      "id": "f_p5_f106_4_mock",
+      "project_id": "p5",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p5_f106_4_mock",
+      "file_size": 585792,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p5_f106_4_mock"
+    },
+    "f_p5_f106_5_mock": {
+      "id": "f_p5_f106_5_mock",
+      "project_id": "p5",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p5_f106_5_mock",
+      "file_size": 1692888,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p5_f106_5_mock"
+    },
+    "f_p5_f106_6_mock": {
+      "id": "f_p5_f106_6_mock",
+      "project_id": "p5",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p5_f106_6_mock",
+      "file_size": 1896115,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-24 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p5_f106_6_mock"
+    },
+    "f_p5_f106_7_mock": {
+      "id": "f_p5_f106_7_mock",
+      "project_id": "p5",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p5_f106_7_mock",
+      "file_size": 1817408,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p5_f106_7_mock"
+    },
+    "f_p5_f106_8_mock": {
+      "id": "f_p5_f106_8_mock",
+      "project_id": "p5",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p5_f106_8_mock",
+      "file_size": 2888387,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-13 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p5_f106_8_mock"
+    },
+    "f_p6_f107_1_mock": {
+      "id": "f_p6_f107_1_mock",
+      "project_id": "p6",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p6_f107_1_mock",
+      "file_size": 1987801,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-12 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p6_f107_1_mock"
+    },
+    "f_p6_f107_2_mock": {
+      "id": "f_p6_f107_2_mock",
+      "project_id": "p6",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p6_f107_2_mock",
+      "file_size": 1595098,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p6_f107_2_mock"
+    },
+    "f_p6_f107_3_mock": {
+      "id": "f_p6_f107_3_mock",
+      "project_id": "p6",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p6_f107_3_mock",
+      "file_size": 2884783,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p6_f107_3_mock"
+    },
+    "f_p6_f107_4_mock": {
+      "id": "f_p6_f107_4_mock",
+      "project_id": "p6",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p6_f107_4_mock",
+      "file_size": 2521915,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-15 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p6_f107_4_mock"
+    },
+    "f_p6_f107_5_mock": {
+      "id": "f_p6_f107_5_mock",
+      "project_id": "p6",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p6_f107_5_mock",
+      "file_size": 699203,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-28 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p6_f107_5_mock"
+    },
+    "f_p6_f107_6_mock": {
+      "id": "f_p6_f107_6_mock",
+      "project_id": "p6",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p6_f107_6_mock",
+      "file_size": 2428899,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p6_f107_6_mock"
+    },
+    "f_p6_f107_7_mock": {
+      "id": "f_p6_f107_7_mock",
+      "project_id": "p6",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p6_f107_7_mock",
+      "file_size": 1340308,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-24 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p6_f107_7_mock"
+    },
+    "f_p6_f107_8_mock": {
+      "id": "f_p6_f107_8_mock",
+      "project_id": "p6",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p6_f107_8_mock",
+      "file_size": 923405,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p6_f107_8_mock"
+    },
+    "f_p7_f108_1_mock": {
+      "id": "f_p7_f108_1_mock",
+      "project_id": "p7",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p7_f108_1_mock",
+      "file_size": 1153424,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p7_f108_1_mock"
+    },
+    "f_p7_f108_2_mock": {
+      "id": "f_p7_f108_2_mock",
+      "project_id": "p7",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p7_f108_2_mock",
+      "file_size": 2367102,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-24 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p7_f108_2_mock"
+    },
+    "f_p7_f108_3_mock": {
+      "id": "f_p7_f108_3_mock",
+      "project_id": "p7",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p7_f108_3_mock",
+      "file_size": 2684379,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-21 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p7_f108_3_mock"
+    },
+    "f_p7_f108_4_mock": {
+      "id": "f_p7_f108_4_mock",
+      "project_id": "p7",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p7_f108_4_mock",
+      "file_size": 589005,
+      "file_type": "docx",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-23 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p7_f108_4_mock"
+    },
+    "f_p7_f108_5_mock": {
+      "id": "f_p7_f108_5_mock",
+      "project_id": "p7",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p7_f108_5_mock",
+      "file_size": 527669,
+      "file_type": "docx",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-15 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p7_f108_5_mock"
+    },
+    "f_p7_f108_6_mock": {
+      "id": "f_p7_f108_6_mock",
+      "project_id": "p7",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p7_f108_6_mock",
+      "file_size": 2302626,
+      "file_type": "docx",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p7_f108_6_mock"
+    },
+    "f_p7_f108_7_mock": {
+      "id": "f_p7_f108_7_mock",
+      "project_id": "p7",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p7_f108_7_mock",
+      "file_size": 606466,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-23 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p7_f108_7_mock"
+    },
+    "f_p7_f108_8_mock": {
+      "id": "f_p7_f108_8_mock",
+      "project_id": "p7",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p7_f108_8_mock",
+      "file_size": 666737,
+      "file_type": "pdf",
+      "uploaded_by": "张主任 (项目负责人)",
+      "uploaded_at": "2026-03-12 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p7_f108_8_mock"
+    },
+    "f_p8_f109_1_mock": {
+      "id": "f_p8_f109_1_mock",
+      "project_id": "p8",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p8_f109_1_mock",
+      "file_size": 992557,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-14 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p8_f109_1_mock"
+    },
+    "f_p8_f109_2_mock": {
+      "id": "f_p8_f109_2_mock",
+      "project_id": "p8",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p8_f109_2_mock",
+      "file_size": 610883,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p8_f109_2_mock"
+    },
+    "f_p8_f109_3_mock": {
+      "id": "f_p8_f109_3_mock",
+      "project_id": "p8",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p8_f109_3_mock",
+      "file_size": 2819831,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p8_f109_3_mock"
+    },
+    "f_p8_f109_4_mock": {
+      "id": "f_p8_f109_4_mock",
+      "project_id": "p8",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p8_f109_4_mock",
+      "file_size": 666055,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p8_f109_4_mock"
+    },
+    "f_p8_f109_5_mock": {
+      "id": "f_p8_f109_5_mock",
+      "project_id": "p8",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p8_f109_5_mock",
+      "file_size": 2079687,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-22 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p8_f109_5_mock"
+    },
+    "f_p8_f109_6_mock": {
+      "id": "f_p8_f109_6_mock",
+      "project_id": "p8",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p8_f109_6_mock",
+      "file_size": 2427973,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p8_f109_6_mock"
+    },
+    "f_p8_f109_7_mock": {
+      "id": "f_p8_f109_7_mock",
+      "project_id": "p8",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p8_f109_7_mock",
+      "file_size": 1697993,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-21 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p8_f109_7_mock"
+    },
+    "f_p8_f109_8_mock": {
+      "id": "f_p8_f109_8_mock",
+      "project_id": "p8",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p8_f109_8_mock",
+      "file_size": 1593326,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p8_f109_8_mock"
+    },
+    "f_p9_f110_1_mock": {
+      "id": "f_p9_f110_1_mock",
+      "project_id": "p9",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p9_f110_1_mock",
+      "file_size": 772880,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p9_f110_1_mock"
+    },
+    "f_p9_f110_2_mock": {
+      "id": "f_p9_f110_2_mock",
+      "project_id": "p9",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p9_f110_2_mock",
+      "file_size": 2308824,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-11 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p9_f110_2_mock"
+    },
+    "f_p9_f110_3_mock": {
+      "id": "f_p9_f110_3_mock",
+      "project_id": "p9",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p9_f110_3_mock",
+      "file_size": 1356160,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-18 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p9_f110_3_mock"
+    },
+    "f_p9_f110_4_mock": {
+      "id": "f_p9_f110_4_mock",
+      "project_id": "p9",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p9_f110_4_mock",
+      "file_size": 2861712,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p9_f110_4_mock"
+    },
+    "f_p9_f110_5_mock": {
+      "id": "f_p9_f110_5_mock",
+      "project_id": "p9",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p9_f110_5_mock",
+      "file_size": 2768417,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p9_f110_5_mock"
+    },
+    "f_p9_f110_6_mock": {
+      "id": "f_p9_f110_6_mock",
+      "project_id": "p9",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p9_f110_6_mock",
+      "file_size": 1991882,
+      "file_type": "docx",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p9_f110_6_mock"
+    },
+    "f_p9_f110_7_mock": {
+      "id": "f_p9_f110_7_mock",
+      "project_id": "p9",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p9_f110_7_mock",
+      "file_size": 1491533,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-19 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p9_f110_7_mock"
+    },
+    "f_p9_f110_8_mock": {
+      "id": "f_p9_f110_8_mock",
+      "project_id": "p9",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p9_f110_8_mock",
+      "file_size": 1383393,
+      "file_type": "pdf",
+      "uploaded_by": "李科长 (项目负责人)",
+      "uploaded_at": "2026-03-24 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p9_f110_8_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_1_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_1_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "1.立项批复与可行性研究报告.pdf",
+      "saved_name": "s_p_654f295d13e0bf70_f111_1_mock",
+      "file_size": 805872,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-14 10:00:00",
+      "stage_folder": "立项",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_1_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_2_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_2_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "2.公开招标文件及控制价公示.pdf",
+      "saved_name": "s_p_654f295d13e0bf70_f111_2_mock",
+      "file_size": 677233,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-12 10:00:00",
+      "stage_folder": "招标",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_2_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_3_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_3_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "3.政府采购承建合同书.pdf",
+      "saved_name": "s_p_654f295d13e0bf70_f111_3_mock",
+      "file_size": 2835804,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-25 10:00:00",
+      "stage_folder": "合同",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_3_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_4_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_4_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "4.深化设计方案及开发进度计划.docx",
+      "saved_name": "s_p_654f295d13e0bf70_f111_4_mock",
+      "file_size": 2638471,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-16 10:00:00",
+      "stage_folder": "实施",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_4_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_5_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_5_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "5.监理月报与安全巡检记录.docx",
+      "saved_name": "s_p_654f295d13e0bf70_f111_5_mock",
+      "file_size": 1907814,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-27 10:00:00",
+      "stage_folder": "监理",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_5_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_6_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_6_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "6.项目协调推进会议纪要.docx",
+      "saved_name": "s_p_654f295d13e0bf70_f111_6_mock",
+      "file_size": 2309018,
+      "file_type": "docx",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-21 10:00:00",
+      "stage_folder": "过程",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_6_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_7_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_7_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "7.竣工初验报告与第三方测评报告.pdf",
+      "saved_name": "s_p_654f295d13e0bf70_f111_7_mock",
+      "file_size": 2284207,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-17 10:00:00",
+      "stage_folder": "验收",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_7_mock"
+    },
+    "f_p_654f295d13e0bf70_f111_8_mock": {
+      "id": "f_p_654f295d13e0bf70_f111_8_mock",
+      "project_id": "p_654f295d13e0bf70",
+      "file_name": "8.运维保障方案及巡检报告.pdf",
+      "saved_name": "s_p_654f295d13e0bf70_f111_8_mock",
+      "file_size": 2625627,
+      "file_type": "pdf",
+      "uploaded_by": "小王 (项目负责人)",
+      "uploaded_at": "2026-03-26 10:00:00",
+      "stage_folder": "运维",
+      "hash": "hash_f_p_654f295d13e0bf70_f111_8_mock"
+    }
+  },
+  "alerts": {
+    "a1": {
+      "id": "a1",
+      "project_id": "p2",
+      "project_name": "智慧城市运行指挥平台建设",
+      "title": "第二期进度款付款资料缺失",
+      "message": "大模型智能研判发现：您已申请支付第二期进度款，但系统内尚未上传关键的‘阶段测试报告’，存在财务审计不合规风险。",
+      "severity": "red",
+      "alert_type": "risk_quality",
+      "trigger_date": "2026-07-16",
+      "status": "unread",
+      "read_by": "",
+      "read_at": ""
+    },
+    "a2": {
+      "id": "a2",
+      "project_id": "p3",
+      "project_name": "电子政务外网骨干网升级项目",
+      "title": "项目竣工初验严重超期",
+      "message": "截止当前日期2026-07-20，合同原定初验截止日期为2026-07-15已过期。请立即组织监理单位出具工期延误评估报告并提起延期审批流程。",
+      "severity": "red",
+      "alert_type": "risk_delay",
+      "trigger_date": "2026-07-16",
+      "status": "unread",
+      "read_by": "",
+      "read_at": ""
+    },
+    "a3": {
+      "id": "a3",
+      "project_id": "p3",
+      "project_name": "电子政务外网骨干网升级项目",
+      "title": "变更违规超概算红线",
+      "message": "系统对比合同与‘骨干网补充协议-03.pdf’发现：变更金额累计80万元，占合同额 16.7%，超出 10% 限制，且目前缺少区财政评审中心联合批复文件。",
+      "severity": "red",
+      "alert_type": "risk_change",
+      "trigger_date": "2026-07-18",
+      "status": "unread",
+      "read_by": "",
+      "read_at": ""
+    },
+    "a4": {
+      "id": "a4",
+      "project_id": "p1",
+      "project_name": "政务云数据中心升级项目",
+      "title": "项目保修期临近到期提醒",
+      "message": "温馨提示：项目质保节点预计下周到期。请提前联系华夏信息云技术有限公司确认资产移交清单及售后运维对接工作。",
+      "severity": "blue",
+      "alert_type": "node_warranty",
+      "trigger_date": "2026-07-20",
+      "status": "unread",
+      "read_by": "",
+      "read_at": ""
+    },
+    "a5": {
+      "id": "a5",
+      "project_id": "p9",
+      "project_name": "政府外网接入交换机扩容服务",
+      "title": "变更超支导致审计警示",
+      "message": "大模型智能对比原外网接入合同与补充文件后计算得出：变更项目金额累加已超15%红线，突破概算金额限额，请尽快补齐相关评审纪要。",
+      "severity": "red",
+      "alert_type": "risk_change",
+      "trigger_date": "2026-07-19",
+      "status": "unread",
+      "read_by": "",
+      "read_at": ""
+    },
+    "a6": {
+      "id": "a6",
+      "project_id": "p10",
+      "project_name": "信息中心年度办公设备租赁与运维服务",
+      "title": "运维服务停摆警报",
+      "message": "系统研判指出：由于租赁服务费未能足额按季度拨付（逾期30天），承建方恒利公司已发函宣告暂停运维服务并撤走工程师，造成各科室大范围IT报修停滞。",
+      "severity": "red",
+      "alert_type": "risk_delay",
+      "trigger_date": "2026-07-18",
+      "status": "unread",
+      "read_by": "",
+      "read_at": ""
+    }
+  },
+  "audit_logs": [
+    {
+      "id": "log_1784560422766597325",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:51808",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 15:13:42"
+    },
+    {
+      "id": "log_1784560383100876076",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:40762",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 15:13:03"
+    },
+    {
+      "id": "log_1784560219304844877",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:19"
+    },
+    {
+      "id": "log_1784560219052658775",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:19"
+    },
+    {
+      "id": "log_1784560218171242508",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:18"
+    },
+    {
+      "id": "log_1784560217961843144",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:17"
+    },
+    {
+      "id": "log_1784560216646149075",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:16"
+    },
+    {
+      "id": "log_1784560216432726796",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:16"
+    },
+    {
+      "id": "log_1784560215138467725",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:15"
+    },
+    {
+      "id": "log_1784560214930583375",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:14"
+    },
+    {
+      "id": "log_1784560213769779105",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55796",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:13"
+    },
+    {
+      "id": "log_1784560213484586499",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:13"
+    },
+    {
+      "id": "log_1784560212413048856",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:12"
+    },
+    {
+      "id": "log_1784560212194528463",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:12"
+    },
+    {
+      "id": "log_1784560210619763275",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55774",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:10"
+    },
+    {
+      "id": "log_1784560210331075533",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:10"
+    },
+    {
+      "id": "log_1784560208952432017",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:08"
+    },
+    {
+      "id": "log_1784560208649858345",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:08"
+    },
+    {
+      "id": "log_1784560206154293093",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:06"
+    },
+    {
+      "id": "log_1784560205943562856",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:05"
+    },
+    {
+      "id": "log_1784560203858067899",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55796",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:03"
+    },
+    {
+      "id": "log_1784560203572460575",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:10:03"
+    },
+    {
+      "id": "log_1784560175966142229",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:35"
+    },
+    {
+      "id": "log_1784560175681452447",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55796",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:35"
+    },
+    {
+      "id": "log_1784560172982957100",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55796",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:32"
+    },
+    {
+      "id": "log_1784560172768514373",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:32"
+    },
+    {
+      "id": "log_1784560164788900266",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:24"
+    },
+    {
+      "id": "log_1784560164579452275",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55796",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:24"
+    },
+    {
+      "id": "log_1784560161762236594",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55758",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:21"
+    },
+    {
+      "id": "log_1784560161500012121",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55796",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:21"
+    },
+    {
+      "id": "log_1784560160282891625",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:20"
+    },
+    {
+      "id": "log_1784560159977474411",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:55784",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:09:19"
+    },
+    {
+      "id": "log_1784560051966214044",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:31"
+    },
+    {
+      "id": "log_1784560051755814489",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:31"
+    },
+    {
+      "id": "log_1784560050295249186",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:30"
+    },
+    {
+      "id": "log_1784560050086334451",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46926",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:30"
+    },
+    {
+      "id": "log_1784560048658093799",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46910",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:28"
+    },
+    {
+      "id": "log_1784560048402751056",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46934",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:28"
+    },
+    {
+      "id": "log_1784560043944970680",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46934",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:23"
+    },
+    {
+      "id": "log_1784560043677470886",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46910",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:23"
+    },
+    {
+      "id": "log_1784560042328749543",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46934",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:22"
+    },
+    {
+      "id": "log_1784560042041567937",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:07:22"
+    },
+    {
+      "id": "log_1784560007830956922",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:06:47"
+    },
+    {
+      "id": "log_1784560007616579469",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:06:47"
+    },
+    {
+      "id": "log_1784560006424573030",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:06:46"
+    },
+    {
+      "id": "log_1784560006202731816",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46912",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:06:46"
+    },
+    {
+      "id": "log_1784559698066448632",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:51382",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:01:38"
+    },
+    {
+      "id": "log_1784559697858043867",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:51382",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:01:37"
+    },
+    {
+      "id": "log_1784559671931028518",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:51382",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 15:01:11"
+    },
+    {
+      "id": "log_1784559671332966973",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:51382",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 15:01:11"
+    },
+    {
+      "id": "log_1784559519750229172",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:34280",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 14:58:39"
+    },
+    {
+      "id": "log_1784559508932447486",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:59570",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 14:58:28"
+    },
+    {
+      "id": "log_1784559162888017133",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46364",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 14:52:42"
+    },
+    {
+      "id": "log_1784559157260933653",
+      "user": "张主任 (信息中心主任)",
+      "action": "更新系统配置",
+      "ip": "127.0.0.1:46364",
+      "details": "修改了大模型配置及安全访问白名单策略",
+      "created_at": "2026-07-20 14:52:37"
+    },
+    {
+      "id": "log_1784559144105656426",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46364",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 14:52:24"
+    },
+    {
+      "id": "log_1784559123062346053",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:46344",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 14:52:03"
+    },
+    {
+      "id": "log_1784559031011292021",
+      "user": "张主任 (信息中心主任)",
+      "action": "更新系统配置",
+      "ip": "127.0.0.1:42710",
+      "details": "修改了大模型配置及安全访问白名单策略",
+      "created_at": "2026-07-20 14:50:31"
+    },
+    {
+      "id": "log_1784559025320420577",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:42702",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-07-20 14:50:25"
+    },
+    {
+      "id": "log_1784559018656402847",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:50258",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 14:50:18"
+    },
+    {
+      "id": "log_1784558943823247372",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:59884",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 14:49:03"
+    },
+    {
+      "id": "log_1784558463223045348",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:36582",
+      "details": "测试大模型 Provider: mock",
+      "created_at": "2026-07-20 14:41:03"
+    },
+    {
+      "id": "log_1784558399155807500",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:37456",
+      "details": "测试大模型 Provider: mock",
+      "created_at": "2026-07-20 14:39:59"
+    },
+    {
+      "id": "log_1784558381819561699",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:37456",
+      "details": "测试大模型 Provider: mock",
+      "created_at": "2026-07-20 14:39:41"
+    },
+    {
+      "id": "log_1784558366228261832",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:37456",
+      "details": "测试大模型 Provider: mock",
+      "created_at": "2026-07-20 14:39:26"
+    },
+    {
+      "id": "log_1784558255987915223",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:52680",
+      "details": "测试大模型 Provider: mock",
+      "created_at": "2026-07-20 14:37:35"
+    },
+    {
+      "id": "log_1784557051354316685",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:50934",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 14:17:31"
+    },
+    {
+      "id": "log_1784557014431842335",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:55906",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 14:16:54"
+    },
+    {
+      "id": "log_1784556843400654895",
+      "user": "system",
+      "action": "数据导出",
+      "ip": "127.0.0.1:57820",
+      "details": "导出类型: ledger",
+      "created_at": "2026-07-20 14:14:03"
+    },
+    {
+      "id": "log_sanitized_1784556795975_0",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:59414",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:53:35"
+    },
+    {
+      "id": "log_sanitized_1784556795975_1",
+      "user": "张主任 (信息中心主任)",
+      "action": "登出系统",
+      "ip": "127.0.0.1:50842",
+      "details": "安全注销",
+      "created_at": "2026-07-20 13:50:38"
+    },
+    {
+      "id": "log_sanitized_1784556795975_2",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:50850",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:50:31"
+    },
+    {
+      "id": "log_sanitized_1784556795975_3",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:50846",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:49:42"
+    },
+    {
+      "id": "log_sanitized_1784556795975_4",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:42284",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:46:41"
+    },
+    {
+      "id": "log_sanitized_1784556795975_5",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:37570",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:35:58"
+    },
+    {
+      "id": "log_sanitized_1784556795975_6",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:36950",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:35:24"
+    },
+    {
+      "id": "log_sanitized_1784556795975_7",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:60406",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:27:15"
+    },
+    {
+      "id": "log_sanitized_1784556795975_8",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:38948",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:24:45"
+    },
+    {
+      "id": "log_sanitized_1784556795975_9",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:33552",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:23:35"
+    },
+    {
+      "id": "log_sanitized_1784556795975_10",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:35362",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:22:04"
+    },
+    {
+      "id": "log_sanitized_1784556795975_11",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:42904",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:18:16"
+    },
+    {
+      "id": "log_sanitized_1784556795975_12",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:54322",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:16:06"
+    },
+    {
+      "id": "log_sanitized_1784556795975_13",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:54330",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:15:55"
+    },
+    {
+      "id": "log_sanitized_1784556795975_14",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:56812",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:15:29"
+    },
+    {
+      "id": "log_sanitized_1784556795975_15",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:57752",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:12:28"
+    },
+    {
+      "id": "log_sanitized_1784556795975_16",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:36868",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:07:17"
+    },
+    {
+      "id": "log_sanitized_1784556795975_17",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:38056",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:06:17"
+    },
+    {
+      "id": "log_sanitized_1784556795975_18",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:45062",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:02:51"
+    },
+    {
+      "id": "log_sanitized_1784556795975_19",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:58130",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:02:07"
+    },
+    {
+      "id": "log_sanitized_1784556795975_20",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:58130",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 13:01:51"
+    },
+    {
+      "id": "log_sanitized_1784556795975_21",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:48510",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 12:12:54"
+    },
+    {
+      "id": "log_sanitized_1784556795975_22",
+      "user": "张主任 (信息中心主任)",
+      "action": "AI文件对比",
+      "ip": "127.0.0.1:50942",
+      "details": "对比文件 [1.立项批复文件-政务云数据中心.pdf] VS [2.招标文件-政务云数据中心.pdf]",
+      "created_at": "2026-07-20 12:12:04"
+    },
+    {
+      "id": "log_sanitized_1784556795975_23",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:50936",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 12:12:04"
+    },
+    {
+      "id": "log_sanitized_1784556795975_24",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:46358",
+      "details": "测试大模型 Provider: mock",
+      "created_at": "2026-07-20 12:11:44"
+    },
+    {
+      "id": "log_sanitized_1784556795975_25",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:46346",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 12:11:44"
+    },
+    {
+      "id": "log_sanitized_1784556795975_26",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:56630",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 12:02:17"
+    },
+    {
+      "id": "log_sanitized_1784556795975_27",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:53240",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:58:48"
+    },
+    {
+      "id": "log_sanitized_1784556795975_28",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:42732",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:54:09"
+    },
+    {
+      "id": "log_sanitized_1784556795975_29",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:42726",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:53:25"
+    },
+    {
+      "id": "log_sanitized_1784556795975_30",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:44848",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:48:32"
+    },
+    {
+      "id": "log_sanitized_1784556795975_31",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:44822",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:48:16"
+    },
+    {
+      "id": "log_sanitized_1784556795975_32",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:48586",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:47:05"
+    },
+    {
+      "id": "log_sanitized_1784556795975_33",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:48586",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:47:02"
+    },
+    {
+      "id": "log_sanitized_1784556795975_34",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:33686",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:36:53"
+    },
+    {
+      "id": "log_sanitized_1784556795975_35",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:58534",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 11:34:22"
+    },
+    {
+      "id": "log_sanitized_1784556795975_36",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:41998",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:44:02"
+    },
+    {
+      "id": "log_sanitized_1784556795975_37",
+      "user": "张主任 (信息中心主任)",
+      "action": "AI 智能对话",
+      "ip": "127.0.0.1:47574",
+      "details": "针对项目 [政务云数据中心升级项目] 向智能助手提问: [这个项目进度怎么样]",
+      "created_at": "2026-07-20 10:42:58"
+    },
+    {
+      "id": "log_sanitized_1784556795975_38",
+      "user": "张主任 (信息中心主任)",
+      "action": "一键生成周报",
+      "ip": "127.0.0.1:58970",
+      "details": "导出了包含全量 11 个在办项目的周报简报",
+      "created_at": "2026-07-20 10:42:49"
+    },
+    {
+      "id": "log_sanitized_1784556795975_39",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:39846",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:42:32"
+    },
+    {
+      "id": "log_sanitized_1784556795975_40",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:53976",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:32:48"
+    },
+    {
+      "id": "log_sanitized_1784556795975_41",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:50762",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:30:01"
+    },
+    {
+      "id": "log_sanitized_1784556795975_42",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:37662",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:25:55"
+    },
+    {
+      "id": "log_sanitized_1784556795975_43",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:39920",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:23:53"
+    },
+    {
+      "id": "log_sanitized_1784556795975_44",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:34182",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:21:25"
+    },
+    {
+      "id": "log_sanitized_1784556795975_45",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:39720",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:16:37"
+    },
+    {
+      "id": "log_sanitized_1784556795975_46",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:51580",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:14:13"
+    },
+    {
+      "id": "log_sanitized_1784556795975_47",
+      "user": "张主任 (信息中心主任)",
+      "action": "新建项目",
+      "ip": "127.0.0.1:51580",
+      "details": "成功创建项目: 测试项目, 预算 10000000.00",
+      "created_at": "2026-07-20 10:14:09"
+    },
+    {
+      "id": "log_sanitized_1784556795975_48",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:51580",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:13:22"
+    },
+    {
+      "id": "log_sanitized_1784556795975_49",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:49864",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:11:08"
+    },
+    {
+      "id": "log_sanitized_1784556795975_50",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:54944",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-07-20 10:10:46"
+    },
+    {
+      "id": "log_sanitized_1784556795975_51",
+      "user": "admin",
+      "action": "系统初始化",
+      "ip": "127.0.0.1",
+      "details": "创建超级管理员 admin 并载入默认政务安全防护参数",
+      "created_at": "2026-07-20 10:09:44"
+    },
+    {
+      "id": "log_sanitized_1784556795975_52",
+      "user": "manager",
+      "action": "上传立项资料",
+      "ip": "127.0.0.1",
+      "details": "上传文件 [1.立项批复文件-政务云数据中心.pdf]，AI自动识别归入【立项阶段】",
+      "created_at": "2026-07-20 10:09:44"
+    }
+  ],
+  "system_config": {
+    "watermark_text": "政务内网安全审计",
+    "ip_allow_list": "127.0.0.1,localhost",
+    "file_auto_encrypt": true,
+    "llm_provider": "ollama",
+    "llm_api_key": "sk-ollama-liukun-2026",
+    "llm_endpoint": "https://mbp.liukun.com/api/generate",
+    "llm_model": "qwen3.6:35b-q4"
+  }
+}

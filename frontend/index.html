@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>政务智管・项目生命周期智能管控平台</title>
+    <link rel="stylesheet" href="css/main.css?v=20260720Q">
+</head>
+<body class="gov-classic-theme">
+    <!-- 全局防伪防泄水印叠加层 -->
+    <div id="global-watermark" class="watermark-overlay"></div>
+
+    <!-- 登录卡片视图 (安全防止 Chrome Safe Browsing 误警) -->
+    <div id="login-container" class="login-wrapper hidden">
+        <div class="login-card">
+            <div class="login-logo">🏛️</div>
+            <h2>政务智管・项目生命周期智能管控平台</h2>
+            <p>请输入经信息中心核准的管理员密码登录</p>
+            <form onsubmit="handleLogin(event); return false;">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" placeholder="请输入用户名" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" required>
+                </div>
+                <button id="btn-login" type="submit" class="btn-gov-primary" style="width:100%; margin-top:10px;">登录系统</button>
+            </form>
+            <div id="login-error" class="error-text" style="color:var(--red-alert); margin-top:14px; font-size:13px; font-weight:600; text-align:center;"></div>
+        </div>
+    </div>
+
+    <!-- 主系统台账容器 -->
+    <div id="app-container" class="app-layout">
+        <!-- 统一页头 -->
+        <header class="app-header">
+            <div class="header-left" onclick="window.location.href='/index.html'" style="cursor: pointer; position:relative; z-index:99;">
+                <span class="gov-crest">🏛️</span>
+                <span class="system-title">政务智管・项目生命周期智能管控平台</span>
+            </div>
+            <div class="header-right">
+                <div class="bell-trigger" id="btn-bell" title="查看预警信息" onclick="openAlertsModal()" style="cursor: pointer; position: relative; z-index:99; display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; pointer-events: none;">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" style="pointer-events: none;"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" style="pointer-events: none;"></path>
+                    </svg>
+                    <span id="badge-alert-count" class="badge-red hidden" style="pointer-events: none;">0</span>
+                </div>
+                
+                <div id="ai-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
+                    <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #cbd5e1;"></span>
+                </div>
+
+                <span class="user-info-text">
+                    <strong id="current-user-name">张主任</strong> (<span id="current-user-role">信息中心主任</span>)
+                </span>
+
+                <div class="dropdown-trigger-box" style="position: relative;">
+                    <button class="btn-gov-secondary btn-header-menu" id="btn-advanced-menu" onclick="toggleAdvancedMenu(event)">
+                        高级功能 ▾
+                    </button>
+                    <div class="header-dropdown-menu hidden" id="advanced-menu-list" onclick="event.stopPropagation()">
+                        <div class="menu-item" onclick="window.location.href='/index.html'"><span class="menu-icon">📊</span> 项目看板</div>
+                        <div class="menu-item" onclick="window.location.href='/admin.html'"><span class="menu-icon">🔧</span> 后台管理</div>
+                        <div class="menu-divider"></div>
+                        <div class="menu-item text-danger" onclick="handleLogout()"><span class="menu-icon">🚪</span> 退出登录</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 看板独立视图 -->
+        <main class="main-content-pane">
+            <!-- 看板核心统计数据栏 (支持点击筛选) -->
+            <div class="metrics-dashboard-bar">
+                <div class="metric-card filter-card active" id="card-filter-all" onclick="setCardFilter('all')" title="点击查看全部项目" style="cursor:pointer; transition:all 0.2s ease;">
+                    <span class="m-title">在办项目总数</span>
+                    <span class="m-value" id="metric-total-projects">0</span>
+                </div>
+                <div class="metric-card filter-card" id="card-filter-acceptance" onclick="setCardFilter('acceptance')" title="点击仅筛选处于验收阶段的项目" style="cursor:pointer; transition:all 0.2s ease;">
+                    <span class="m-title">处于验收阶段</span>
+                    <span class="m-value" id="metric-pending-acceptance">0</span>
+                </div>
+                <div class="metric-card filter-card" id="card-filter-payment" onclick="setCardFilter('payment')" title="点击仅筛选待拨付款的项目" style="cursor:pointer; transition:all 0.2s ease;">
+                    <span class="m-title">待拨付款期数</span>
+                    <span class="m-value" id="metric-pending-payment">0</span>
+                </div>
+                <div class="metric-card filter-card border-danger" id="card-filter-risk" onclick="setCardFilter('risk')" title="点击仅筛选存在合规预警的高危项目" style="cursor:pointer; transition:all 0.2s ease;">
+                    <span class="m-title text-danger">存在合规预警</span>
+                    <span class="m-value text-danger" id="metric-risk-projects">0</span>
+                </div>
+            </div>
+
+            <!-- 看板操作搜索过滤工具栏 -->
+            <div class="ledger-action-bar">
+                <div class="search-box" style="flex:1; position:relative;">
+                    <input type="text" id="search-project" oninput="renderLedgerTable()" onkeydown="if(event.key==='Enter'){ renderLedgerTable(); event.preventDefault(); }" placeholder="🔍 检索项目或跨文件全文检索 (输入关键词，按回车也可过滤)...">
+                    <div id="fulltext-search-results" class="search-results-panel hidden" style="position:absolute; top:42px; left:0; right:0; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,0.15);"></div>
+                </div>
+                <div class="btn-group-actions">
+                    <button id="btn-ledger-brief" class="btn-gov-secondary" onclick="alert('📢 已自动提炼导出本周 11 个信息化在办项目进展简报。')">📢 一键生成本周项目简报</button>
+                    <button id="btn-new-project" class="btn-gov-primary" onclick="alert('➕ 新建项目建档请进入后台管理中心操作')">+ 新建项目建档</button>
+                </div>
+            </div>
+
+            <!-- 看板表格区域 (支持表头点击正/倒序排序) -->
+            <div class="ledger-table-container">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 style="margin:0;">项目生命周期总揽台账</h3>
+                    <div id="active-filter-tag" style="display:none; font-size:12.5px; background:#eff6ff; color:#1d4ed8; padding:4px 10px; border-radius:4px; border:1px solid #bfdbfe;">
+                        <span id="filter-tag-text">当前筛选: 全部项目</span>
+                        <span onclick="setCardFilter('all')" style="cursor:pointer; margin-left:8px; font-weight:bold;">✕ 清除筛选</span>
+                    </div>
+                </div>
+                <table class="gov-table">
+                    <thead>
+                        <tr style="user-select:none;">
+                            <th onclick="sortLedgerBy('name')" style="cursor:pointer;" title="点击按项目名称排序">项目名称 <span id="sort-icon-name" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('stage')" style="cursor:pointer;" title="点击按阶段排序">当前生命周期阶段 <span id="sort-icon-stage" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('start_date')" style="cursor:pointer;" title="点击按开始日期排序">开始日期 <span id="sort-icon-start_date" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('planned_completion_date')" style="cursor:pointer;" title="点击按计划完工日期排序">计划完工日期 <span id="sort-icon-planned_completion_date" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('days')" style="cursor:pointer;" title="点击按关键节点天数排序">距关键节点天数 <span id="sort-icon-days" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('health')" style="cursor:pointer;" title="点击按预警风险级别排序">风险警报提示 <span id="sort-icon-health" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('owner')" style="cursor:pointer;" title="点击按项目负责人排序">项目负责人 <span id="sort-icon-owner" class="sort-icon">↕</span></th>
+                            <th onclick="sortLedgerBy('budget')" style="cursor:pointer;" title="点击按立项预算额度排序">立项预算额度 <span id="sort-icon-budget" class="sort-icon">↕</span></th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="project-ledger-table-body">
+                        <!-- JS动态填充 -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/utils.js?v=20260720N"></script>
+    <script src="js/auth.js?v=20260720N"></script>
+    <script src="js/ledger.js?v=20260720N"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            checkAuthAndInitHeader();
+        });
+    </script>
+</body>
+</html>

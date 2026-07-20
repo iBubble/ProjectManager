@@ -1,0 +1,7 @@
+server
+server_test
+cookies.txt
+jar.txt
+.DS_Store
+*.exe
+*.log
