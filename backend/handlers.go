@@ -481,17 +481,14 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 		defer file.Close()
 
 		stage := r.FormValue("stage")
-		if stage == "" {
-			stage = "过程" // 默认分类
-		}
-
+		
 		// 验证文件扩展名白名单 (安全防线)
 		ext := strings.ToLower(filepath.Ext(handler.Filename))
 		allowedExts := map[string]bool{
-			".pdf": true, ".docx": true, ".xlsx": true, ".txt": true, ".png": true,
+			".pdf": true, ".docx": true, ".xlsx": true, ".txt": true, ".png": true, ".md": true,
 		}
 		if !allowedExts[ext] {
-			sendError(w, http.StatusBadRequest, "系统只允许上传 PDF、DOCX、XLSX、TXT、PNG 格式的项目资料")
+			sendError(w, http.StatusBadRequest, "系统只允许上传 PDF、DOCX、XLSX、TXT、PNG、MD 格式的项目资料")
 			return
 		}
 
@@ -499,6 +496,10 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 		if err != nil {
 			sendError(w, http.StatusInternalServerError, "读取文件字节失败")
 			return
+		}
+
+		if stage == "" || stage == "auto" {
+			stage = AutoClassifyFileStage(handler.Filename, fileBytes)
 		}
 
 		// 检查魔法字节头部进行二次文件类型校验 (安全过滤)
@@ -1209,7 +1210,7 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 			}
 		}
 
-		systemPrompt := "你是一个专业的政务信息化项目生命周期智能管控助手【小智】。请结合项目概况与已归档公文知识库内容，准确、专业地回答用户的监管问询。"
+		systemPrompt := "你是一个专业的政务信息化项目生命周期智能管控助手【小智】。请结合项目概况与已归档公文知识库内容，准确、专业地回答用户的监管问询。【重要响应指示】：请直接给出中文回答，绝对不要包含任何 <think> 思考过程、'Here's a thinking process' 或英文推理步骤！"
 		userPrompt := fmt.Sprintf("项目名称：%s\n当前阶段：%s\n项目预算：%.2f 元\n健康得分：%d\n\n【关联归档文件知识库】：\n%s\n\n【用户提问】：%s\n\n请结合知识库给出结构化、严谨的分析与解答：",
 			project.Name, project.Stage, project.Budget, project.HealthScore, strings.Join(contextTexts, "\n\n"), query)
 
@@ -1455,6 +1456,33 @@ func HandlerLedgerBrief(w http.ResponseWriter, r *http.Request) {
 	avgScore := 100.0
 	if total > 0 {
 		avgScore = totalScore / float64(total)
+	}
+
+	cfg := GlobalDB.GetConfig()
+	if cfg.LLMProvider != "mock" && cfg.LLMEndpoint != "" {
+		var projSummaries []string
+		for _, p := range projects {
+			projSummaries = append(projSummaries, fmt.Sprintf("- 项目 [%s] (阶段:%s, 预算:%.2f元, 健康分:%d, 负责人:%s, 风险:%s)",
+				p.Name, p.Stage, p.Budget, p.HealthScore, p.Owner, p.HealthReport.Progress.Status))
+		}
+
+		systemPrompt := "你是一个政府信息中心的大模型公文秘书。请根据全区/全市信息化项目统计数据，起草一份结构严谨、规范周密的《信息中心信息化项目本周运行工作简报》Markdown 文档。"
+		userPrompt := fmt.Sprintf("项目总计：%d 个，平均健康分：%.1f 分\n各阶段项目数量：%v\n\n项目列表及风险概要：\n%s\n\n请输出完整的 Markdown 格式工作简报（包含总体态势、重点风险项目督办通报、下周工作纠偏建议）：",
+			total, avgScore, stageMap, strings.Join(projSummaries, "\n"))
+
+		modelName := cfg.LLMModel
+		if modelName == "" {
+			modelName = "qwen3.6:35b-q4"
+		}
+
+		briefLLM, errLLM := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
+		if errLLM == nil && strings.TrimSpace(briefLLM) != "" {
+			GlobalDB.AddAuditLog(user.Name, "AI生成周报", r.RemoteAddr, "大模型生成本周项目工作简报")
+			sendJSON(w, map[string]string{
+				"brief": strings.TrimSpace(briefLLM),
+			})
+			return
+		}
 	}
 
 	var buf strings.Builder
@@ -1851,33 +1879,10 @@ func HandlerFileCompare(w http.ResponseWriter, r *http.Request, projectID string
 		return
 	}
 
-	// 模拟大模型深度比对结果
-	diffResult := map[string]interface{}{
-		"file1_name": f1.FileName,
-		"file2_name": f2.FileName,
-		"project_name": proj.Name,
-		"summary": fmt.Sprintf("经大模型深度比对，基准文件 [%s] 与变更文件 [%s] 存在以下关键要件变化：", f1.FileName, f2.FileName),
-		"changes": []map[string]string{
-			{
-				"item": "建设范围/条款变更",
-				"old_val": "初始合同服务范围（基础功能开发）",
-				"new_val": "新增政务外网接入与安全加固二次开发模块",
-				"risk": "合规 (已在补充协议中确认)",
-			},
-			{
-				"item": "金额及概算变动",
-				"old_val": fmt.Sprintf("%.2f 万元", proj.WinAmount/10000),
-				"new_val": fmt.Sprintf("%.2f 万元 (+%.2f%%)", (proj.WinAmount*1.08)/10000, 8.0),
-				"risk": "警告: 变更增额接近 10% 概算红线",
-			},
-			{
-				"item": "工期/交付节点调整",
-				"old_val": fmt.Sprintf("%s 交付", proj.CompletionTime),
-				"new_val": "预计顺延 15 个自然日",
-				"risk": "低风险 (属于正常工期调整)",
-			},
-		},
-		"recommendation": "建议核实变更审批单据上盖章是否完整，防范未经审批的违规变更风险。",
+	diffResult, errCompare := LLMCompareFiles(proj, *f1, *f2)
+	if errCompare != nil {
+		sendError(w, http.StatusInternalServerError, "对比文件失败: "+errCompare.Error())
+		return
 	}
 
 	GlobalDB.AddAuditLog(user.Name, "AI文件对比", r.RemoteAddr, fmt.Sprintf("对比文件 [%s] VS [%s]", f1.FileName, f2.FileName))
