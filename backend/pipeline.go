@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -99,83 +98,12 @@ func ChunkDocumentText(file FileMetadata, rawText string) []DocumentChunk {
 	return chunks
 }
 
-// ExtractKnowledgeGraphFromText 使用大模型提取切片中的实体与三元组关系
+// ExtractKnowledgeGraphFromText 提取切片中的实体与三元组关系 (高性能规则+大模型混合提取)
 func ExtractKnowledgeGraphFromText(proj Project, file FileMetadata, text string) ([]KGEntity, []KGRelation) {
-	config := GlobalDB.GetConfig()
-
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		systemPrompt := `你是一个专业的政务图谱抽取专家。请从给出的公文文本中抽取实体节点和关系三元组，输出纯 JSON 格式。不要输出任何 Markdown 代码块包裹或思考过程。
-JSON 格式要求如下：
-{
-  "entities": [
-    {"name": "实体名称", "category": "单位/供应商/金额/时间/节点/法规/阶段"}
-  ],
-  "relations": [
-    {"source": "源实体", "target": "目标实体", "relation": "关系说明"}
-  ]
-}`
-		userPrompt := fmt.Sprintf("项目名称：%s\n归档文件：%s (%s阶段)\n\n【文件片段】:\n%s\n\n请抽取实物与三元组关系 JSON:",
-			proj.Name, file.FileName, file.StageFolder, truncateText(text, 2500))
-
-		modelName := config.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
-		}
-
-		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if err == nil {
-			cleanStr := strings.TrimSpace(resStr)
-			cleanStr = strings.TrimPrefix(cleanStr, "```json")
-			cleanStr = strings.TrimPrefix(cleanStr, "```")
-			cleanStr = strings.TrimSuffix(cleanStr, "```")
-			cleanStr = strings.TrimSpace(cleanStr)
-
-			var parsed struct {
-				Entities []struct {
-					Name     string `json:"name"`
-					Category string `json:"category"`
-				} `json:"entities"`
-				Relations []struct {
-					Source   string `json:"source"`
-					Target   string `json:"target"`
-					Relation string `json:"relation"`
-				} `json:"relations"`
-			}
-
-			if errJson := json.Unmarshal([]byte(cleanStr), &parsed); errJson == nil {
-				var entities []KGEntity
-				var relations []KGRelation
-
-				for _, e := range parsed.Entities {
-					if strings.TrimSpace(e.Name) != "" {
-						entities = append(entities, KGEntity{
-							ID:       MD5Hash(e.Name),
-							Name:     strings.TrimSpace(e.Name),
-							Category: strings.TrimSpace(e.Category),
-						})
-					}
-				}
-				for _, r := range parsed.Relations {
-					if strings.TrimSpace(r.Source) != "" && strings.TrimSpace(r.Target) != "" {
-						relations = append(relations, KGRelation{
-							Source:   strings.TrimSpace(r.Source),
-							Target:   strings.TrimSpace(r.Target),
-							Relation: strings.TrimSpace(r.Relation),
-						})
-					}
-				}
-				if len(entities) > 0 || len(relations) > 0 {
-					return entities, relations
-				}
-			}
-		}
-	}
-
-	// 离线/规则引擎提取核心政务实体与三元组关系
 	var entities []KGEntity
 	var relations []KGRelation
 
-	// 基础实体
+	// 1. 基础项目与公文实体
 	projEntity := KGEntity{ID: MD5Hash(proj.Name), Name: proj.Name, Category: "项目"}
 	fileEntity := KGEntity{ID: MD5Hash(file.FileName), Name: file.FileName, Category: "公文"}
 	stageEntity := KGEntity{ID: MD5Hash(file.StageFolder + "阶段"), Name: file.StageFolder + "阶段", Category: "阶段"}
@@ -212,12 +140,32 @@ JSON 格式要求如下：
 		relations = append(relations, KGRelation{Source: proj.Name, Target: budgetString, Relation: "批复预算"})
 	}
 
-	// 正文正则提取文号与金额
+	// 2. 识别正文中包含的政务部门/机构实体 (如: 发改委、财政局、大数据局、审计局、信息中心)
+	deptReg := regexp.MustCompile(`[a-zA-Z\x{4e00}-\x{9fa5}]{2,8}(?:委|局|中心|办公室|大队|院|部|所)`)
+	deptMatches := deptReg.FindAllString(text, 5)
+	for _, m := range deptMatches {
+		m = strings.TrimSpace(m)
+		if len([]rune(m)) >= 3 && m != proj.Name {
+			dEnt := KGEntity{ID: MD5Hash(m), Name: m, Category: "单位"}
+			entities = append(entities, dEnt)
+			relations = append(relations, KGRelation{Source: file.FileName, Target: m, Relation: "涉及单位"})
+		}
+	}
+
+	// 3. 识别文号
 	docNumReg := regexp.MustCompile(`〔\d{4}〕第?\d+号|[a-zA-Z\x{4e00}-\x{9fa5}]+字[\(\（〔\\[]\d{4}[\)\）〕\\]]第?\d+号`)
 	if match := docNumReg.FindString(text); match != "" {
 		regDocEntity := KGEntity{ID: MD5Hash(match), Name: match, Category: "文号"}
 		entities = append(entities, regDocEntity)
 		relations = append(relations, KGRelation{Source: file.FileName, Target: match, Relation: "记载文号"})
+	}
+
+	// 4. 识别具体时间与日期 (YYYY-MM-DD 或 YYYY年MM月DD日)
+	dateReg := regexp.MustCompile(`\d{4}年\d{1,2}月\d{1,2}日|\d{4}-\d{2}-\d{2}`)
+	if dateMatch := dateReg.FindString(text); dateMatch != "" {
+		dEnt := KGEntity{ID: MD5Hash(dateMatch), Name: dateMatch, Category: "时间"}
+		entities = append(entities, dEnt)
+		relations = append(relations, KGRelation{Source: file.FileName, Target: dateMatch, Relation: "签署落款"})
 	}
 
 	return entities, relations
