@@ -3,6 +3,7 @@ package backend
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -49,6 +50,13 @@ func InitializeKeys(dbDir string) {
 	}
 
 	_ = ioutil.WriteFile(keyPath, fileKey, 0600)
+}
+
+// MD5Hash 计算字符串的 MD5 哈希
+func MD5Hash(text string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(text))
+	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 // HashPassword 计算加盐密码哈希 (SHA-256)

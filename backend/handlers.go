@@ -1199,29 +1199,49 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 		references = append(references, f.FileName)
 	}
 
-	// 优先调用配置的真实远程大模型进行 RAG 问答
+	// 优先调用配置的真实远程大模型进行 RAG 问答 (支持知识库内容无变化下的持久化缓存)
 	cfg := GlobalDB.GetConfig()
 	if cfg.LLMProvider != "mock" && cfg.LLMEndpoint != "" {
+		modelName := cfg.LLMModel
+		if modelName == "" {
+			modelName = "qwen3.6:35b-q4"
+		}
+
+		var ragHashes []string
 		var contextTexts []string
 		for _, f := range files {
+			ragHashes = append(ragHashes, f.ID+":"+f.Hash)
 			filePath := filepath.Join("data/uploads", f.SavedName)
 			if b, err := ioutil.ReadFile(filePath); err == nil {
 				contextTexts = append(contextTexts, fmt.Sprintf("【归档文件：%s (%s阶段)】\n%s", f.FileName, f.StageFolder, truncateStr(string(b), 1200)))
 			}
 		}
 
+		contextHash := MD5Hash(strings.Join(ragHashes, "|"))
+		cacheKey := MD5Hash("chat_" + projectID + "_" + query + "_" + contextHash + "_" + modelName)
+
+		// 检查并命中 RAG 缓存
+		if cacheEntry, ok := GlobalDB.GetLLMCache(cacheKey); ok && cacheEntry.Content != "" {
+			GlobalDB.AddAuditLog(user.Name, "AI 智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 命中 RAG 问答缓存: [%s]", project.Name, truncateStr(query, 30)))
+			sendJSON(w, map[string]interface{}{
+				"response":   cacheEntry.Content,
+				"references": references,
+				"model":      modelName,
+				"cached":     true,
+			})
+			return
+		}
+
 		systemPrompt := "你是一个专业的政务信息化项目生命周期智能管控助手【小智】。请结合项目概况与已归档公文知识库内容，准确、专业地回答用户的监管问询。【重要响应指示】：请直接给出中文回答，绝对不要包含任何 <think> 思考过程、'Here's a thinking process' 或英文推理步骤！"
 		userPrompt := fmt.Sprintf("项目名称：%s\n当前阶段：%s\n项目预算：%.2f 元\n健康得分：%d\n\n【关联归档文件知识库】：\n%s\n\n【用户提问】：%s\n\n请结合知识库给出结构化、严谨的分析与解答：",
 			project.Name, project.Stage, project.Budget, project.HealthScore, strings.Join(contextTexts, "\n\n"), query)
 
-		modelName := cfg.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
-		}
-
 		llmAnswer, err := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
 		if err == nil && strings.TrimSpace(llmAnswer) != "" {
 			responseText = strings.TrimSpace(llmAnswer)
+
+			// 持久化保存 RAG 问答缓存
+			_ = GlobalDB.SetLLMCache(cacheKey, responseText, modelName, contextHash)
 
 			GlobalDB.AddAuditLog(user.Name, "AI 智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向大模型 [%s] 提问: [%s]", project.Name, modelName, truncateStr(query, 30)))
 
@@ -1229,6 +1249,7 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 				"response":   responseText,
 				"references": references,
 				"model":      modelName,
+				"cached":     false,
 			})
 			return
 		}

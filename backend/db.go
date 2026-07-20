@@ -19,6 +19,7 @@ type Database struct {
 	Projects     map[string]Project      `json:"projects"`     // projectID -> Project
 	Files        map[string]FileMetadata `json:"files"`        // fileID -> FileMetadata
 	Alerts       map[string]Alert        `json:"alerts"`       // alertID -> Alert
+	LLMCache     map[string]LLMCacheEntry `json:"llm_cache"`   // key -> LLMCacheEntry (RAG/对比/通用缓存)
 	AuditLogs    []AuditLog              `json:"audit_logs"`   // 审计日志列表
 	SystemConfig SystemConfig            `json:"system_config"`// 系统配置
 }
@@ -42,6 +43,7 @@ func InitDB(dbDir string) (*Database, error) {
 			Projects: make(map[string]Project),
 			Files:    make(map[string]FileMetadata),
 			Alerts:   make(map[string]Alert),
+			LLMCache: make(map[string]LLMCacheEntry),
 		}
 
 		if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
@@ -66,7 +68,39 @@ func (db *Database) load() error {
 		return err
 	}
 
-	return json.Unmarshal(data, db)
+	err = json.Unmarshal(data, db)
+	if db.LLMCache == nil {
+		db.LLMCache = make(map[string]LLMCacheEntry)
+	}
+	return err
+}
+
+// GetLLMCache 安全读取大模型通用缓存
+func (db *Database) GetLLMCache(key string) (LLMCacheEntry, bool) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	if db.LLMCache == nil {
+		return LLMCacheEntry{}, false
+	}
+	entry, ok := db.LLMCache[key]
+	return entry, ok
+}
+
+// SetLLMCache 安全写入并持久化大模型通用缓存
+func (db *Database) SetLLMCache(key, content, model, contextHash string) error {
+	db.mu.Lock()
+	if db.LLMCache == nil {
+		db.LLMCache = make(map[string]LLMCacheEntry)
+	}
+	db.LLMCache[key] = LLMCacheEntry{
+		Key:         key,
+		Content:     content,
+		Model:       model,
+		ContextHash: contextHash,
+		CreatedAt:   time.Now().Format("2006-01-02 15:04:05"),
+	}
+	db.mu.Unlock()
+	return db.Save()
 }
 
 // Save 将数据库持久化到磁盘

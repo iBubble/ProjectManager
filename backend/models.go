@@ -100,18 +100,30 @@ type Project struct {
 	PlannedCompletionDate string           `json:"planned_completion_date"` // 计划完工日期 (YYYY-MM-DD)
 }
 
+// LLMCacheEntry 大模型通用持久化缓存条目 (RAG 对话、文件对比、工作简报等)
+type LLMCacheEntry struct {
+	Key         string `json:"key"`          // 缓存 Key (MD5)
+	Content     string `json:"content"`      // 缓存生成的文本/JSON
+	Model       string `json:"model"`        // 产生该结果的大模型名称
+	ContextHash string `json:"context_hash"` // 对应的关联文件/上下文 Hash
+	CreatedAt   string `json:"created_at"`   // 缓存创建时间
+}
+
 // FileMetadata 包含上传资料文件的元数据
 type FileMetadata struct {
-	ID          string `json:"id"`
-	ProjectID   string `json:"project_id"`
-	FileName    string `json:"file_name"`    // 原始文件名
-	SavedName   string `json:"saved_name"`   // 磁盘加密存储的文件名 (UUID)
-	FileSize    int64  `json:"file_size"`
-	FileType    string `json:"file_type"`    // pdf/docx/xlsx/txt/png等
-	UploadedBy  string `json:"uploaded_by"`
-	UploadedAt  string `json:"uploaded_at"`
-	StageFolder string `json:"stage_folder"` // 对应的八个归档阶段
-	Hash        string `json:"hash"`         // 文件sha256
+	ID           string `json:"id"`
+	ProjectID    string `json:"project_id"`
+	FileName     string `json:"file_name"`    // 原始文件名
+	SavedName    string `json:"saved_name"`   // 磁盘加密存储的文件名 (UUID)
+	FileSize     int64  `json:"file_size"`
+	FileType     string `json:"file_type"`    // pdf/docx/xlsx/txt/png等
+	UploadedBy   string `json:"uploaded_by"`
+	UploadedAt   string `json:"uploaded_at"`
+	StageFolder  string `json:"stage_folder"` // 对应的八个归档阶段
+	Hash         string `json:"hash"`         // 文件sha256
+	Summary      string `json:"summary"`      // 持久化缓存的 AI 摘要
+	SummaryModel string `json:"summary_model"`// 产生摘要的大模型名称
+	SummaryHash  string `json:"summary_hash"` // 产生摘要时的文件 Hash (用于自动判断是否失效)
 }
 
 // Alert 包含系统关键预警通知

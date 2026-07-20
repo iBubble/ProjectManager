@@ -670,11 +670,21 @@ func CleanLLMThinking(text string) string {
 	return strings.TrimSpace(text)
 }
 
-// LLMGenerateSummary 生成文件AI摘要 (优先使用配置的远程大模型，未配置时回退到离线规则引擎)
+// LLMGenerateSummary 生成文件AI摘要 (支持文件 Hash 校验级持久化缓存)
 func LLMGenerateSummary(proj Project, file FileMetadata) string {
 	config := GlobalDB.GetConfig()
 
-	// 若已配置真实大模型，调用大模型对落盘真实文档生成摘要
+	modelName := config.LLMModel
+	if modelName == "" {
+		modelName = "qwen3.6:35b-q4"
+	}
+
+	// 1. 优先校验并命中持久化缓存 (文件 Hash 未发生变更且模型匹配)
+	if file.Summary != "" && file.SummaryHash == file.Hash && (file.SummaryModel == modelName || config.LLMProvider == "mock") {
+		return file.Summary
+	}
+
+	// 2. 若配置了真实大模型，调用大模型对落盘真实文档生成摘要
 	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
 		filePath := filepath.Join("data/uploads", file.SavedName)
 		fileBytes, err := ioutil.ReadFile(filePath)
@@ -690,20 +700,19 @@ func LLMGenerateSummary(proj Project, file FileMetadata) string {
 		userPrompt := fmt.Sprintf("项目名称：%s\n归档文件名：%s\n归档阶段：%s\n\n【文件原文片段】:\n%s\n\n请直接输出 300 字以内的精炼摘要（包含公文文号、核心主体、关键预算/决议及合规提示，不要包含任何思考过程或英文段落）：",
 			proj.Name, file.FileName, file.StageFolder, truncateText(fileText, 3000))
 
-		modelName := config.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
-		}
-
 		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
 		if err == nil {
 			cleaned := CleanLLMThinking(resStr)
 			if cleaned != "" {
-				// 严格控制在 300 字以内 (符合 需求.txt 要求)
 				runes := []rune(cleaned)
 				if len(runes) > 300 {
 					cleaned = string(runes[:297]) + "..."
 				}
+				// 回写持久化缓存到数据库
+				file.Summary = cleaned
+				file.SummaryModel = modelName
+				file.SummaryHash = file.Hash
+				_ = GlobalDB.SaveFile(file)
 				return cleaned
 			}
 		}
@@ -816,9 +825,28 @@ func AutoClassifyFileStage(fileName string, fileBytes []byte) string {
 	}
 }
 
-// LLMCompareFiles AI 文件版本差异对比校验
+// LLMCompareFiles AI 文件版本差异对比校验 (支持基于两端文件 Hash 的持久化缓存)
 func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{}, error) {
 	config := GlobalDB.GetConfig()
+
+	modelName := config.LLMModel
+	if modelName == "" {
+		modelName = "qwen3.6:35b-q4"
+	}
+
+	contextHash := f1.ID + ":" + f1.Hash + "_" + f2.ID + ":" + f2.Hash
+	cacheKey := MD5Hash("compare_" + contextHash + "_" + modelName)
+
+	if entry, ok := GlobalDB.GetLLMCache(cacheKey); ok && entry.Content != "" {
+		var parsed map[string]interface{}
+		if errJson := json.Unmarshal([]byte(entry.Content), &parsed); errJson == nil {
+			parsed["file1_name"] = f1.FileName
+			parsed["file2_name"] = f2.FileName
+			parsed["project_name"] = proj.Name
+			parsed["cached"] = true
+			return parsed, nil
+		}
+	}
 
 	filePath1 := filepath.Join("data/uploads", f1.SavedName)
 	filePath2 := filepath.Join("data/uploads", f2.SavedName)
@@ -852,11 +880,6 @@ func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{},
   "recommendation": "给审计/管理人员的合规建议"
 }`, proj.Name, f1.FileName, text1, f2.FileName, text2)
 
-		modelName := config.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
-		}
-
 		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
 		if err == nil {
 			resStrClean := strings.TrimSpace(resStr)
@@ -870,6 +893,10 @@ func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{},
 				parsed["file1_name"] = f1.FileName
 				parsed["file2_name"] = f2.FileName
 				parsed["project_name"] = proj.Name
+				if jsonBytes, errM := json.Marshal(parsed); errM == nil {
+					_ = GlobalDB.SetLLMCache(cacheKey, string(jsonBytes), modelName, contextHash)
+				}
+				parsed["cached"] = false
 				return parsed, nil
 			}
 		}
