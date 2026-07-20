@@ -2377,15 +2377,29 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalProjects := len(projects)
-	globalCompletion := 0.0
-	if totalProjects > 0 {
-		globalCompletion = totalProgressSum / float64(totalProjects)
+
+	vecPercent := 0.0
+	graphPercent := 0.0
+	summaryPercent := 0.0
+	predictPercent := 0.0
+
+	if totalFilesCount > 0 {
+		vecPercent = (float64(learnedFilesCount) / float64(totalFilesCount)) * 100.0
+		graphPercent = vecPercent
+		summaryPercent = vecPercent
 	}
+	// 4. 智能预计算暂未触发为 0.00%
+	predictPercent = 0.0
+
+	// 总体完成率 = 四大管线阶段取算术平均数 (例: 100 + 100 + 100 + 0) / 4 = 75.00%
+	globalCompletion := (vecPercent + graphPercent + summaryPercent + predictPercent) / 4.0
+
+	realStats := GetRealSystemStats()
 
 	stats := map[string]interface{}{
-		"cpu_load":             "0.6%",
-		"memory_usage":         "23.5GB / 48.0GB",
-		"memory_percent":       48.9,
+		"cpu_load":             realStats.CPULoad,
+		"memory_usage":         realStats.MemoryUsage,
+		"memory_percent":       realStats.MemoryPercent,
 		"celery_fast_queue":    0,
 		"celery_slow_queue":    0,
 		"celery_workers":       2,
