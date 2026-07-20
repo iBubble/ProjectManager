@@ -235,7 +235,7 @@ func main() {
 	http.HandleFunc("/", DispatcherRequest)
 
 	// 启动本地监听
-	addr := "127.0.0.1:7897"
+	addr := "127.0.0.1:81"
 	log.Printf("[政务智管] 服务器正在监听: http://%s ...", addr)
 	
 	// 在测试/运行时保证只绑定本地 127.0.0.1 防止外部非授权连接，符合安全规范

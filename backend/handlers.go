@@ -2226,7 +2226,7 @@ func HandlerBatchUpdateProjects(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandlerProjectLearn 触发项目大模型“深度切片+知识图谱全量学习”管线
+// HandlerProjectLearn 触发项目大模型“深度切片+知识图谱全量学习”排队管线
 func HandlerProjectLearn(w http.ResponseWriter, r *http.Request, projectID string) {
 	user, err := GetCurrentUser(r)
 	if err != nil {
@@ -2242,17 +2242,21 @@ func HandlerProjectLearn(w http.ResponseWriter, r *http.Request, projectID strin
 		return
 	}
 
-	proj, errLearn := RunProjectLearningPipeline(projectID)
-	if errLearn != nil {
-		sendError(w, http.StatusInternalServerError, "项目学习管线执行失败: "+errLearn.Error())
-		return
+	status, pos := EnqueueProjectLearning(projectID)
+
+	GlobalDB.AddAuditLog(user.Name, "项目学习管线", r.RemoteAddr, fmt.Sprintf("提交项目 [%s] 大模型学习管线 (状态: %s)", projectID, status))
+
+	msg := "已成功提交项目大模型深度学习管线"
+	if status == "queued" {
+		msg = fmt.Sprintf("系统算力并发已满（上限 2），项目已进入排队队列（当前第 %d 位）", pos)
+	} else if status == "learning" {
+		msg = "项目已成功开启大模型并发深度学习管线！"
 	}
 
-	GlobalDB.AddAuditLog(user.Name, "项目学习管线", r.RemoteAddr, fmt.Sprintf("触发项目 [%s] 大模型深度学习与知识图谱构建", proj.Name))
 	sendJSON(w, map[string]interface{}{
-		"message":         "项目大模型深度切片与知识图谱构建全量学习完成",
-		"knowledge_graph": proj.KnowledgeGraph,
-		"chunks_count":    len(proj.Chunks),
+		"message":  msg,
+		"status":   status,
+		"position": pos,
 	})
 }
 
@@ -2318,6 +2322,11 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 			status = "unlearned" // 默认未开始学习
 		}
 
+		qStatus, pos := GetProjectQueueStatus(p.ID)
+		if qStatus != "" {
+			status = qStatus
+		}
+
 		progressPercent := 0.0
 		processedFiles := 0
 
@@ -2335,6 +2344,9 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 				processedFiles = 0
 				progressPercent = 15.0
 			}
+		} else if status == "queued" {
+			progressPercent = 0.0
+			processedFiles = 0
 		} else {
 			progressPercent = 0.0
 			processedFiles = 0
@@ -2347,6 +2359,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 			"project_id":        p.ID,
 			"project_name":      p.Name,
 			"status":            status,
+			"queue_position":    pos,
 			"learned_at":        p.KnowledgeGraph.LearnedAt,
 			"files_count":       fileCount,
 			"processed_files":   processedFiles,
@@ -2390,7 +2403,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, stats)
 }
 
-// HandlerLearnAllProjects 一键全量对所有项目异步触发大模型深度学习管线
+// HandlerLearnAllProjects 一键全量对所有项目并发排队触发大模型深度学习管线
 func HandlerLearnAllProjects(w http.ResponseWriter, r *http.Request) {
 	user, err := GetCurrentUser(r)
 	if err != nil {
@@ -2408,22 +2421,14 @@ func HandlerLearnAllProjects(w http.ResponseWriter, r *http.Request) {
 
 	projects := GlobalDB.ListProjects()
 
-	// 立即把所有项目状态更名为学习中 status = "learning"
+	// 逐个加入并发排队池 (最大并发 2)
 	for _, p := range projects {
-		p.KnowledgeGraph.Status = "learning"
-		_ = GlobalDB.SaveProject(p)
+		EnqueueProjectLearning(p.ID)
 	}
 
-	// 启动后台异步 Goroutine 逐个处理各项目与文档切片
-	go func() {
-		for _, p := range projects {
-			_, _ = RunProjectLearningPipeline(p.ID)
-		}
-	}()
-
-	GlobalDB.AddAuditLog(user.Name, "一键项目全量学习", r.RemoteAddr, fmt.Sprintf("后台全量启动 %d 个项目的大模型切片与图谱学习", len(projects)))
+	GlobalDB.AddAuditLog(user.Name, "一键项目全量学习", r.RemoteAddr, fmt.Sprintf("后台启动 %d 个项目的大模型分批并发排队学习", len(projects)))
 	sendJSON(w, map[string]interface{}{
-		"message": fmt.Sprintf("已成功在后台启动全量 %d 个项目的大模型深度学习管线！", len(projects)),
+		"message": fmt.Sprintf("已成功在后台启动全量 %d 个项目的大模型并发排队深度学习管线！", len(projects)),
 		"started_count": len(projects),
 	})
 }

@@ -124,7 +124,7 @@ ProjectManager/
 # 编译 Go 后端程序
 go build -o server_bin main.go
 
-# 启动服务 (默认监听在本地 http://127.0.0.1:7897)
+# 启动服务 (默认监听在本地 http://127.0.0.1:81)
 ./server_bin
 ```
 
@@ -141,10 +141,10 @@ go build -o server_bin main.go
 ### 4. 离线/涉密机部署提示 (内网模式)
 若需在全隔离物理涉密网络内运行：
 1. 将 `backend/llm.go` 内部的大模型驱动提供商设置为本地私有化大模型网关或设置为 `mock` 模式使用离线规则研判。
-2. 保持监听地址绑定在 `127.0.0.1:7897`，通过系统反向代理或网桥进行安全外联，确保外部网络不可直接探测服务端口。
+2. 保持监听地址绑定在 `127.0.0.1:81`，通过系统反向代理或网桥进行安全外联，确保外部网络不可直接探测服务端口。
 
 ### 5. FRP 内网穿透配置方案 (微信推送与外网联合联调)
-由于平台支持企业微信/政务微信消息推送，当本地服务器部署在政府内网无固定公文公网 IP 时，可通过 `frp` 工具将本地的 `7897` 端口映射到公网，以便微信回调服务器及外网访问。
+由于平台支持企业微信/政务微信消息推送，当本地服务器部署在政府内网无固定公文公网 IP 时，可通过 `frp` 工具将本地的 `81` 端口映射到公网，以便微信回调服务器及外网访问。
 
 #### 步骤 1：在具有公网固定 IP 的服务器部署 frps
 在公网服务器上安装 frp 并配置 `frps.toml`（适用 v0.52.0+ 新版本）：
@@ -177,20 +177,20 @@ serverPort = 7000               # 与 frps 的 bindPort 一致
 # 安全授权 Token
 auth.token = "GovSmartManageSecureToken2026"
 
-# 方案 A：通过 TCP 端口映射直接访问 (例如通过 http://x.x.x.x:7897 访问)
+# 方案 A：通过 TCP 端口映射直接访问 (例如通过 http://x.x.x.x:81 访问)
 [[proxies]]
 name = "gov-manager-tcp"
 type = "tcp"
 localIP = "127.0.0.1"
-localPort = 7897
-remotePort = 7897
+localPort = 81
+remotePort = 81
 
 # 方案 B：通过绑定域名访问 (推荐，支持企业微信推送的可信域名绑定)
 # [[proxies]]
 # name = "gov-manager-http"
 # type = "http"
 # localIP = "127.0.0.1"
-# localPort = 7897
+# localPort = 81
 # customDomains = ["project.yourdomain.gov.cn"] # 您的可信域名
 ```
 
@@ -199,7 +199,7 @@ remotePort = 7897
 ./frpc -c frpc.toml
 ```
 
-启动后，访问 `http://x.x.x.x:7897` 或配置的自定义域名即可直达本地内网的项目管理系统。
+启动后，访问 `http://x.x.x.x:81` 或配置的自定义域名即可直达本地内网的项目管理系统。
 
 ---
 

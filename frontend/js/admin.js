@@ -845,15 +845,30 @@ function renderLearningProjectCards(projects) {
     box.innerHTML = projects.map(p => {
         const isLearned = p.status === "learned";
         const isLearning = p.status === "learning";
+        const isQueued = p.status === "queued";
+
         const percentNum = isLearned ? 100 : (isLearning ? (p.progress_percent || 25) : 0);
         const percentStr = percentNum.toFixed(2) + "%";
 
-        const statusBadgeClass = isLearned ? "bg-success" : (isLearning ? "bg-warning text-dark" : "bg-secondary");
-        const statusBadgeText = isLearned ? "已完成" : (isLearning ? "⏳ 学习中..." : "未开始学习");
+        let statusBadgeClass = "bg-secondary";
+        let statusBadgeText = "未开始学习";
+
+        if (isLearned) {
+            statusBadgeClass = "bg-success";
+            statusBadgeText = "已完成";
+        } else if (isLearning) {
+            statusBadgeClass = "bg-warning text-dark";
+            statusBadgeText = "⚡ 学习中...";
+        } else if (isQueued) {
+            statusBadgeClass = "bg-info text-dark";
+            statusBadgeText = `⏳ 排队中 (第 ${p.queue_position || 1} 位)`;
+        }
 
         let actionBtnHtml = `<button class="btn-gov-primary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>`;
         if (isLearning) {
-            actionBtnHtml = `<button class="btn-gov-warning disabled" style="font-size:12px; padding:4px 10px;" disabled><span class="spinner-border spinner-border-sm"></span> 学习中...</button>`;
+            actionBtnHtml = `<button class="btn-gov-warning disabled" style="font-size:12px; padding:4px 10px;" disabled><span class="spinner-border spinner-border-sm"></span> 正在深度研判...</button>`;
+        } else if (isQueued) {
+            actionBtnHtml = `<button class="btn-gov-secondary disabled" style="font-size:12px; padding:4px 10px;" disabled>⏳ 算力排队中 (${p.queue_position || 1})</button>`;
         } else if (isLearned) {
             actionBtnHtml = `<button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🔄 重新研判学习</button>`;
         }

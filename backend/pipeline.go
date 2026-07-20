@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -261,4 +262,112 @@ func RunProjectLearningPipeline(projectID string) (*Project, error) {
 	GlobalDB.AddAuditLog("系统引擎", "项目深度学习", "127.0.0.1", fmt.Sprintf("完成项目 [%s] 知识切片与知识图谱构建学习", proj.Name))
 
 	return &proj, nil
+}
+
+// ----------------------------------------------------
+// 并发排队机制 (Worker Pool, 最大并发数: 2)
+// ----------------------------------------------------
+var (
+	LearningQueueChan = make(chan string, 200)
+	queueMu           sync.Mutex
+	activeJobsMap     = make(map[string]bool)
+	queuedList        = make([]string, 0)
+	workerOnce        sync.Once
+)
+
+// InitLearningQueueWorkerPool 启动并发为 2 的项目学习排队处理线程池
+func InitLearningQueueWorkerPool() {
+	workerOnce.Do(func() {
+		for i := 0; i < 2; i++ {
+			go func(workerID int) {
+				for projID := range LearningQueueChan {
+					queueMu.Lock()
+					activeJobsMap[projID] = true
+					newList := make([]string, 0)
+					for _, q := range queuedList {
+						if q != projID {
+							newList = append(newList, q)
+						}
+					}
+					queuedList = newList
+					queueMu.Unlock()
+
+					// 执行项目学习管线
+					_, _ = RunProjectLearningPipeline(projID)
+
+					queueMu.Lock()
+					delete(activeJobsMap, projID)
+					queueMu.Unlock()
+				}
+			}(i + 1)
+		}
+	})
+}
+
+// EnqueueProjectLearning 将项目加入学习队列
+func EnqueueProjectLearning(projectID string) (string, int) {
+	InitLearningQueueWorkerPool()
+
+	queueMu.Lock()
+	defer queueMu.Unlock()
+
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		return "not_found", 0
+	}
+
+	if activeJobsMap[projectID] {
+		return "learning", 0
+	}
+
+	for pos, qID := range queuedList {
+		if qID == projectID {
+			return "queued", pos + 1
+		}
+	}
+
+	// 如果活跃并发数 < 2，立即开始学习
+	if len(activeJobsMap) < 2 {
+		activeJobsMap[projectID] = true
+		proj.KnowledgeGraph.Status = "learning"
+		_ = GlobalDB.SaveProject(proj)
+		go func() {
+			_, _ = RunProjectLearningPipeline(projectID)
+			queueMu.Lock()
+			delete(activeJobsMap, projectID)
+			queueMu.Unlock()
+		}()
+		return "learning", 0
+	}
+
+	// 否则加入排队队列
+	proj.KnowledgeGraph.Status = "queued"
+	_ = GlobalDB.SaveProject(proj)
+	queuedList = append(queuedList, projectID)
+	position := len(queuedList)
+
+	select {
+	case LearningQueueChan <- projectID:
+	default:
+	}
+
+	return "queued", position
+}
+
+// GetProjectQueueStatus 获取项目的最新排队与学习状态
+func GetProjectQueueStatus(projectID string) (string, int) {
+	queueMu.Lock()
+	defer queueMu.Unlock()
+
+	if activeJobsMap[projectID] {
+		return "learning", 0
+	}
+
+	for pos, qID := range queuedList {
+		if qID == projectID {
+			return "queued", pos + 1
+		}
+	}
+
+	return "", 0
 }
