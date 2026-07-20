@@ -687,10 +687,11 @@ func HandlerFileDownload(w http.ResponseWriter, r *http.Request, projectID, file
 	if cfg.FileAutoEncrypt {
 		decBytes, decErr := DecryptData(rawBytes)
 		if decErr != nil {
-			sendError(w, http.StatusInternalServerError, "解密物理文件内容失败，密钥无效")
-			return
+			// 降级回退：解密失败说明文件可能以明文存储（如系统内置或初始化时生成的物理文件），直接发送原始数据
+			finalBytes = rawBytes
+		} else {
+			finalBytes = decBytes
 		}
-		finalBytes = decBytes
 	} else {
 		finalBytes = rawBytes
 	}
@@ -705,13 +706,15 @@ func HandlerFileDownload(w http.ResponseWriter, r *http.Request, projectID, file
 	
 	// 根据后缀映射 Content-Type
 	contentType := "application/octet-stream"
-	switch fileMeta.FileType {
+	switch strings.ToLower(fileMeta.FileType) {
 	case "pdf":
 		contentType = "application/pdf"
 	case "png":
 		contentType = "image/png"
 	case "txt":
 		contentType = "text/plain; charset=utf-8"
+	case "md", "markdown":
+		contentType = "text/markdown; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(finalBytes)))
