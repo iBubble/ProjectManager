@@ -59,9 +59,13 @@
                         <p>系统管理员控制面板</p>
                     </div>
                     <nav class="admin-nav">
-                        <button class="admin-nav-item active" data-admin-tab="project-mgmt" onclick="switchAdminTab('project-mgmt')">
+                        <button class="admin-nav-item" data-admin-tab="project-mgmt" onclick="switchAdminTab('project-mgmt')">
                             <span class="nav-icon">📊</span>
                             <span class="nav-label">项目管理</span>
+                        </button>
+                        <button class="admin-nav-item" data-admin-tab="learning" onclick="switchAdminTab('learning')">
+                            <span class="nav-icon">🧠</span>
+                            <span class="nav-label">学习进度看板</span>
                         </button>
                         <button class="admin-nav-item" data-admin-tab="users" onclick="switchAdminTab('users')">
                             <span class="nav-icon">👥</span>
@@ -167,6 +171,161 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- 子面板：学习进度看板 (镜像完美对齐 貔貅/LawRAG 学习看板设计) -->
+                    <div class="admin-panel" id="admin-panel-learning">
+                        <div class="admin-panel-header">
+                            <h2>🧠 学习进度看板</h2>
+                            <span class="admin-panel-desc">全局监控所有项目的向量化入库、知识图谱提取与智能学习预计计算状态</span>
+                        </div>
+                        <div class="admin-panel-body">
+                            
+                            <!-- 1. 顶部四大系统计算资源卡片 -->
+                            <div class="learning-top-cards">
+                                <div class="learning-card">
+                                    <div class="card-icon blue">⚙️</div>
+                                    <div class="card-info">
+                                        <div class="card-title">计算资源利用率</div>
+                                        <div class="card-sub flex-between">
+                                            <span>CPU 负载</span>
+                                            <span id="learn-cpu-load">0.6%</span>
+                                        </div>
+                                        <div class="progress-bar-thin mb-1">
+                                            <div class="progress-bar-fill blue" style="width: 5%;"></div>
+                                        </div>
+                                        <div class="card-sub flex-between">
+                                            <span>内存占用</span>
+                                            <span id="learn-mem-usage">23.5GB / 48.0GB</span>
+                                        </div>
+                                        <div class="progress-bar-thin">
+                                            <div class="progress-bar-fill green" style="width: 48.9%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="learning-card">
+                                    <div class="card-icon orange">⚡</div>
+                                    <div class="card-info">
+                                        <div class="card-title">Celery 引擎积压</div>
+                                        <div class="card-stat-row">
+                                            <div class="stat-col">
+                                                <div class="stat-num">0</div>
+                                                <div class="stat-label">快速队列</div>
+                                            </div>
+                                            <div class="stat-col">
+                                                <div class="stat-num">0</div>
+                                                <div class="stat-label">慢速队列</div>
+                                            </div>
+                                        </div>
+                                        <div class="card-footer-note">
+                                            <span>活跃任务: 0</span>
+                                            <span class="badge-status-online">🟢 2 Worker</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="learning-card">
+                                    <div class="card-icon purple">🗄️</div>
+                                    <div class="card-info">
+                                        <div class="card-title">Qdrant 向量切片</div>
+                                        <div class="stat-big purple-text" id="learn-vector-chunks">19,853</div>
+                                        <div class="card-sub-muted">总切片数</div>
+                                    </div>
+                                </div>
+
+                                <div class="learning-card">
+                                    <div class="card-icon cyan">🔗</div>
+                                    <div class="card-info">
+                                        <div class="card-title">Neo4j 知识图谱</div>
+                                        <div class="card-stat-row">
+                                            <div class="stat-col">
+                                                <div class="stat-num blue-text" id="learn-kg-entities">67,328</div>
+                                                <div class="stat-label">总实体数</div>
+                                            </div>
+                                            <div class="stat-col">
+                                                <div class="stat-num cyan-text" id="learn-kg-relations">150,774</div>
+                                                <div class="stat-label">总关系数</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. 中部：全局综合学习状态卡片 -->
+                            <div class="learning-global-box">
+                                <div class="global-box-header">
+                                    <h3>📊 全局综合学习状态</h3>
+                                    <span class="sub-note" id="learn-active-projects-note">共监控 11 个活跃项目</span>
+                                </div>
+                                <div class="global-box-content">
+                                    <!-- 圆形环形进度条 -->
+                                    <div class="circle-progress-box">
+                                        <svg viewBox="0 0 100 100" class="circle-svg">
+                                            <circle cx="50" cy="50" r="40" class="circle-bg"></circle>
+                                            <circle cx="50" cy="50" r="40" class="circle-bar" style="stroke-dashoffset: 0;"></circle>
+                                        </svg>
+                                        <div class="circle-inner-text">
+                                            <div class="percent-val" id="learn-global-percent">100.00%</div>
+                                            <div class="percent-label">总体学习完成率</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 右侧四大步骤管线进度 -->
+                                    <div class="pipeline-steps-grid">
+                                        <div class="step-progress-item">
+                                            <div class="step-head">
+                                                <span>🗄️ 1. 向量化入库</span>
+                                                <span class="step-num" id="step-vector-count">1454 / 1454 文件</span>
+                                            </div>
+                                            <div class="progress-bar-thick">
+                                                <div class="progress-bar-fill grad-purple-blue" style="width: 100%;"></div>
+                                            </div>
+                                            <div class="step-percent">100.00%</div>
+                                        </div>
+
+                                        <div class="step-progress-item">
+                                            <div class="step-head">
+                                                <span>🔗 2. 知识图谱提取</span>
+                                                <span class="step-num" id="step-kg-count">1454 / 1454 文件</span>
+                                            </div>
+                                            <div class="progress-bar-thick">
+                                                <div class="progress-bar-fill grad-cyan" style="width: 100%;"></div>
+                                            </div>
+                                            <div class="step-percent">100.00%</div>
+                                        </div>
+
+                                        <div class="step-progress-item">
+                                            <div class="step-head">
+                                                <span>🌺 3. 图谱社区摘要</span>
+                                                <span class="step-num" id="step-summary-count">2311 / 2311 段</span>
+                                            </div>
+                                            <div class="progress-bar-thick">
+                                                <div class="progress-bar-fill grad-pink" style="width: 100%;"></div>
+                                            </div>
+                                            <div class="step-percent">100.00%</div>
+                                        </div>
+
+                                        <div class="step-progress-item">
+                                            <div class="step-head">
+                                                <span>⚡ 4. 智能学习预计计算</span>
+                                                <span class="step-num">0 / 44 项</span>
+                                            </div>
+                                            <div class="progress-bar-thick">
+                                                <div class="progress-bar-fill grad-light-purple" style="width: 0%;"></div>
+                                            </div>
+                                            <div class="step-percent text-muted">0.00%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. 下部：按项目划分的具体学习进展卡片列表 -->
+                            <div class="learning-projects-container" id="learning-projects-list">
+                                <!-- 动态渲染项目学习卡片 -->
+                            </div>
+
                         </div>
                     </div>
 

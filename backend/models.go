@@ -95,9 +95,46 @@ type Project struct {
 	HealthScore           int              `json:"health_score"`         // 健康度评分 (0-100)
 	HealthReport          HealthReportData `json:"health_report"`        // 详细研判报告
 	SavedDocs             []SavedDoc       `json:"saved_docs"`           // 编辑保存的公文列表
+	KnowledgeGraph        ProjectKnowledgeGraph `json:"knowledge_graph"` // 项目知识图谱学习成果
+	Chunks                []DocumentChunk       `json:"chunks"`          // 项目文档切片知识库
 	CreatedAt             string           `json:"created_at"`
 	StartDate             string           `json:"start_date"`             // 开始日期 (YYYY-MM-DD)
 	PlannedCompletionDate string           `json:"planned_completion_date"` // 计划完工日期 (YYYY-MM-DD)
+}
+
+// DocumentChunk 智能文档语义切片
+type DocumentChunk struct {
+	ID          string `json:"id"`
+	FileID      string `json:"file_id"`
+	FileName    string `json:"file_name"`
+	StageFolder string `json:"stage_folder"`
+	ChunkIndex  int    `json:"chunk_index"`
+	Content     string `json:"content"`    // 切片正文
+	WordCount   int    `json:"word_count"` // 字符数
+}
+
+// KGEntity 知识图谱实体节点
+type KGEntity struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`     // 实体名称 (如: 区发改委、中标单位、1200万元)
+	Category string `json:"category"` // 实体类别: 单位 / 供应商 / 金额 / 时间 / 节点 / 法规 / 阶段
+}
+
+// KGRelation 知识图谱关系三元组 (Subject -> Relation -> Object)
+type KGRelation struct {
+	Source   string `json:"source"`   // 源实体 (Subject)
+	Target   string `json:"target"`   // 目标实体 (Object)
+	Relation string `json:"relation"` // 关系描述 (如: 批准立项、中标建设、约定期限、存在风险)
+}
+
+// ProjectKnowledgeGraph 项目整体智能图谱与学习结果
+type ProjectKnowledgeGraph struct {
+	Status      string       `json:"status"`       // 学习状态: unlearned (未学习) / learning (学习中) / learned (已学成)
+	LearnedAt   string       `json:"learned_at"`   // 学习完成时间
+	TotalChunks int          `json:"total_chunks"` // 提取的总切片数量
+	Entities    []KGEntity   `json:"entities"`     // 实体节点集合
+	Relations   []KGRelation `json:"relations"`    // 关系边集合
+	Summary     string       `json:"summary"`      // 图谱全局分析摘要
 }
 
 // LLMCacheEntry 大模型通用持久化缓存条目 (RAG 对话、文件对比、工作简报等)

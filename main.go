@@ -76,6 +76,9 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 	case "/api/system/stats":
 		backend.HandlerSystemStats(w, r)
 		return
+	case "/api/system/learning-stats":
+		backend.HandlerLearningStats(w, r)
+		return
 	case "/api/export":
 		backend.HandlerExport(w, r)
 		return
@@ -126,6 +129,18 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 			// /api/projects/:id/chat
 			if len(parts) == 4 && parts[3] == "chat" {
 				backend.HandlerProjectChat(w, r, projectID)
+				return
+			}
+
+			// /api/projects/:id/learn
+			if len(parts) == 4 && parts[3] == "learn" {
+				backend.HandlerProjectLearn(w, r, projectID)
+				return
+			}
+
+			// /api/projects/:id/knowledge-graph
+			if len(parts) == 4 && parts[3] == "knowledge-graph" {
+				backend.HandlerProjectKnowledgeGraph(w, r, projectID)
 				return
 			}
 
