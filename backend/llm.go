@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -32,25 +33,59 @@ type LLMResponse struct {
 	} `json:"choices"`
 }
 
-// CallLLMGeneric 通用的 OpenAI 兼容大模型 API 调用函数
+// CallLLMGeneric 通用的 OpenAI 兼容 / Ollama 接口大模型 API 调用函数
 func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {
 	if endpoint == "" {
 		endpoint = "https://api.openai.com/v1/chat/completions"
 	}
 	if model == "" {
-		model = "gpt-3.5-turbo"
+		model = "qwen3.6:35b-q4"
 	}
 
-	reqBody := LLMRequest{
-		Model: model,
-		Messages: []LLMMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: userPrompt},
-		},
-		Temperature: 0.2,
+	isOllamaGenerate := strings.HasSuffix(endpoint, "/api/generate") || strings.Contains(endpoint, "/api/generate")
+	isOllamaChat := strings.HasSuffix(endpoint, "/api/chat") || strings.Contains(endpoint, "/api/chat")
+
+	var jsonBytes []byte
+	var err error
+
+	if isOllamaGenerate {
+		fullPrompt := ""
+		if systemPrompt != "" {
+			fullPrompt += "系统提示: " + systemPrompt + "\n\n"
+		}
+		fullPrompt += userPrompt
+
+		reqBody := map[string]interface{}{
+			"model":  model,
+			"prompt": fullPrompt,
+			"stream": false,
+		}
+		jsonBytes, err = json.Marshal(reqBody)
+	} else if isOllamaChat {
+		msgs := []LLMMessage{}
+		if systemPrompt != "" {
+			msgs = append(msgs, LLMMessage{Role: "system", Content: systemPrompt})
+		}
+		msgs = append(msgs, LLMMessage{Role: "user", Content: userPrompt})
+
+		reqBody := map[string]interface{}{
+			"model":    model,
+			"messages": msgs,
+			"stream":   false,
+		}
+		jsonBytes, err = json.Marshal(reqBody)
+	} else {
+		reqBody := LLMRequest{
+			Model: model,
+			Messages: []LLMMessage{
+				{Role: "system", Content: systemPrompt},
+				{Role: "user", Content: userPrompt},
+			},
+			Temperature: 0.2,
+		}
+		jsonBytes, err = json.Marshal(reqBody)
 	}
 
-	jsonBytes, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", err
 	}
@@ -61,30 +96,51 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	if apiKey != "" && apiKey != "******" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 90 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("请求大模型接口失败: %v", err)
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取大模型响应失败: %v", err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("大模型接口返回异常状态码 %d: %s", resp.StatusCode, string(bodyBytes))
+		return "", fmt.Errorf("大模型接口返回状态码 %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
+	// 1. 优先解析 Ollama /api/generate 格式 {"response": "..."}
+	var ollamaGenResp struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal(bodyBytes, &ollamaGenResp); err == nil && strings.TrimSpace(ollamaGenResp.Response) != "" {
+		return ollamaGenResp.Response, nil
+	}
+
+	// 2. 尝试解析 Ollama /api/chat 格式 {"message": {"content": "..."}}
+	var ollamaChatResp struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	}
+	if err := json.Unmarshal(bodyBytes, &ollamaChatResp); err == nil && strings.TrimSpace(ollamaChatResp.Message.Content) != "" {
+		return ollamaChatResp.Message.Content, nil
+	}
+
+	// 3. 尝试解析 OpenAI /v1/chat/completions 格式 {"choices": [{"message": {"content": "..."}}]}
 	var llmResp LLMResponse
-	if err := json.NewDecoder(resp.Body).Decode(&llmResp); err != nil {
-		return "", err
+	if err := json.Unmarshal(bodyBytes, &llmResp); err == nil && len(llmResp.Choices) > 0 {
+		return llmResp.Choices[0].Message.Content, nil
 	}
 
-	if len(llmResp.Choices) == 0 {
-		return "", errors.New("大模型返回内容为空")
-	}
-
-	return llmResp.Choices[0].Message.Content, nil
+	return string(bodyBytes), nil
 }
 
 // ExtractMetadataFromFile 大模型解析文件引擎
@@ -483,8 +539,36 @@ func getMockFinanceDesc(p *Project) string {
 	return "资金拨付手续完整，发票与付款凭证匹配良好，未见异常支付或超支行为。"
 }
 
-// LLMGenerateSummary 生成文件AI摘要 (模拟离线规则引擎)
+// LLMGenerateSummary 生成文件AI摘要 (优先使用配置的远程大模型，未配置时回退到离线规则引擎)
 func LLMGenerateSummary(proj Project, file FileMetadata) string {
+	config := GlobalDB.GetConfig()
+
+	// 若已配置真实大模型，调用大模型对落盘真实文档生成摘要
+	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
+		filePath := filepath.Join("data/uploads", file.SavedName)
+		fileBytes, err := ioutil.ReadFile(filePath)
+		fileText := ""
+		if err == nil {
+			fileText = string(fileBytes)
+		}
+		if fileText == "" {
+			fileText = fmt.Sprintf("项目名称：%s，文件名：%s，归档阶段：%s", proj.Name, file.FileName, file.StageFolder)
+		}
+
+		systemPrompt := "你是一个专业的政务信息化项目管理与公文审计专家。请对给出的归档公文进行精准摘要。"
+		userPrompt := fmt.Sprintf("项目名称：%s\n归档文件名：%s\n归档阶段：%s\n\n【文件原文片段】:\n%s\n\n请输出该文件的 3-5 句精炼摘要说明（包含公文文号、核心主体、关键预算/决议及合规提示）：",
+			proj.Name, file.FileName, file.StageFolder, truncateText(fileText, 3500))
+
+		modelName := config.LLMModel
+		if modelName == "" {
+			modelName = "qwen3.6:35b-q4"
+		}
+
+		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+		if err == nil && strings.TrimSpace(resStr) != "" {
+			return strings.TrimSpace(resStr)
+		}
+	}
 	stageDesc := map[string]string{
 		"立项": "立项批复与可行性研究",
 		"招标": "招标采购与中标评审",
