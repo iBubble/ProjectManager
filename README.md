@@ -18,18 +18,18 @@
 
 ```mermaid
 graph TD
-    subgraph 前端应用层 (HTML5 / Vanilla JS & CSS)
+    subgraph FE ["前端应用层 (HTML5 / Vanilla JS & CSS)"]
         UI[项目主看板] --> Detail[项目详情 & AI研判]
         UI --> AdminPanel[后台安全管理]
     end
     
-    subgraph 核心引擎层 (Go RESTful Backend)
+    subgraph BE ["核心引擎层 (Go RESTful Backend)"]
         API[API网关 & 路由分流] --> Auth[安全会话 & CSRF校验]
         API --> Engine[大模型研判与文件分析引擎]
-        Engine --> LLM[DeepSeek-R1 / Mock模型]
+        Engine --> LLM[Ollama / Qwen3.6-35B 模型]
     end
     
-    subgraph 本地存储层 (Encrypted Storage)
+    subgraph DB ["本地存储层 (Encrypted Storage)"]
         JSON[(JSON 数据库 - database.json)]
         FS[(落盘文件存储 - AES-GCM加密)]
         Log[(审计日志 - 纪委/内审留痕)]
