@@ -153,7 +153,7 @@ func ExtractKnowledgeGraphFromText(proj Project, file FileMetadata, text string)
 	}
 
 	// 3. 识别文号
-	docNumReg := regexp.MustCompile(`〔\d{4}〕第?\d+号|[a-zA-Z\x{4e00}-\x{9fa5}]+字[\(\（〔\\[]\d{4}[\)\）〕\\]]第?\d+号`)
+	docNumReg := regexp.MustCompile(`〔\d{4}〕第?\d+号|[a-zA-Z\x{4e00}-\x{9fa5}]+字[\(（〔\\[]\d{4}[\)）〕\\]]第?\d+号`)
 	if match := docNumReg.FindString(text); match != "" {
 		regDocEntity := KGEntity{ID: MD5Hash(match), Name: match, Category: "文号"}
 		entities = append(entities, regDocEntity)
