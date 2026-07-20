@@ -565,10 +565,17 @@
     margin-bottom: 6px;
 }
 
-.grad-purple-blue { background: linear-gradient(90deg, #6366f1, #4f46e5); }
-.grad-cyan { background: linear-gradient(90deg, #06b6d4, #0891b2); }
-.grad-pink { background: linear-gradient(90deg, #ec4899, #db2777); }
-.grad-light-purple { background: linear-gradient(90deg, #a855f7, #9333ea); }
+.progress-bar-fill {
+    height: 100% !important;
+    min-height: 8px !important;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.grad-purple-blue { background: linear-gradient(90deg, #6366f1, #4f46e5) !important; }
+.grad-cyan { background: linear-gradient(90deg, #06b6d4, #0891b2) !important; }
+.grad-pink { background: linear-gradient(90deg, #ec4899, #db2777) !important; }
+.grad-light-purple { background: linear-gradient(90deg, #a855f7, #9333ea) !important; }
 
 .step-percent { font-size: 12px; font-weight: 700; color: #334155; text-align: right; }
 

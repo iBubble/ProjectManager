@@ -911,13 +911,13 @@ function renderLearningProjectCards(projects) {
             statusBadgeText = `⏳ 排队中 (第 ${p.queue_position || 1} 位)`;
         }
 
-        let actionBtnHtml = `<button class="btn-gov-primary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>`;
+        let actionBtnHtml = `<button class="btn-gov-primary" style="width:auto !important; font-size:12px; padding:4px 12px; background:#4f46e5; border:none; border-radius:6px; color:#fff;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>`;
         if (isLearning) {
-            actionBtnHtml = `<button class="btn-gov-warning disabled" style="font-size:12px; padding:4px 10px;" disabled><span class="spinner-border spinner-border-sm"></span> 正在深度研判...</button>`;
+            actionBtnHtml = `<button class="btn-gov-warning disabled" style="width:auto !important; font-size:12px; padding:4px 12px; border-radius:6px;" disabled><span class="spinner-border spinner-border-sm"></span> 正在深度研判...</button>`;
         } else if (isQueued) {
-            actionBtnHtml = `<button class="btn-gov-secondary disabled" style="font-size:12px; padding:4px 10px;" disabled>⏳ 算力排队中 (${p.queue_position || 1})</button>`;
+            actionBtnHtml = `<button class="btn-gov-secondary disabled" style="width:auto !important; font-size:12px; padding:4px 12px; border-radius:6px;" disabled>⏳ 算力排队中 (${p.queue_position || 1})</button>`;
         } else if (isLearned) {
-            actionBtnHtml = `<button class="btn-gov-secondary" style="font-size:12px; padding:4px 10px;" onclick="triggerAdminProjectLearn('${p.project_id}')">已完成</button>`;
+            actionBtnHtml = `<button class="btn btn-outline-secondary btn-sm" style="width:auto !important; font-size:12px; padding:4px 12px; border-radius:6px; background:#fff; color:#475569; border:1px solid #cbd5e1;" onclick="triggerAdminProjectLearn('${p.project_id}')">已完成</button>`;
         }
 
         const processedFiles = isLearned ? p.files_count : (isLearning ? (p.processed_files || 1) : 0);
