@@ -826,6 +826,22 @@ function loadAdminLearningDashboard() {
             if (kgCountEl) kgCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
             if (summaryCountEl) summaryCountEl.textContent = `${learnedFiles * 2} / ${totalFiles * 2} 段`;
 
+            // 自动判断是否有处于学习中/排队中的项目，同步锁定顶部全量学习按钮并启动轮询
+            const hasActiveLearning = (stats.projects_learning || []).some(p => p.status === "learning" || p.status === "queued");
+            const btn = document.getElementById("btn-learn-all-projects");
+            if (btn) {
+                if (hasActiveLearning) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 大模型全量学习中...`;
+                    if (!learningPollInterval) {
+                        startLearningPolling();
+                    }
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
+                }
+            }
+
             renderLearningProjectCards(stats.projects_learning || []);
         })
         .catch(err => {
@@ -956,9 +972,9 @@ function startLearningPolling() {
                 loadAdminLearningDashboard();
 
                 const percent = stats.global_percent_num || 0;
-                const hasLearning = (stats.projects_learning || []).some(p => p.status === "learning");
+                const hasLearningOrQueued = (stats.projects_learning || []).some(p => p.status === "learning" || p.status === "queued");
 
-                if (percent >= 100 && !hasLearning) {
+                if (percent >= 100 && !hasLearningOrQueued) {
                     clearInterval(learningPollInterval);
                     learningPollInterval = null;
                     const btn = document.getElementById("btn-learn-all-projects");
