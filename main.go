@@ -5,10 +5,25 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"projectmanager/backend"
 )
+
+// RecoveryMiddleware HTTP panic 恢复中间件，防止单个请求崩溃带崩整个 Web 进程
+func RecoveryMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("[PANIC RECOVERY] 捕获到运行时异常: %v\n堆栈跟踪:\n%s", err, debug.Stack())
+				// TODO(security): 只向前端返回通用的错误信息，避免泄露内部变量与敏感环境信息
+				http.Error(w, "Internal Server Error (Recovered from panic)", http.StatusInternalServerError)
+			}
+		}()
+		next(w, r)
+	}
+}
 
 // DispatcherRequest 分流和动态路由解析器
 func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
@@ -244,8 +259,8 @@ func main() {
 
 	log.Printf("成功加载项目管理平台数据库，当前在办项目共: %d 个", len(db.Projects))
 
-	// 单入口请求监听
-	http.HandleFunc("/", DispatcherRequest)
+	// 单入口请求监听，使用 RecoveryMiddleware 包装以提供崩溃防护
+	http.HandleFunc("/", RecoveryMiddleware(DispatcherRequest))
 
 	// 启动本地监听
 	addr := "127.0.0.1:81"

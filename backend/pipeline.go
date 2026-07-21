@@ -3,8 +3,10 @@ package backend
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -283,24 +285,36 @@ func InitLearningQueueWorkerPool() {
 	workerOnce.Do(func() {
 		for i := 0; i < 2; i++ {
 			go func(workerID int) {
-				for projID := range LearningQueueChan {
-					queueMu.Lock()
-					activeJobsMap[projID] = true
-					newList := make([]string, 0)
-					for _, q := range queuedList {
-						if q != projID {
-							newList = append(newList, q)
-						}
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("[Worker Pool %d] 发生严重异常: %v\n堆栈跟踪:\n%s", workerID, r, debug.Stack())
 					}
-					queuedList = newList
-					queueMu.Unlock()
+				}()
+				for projID := range LearningQueueChan {
+					func() {
+						defer func() {
+							if r := recover(); r != nil {
+								log.Printf("[Worker Pool %d] 处理项目 %s 发生异常: %v\n堆栈跟踪:\n%s", workerID, projID, r, debug.Stack())
+							}
+						}()
+						queueMu.Lock()
+						activeJobsMap[projID] = true
+						newList := make([]string, 0)
+						for _, q := range queuedList {
+							if q != projID {
+								newList = append(newList, q)
+							}
+						}
+						queuedList = newList
+						queueMu.Unlock()
 
-					// 执行项目学习管线
-					_, _ = RunProjectLearningPipeline(projID)
+						// 执行项目学习管线
+						_, _ = RunProjectLearningPipeline(projID)
 
-					queueMu.Lock()
-					delete(activeJobsMap, projID)
-					queueMu.Unlock()
+						queueMu.Lock()
+						delete(activeJobsMap, projID)
+						queueMu.Unlock()
+					}()
 				}
 			}(i + 1)
 		}
@@ -335,10 +349,15 @@ func EnqueueProjectLearning(projectID string) (string, int) {
 		proj.KnowledgeGraph.Status = "learning"
 		_ = GlobalDB.SaveProject(proj)
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("[Immediate Learning] 处理项目 %s 发生异常: %v\n堆栈跟踪:\n%s", projectID, r, debug.Stack())
+				}
+				queueMu.Lock()
+				delete(activeJobsMap, projectID)
+				queueMu.Unlock()
+			}()
 			_, _ = RunProjectLearningPipeline(projectID)
-			queueMu.Lock()
-			delete(activeJobsMap, projectID)
-			queueMu.Unlock()
 		}()
 		return "learning", 0
 	}

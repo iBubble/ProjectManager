@@ -486,7 +486,17 @@ function handleLogin(e) {
             if (errorEl) errorEl.textContent = "";
             enterConsole();
         } else {
-            if (errorEl) errorEl.textContent = "❌ " + (data.error || "账号或密码错误");
+            let errMsg = data.error;
+            if (!errMsg) {
+                if (res.status === 401) {
+                    errMsg = "账号或密码错误";
+                } else if (res.status === 403) {
+                    errMsg = "您无权访问或IP不在白名单内";
+                } else {
+                    errMsg = `服务器连接异常 (状态码: ${res.status})，请检查后端服务状态`;
+                }
+            }
+            if (errorEl) errorEl.textContent = "❌ " + errMsg;
         }
     })
     .catch(err => {
