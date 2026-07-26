@@ -313,32 +313,51 @@ function registerEvents() {
         });
     });
 
-    // 拖拽上传资料文件
+    // 拖拽及目录文件上传处理
     const dropzone = document.getElementById("file-dropzone");
     const fileInput = document.getElementById("input-file-uploader");
-    dropzone.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", (e) => {
-        if (e.target.files.length > 0) {
-            uploadFiles(e.target.files);
-        }
-    });
+    const folderInput = document.getElementById("input-folder-uploader");
 
-    dropzone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropzone.classList.add("dragover");
-    });
+    if (dropzone) {
+        dropzone.addEventListener("click", (e) => {
+            if (e.target.tagName !== 'BUTTON' && fileInput) {
+                fileInput.click();
+            }
+        });
+        dropzone.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropzone.classList.add("dragover");
+        });
+        dropzone.addEventListener("dragleave", () => {
+            dropzone.classList.remove("dragover");
+        });
+        dropzone.addEventListener("drop", async (e) => {
+            e.preventDefault();
+            dropzone.classList.remove("dragover");
+            const files = await processDroppedItems(e.dataTransfer);
+            if (files && files.length > 0) {
+                uploadFiles(files);
+            }
+        });
+    }
 
-    dropzone.addEventListener("dragleave", () => {
-        dropzone.classList.remove("dragover");
-    });
+    if (fileInput) {
+        fileInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                uploadFiles(e.target.files);
+                e.target.value = "";
+            }
+        });
+    }
 
-    dropzone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropzone.classList.remove("dragover");
-        if (e.dataTransfer.files.length > 0) {
-            uploadFiles(e.dataTransfer.files);
-        }
-    });
+    if (folderInput) {
+        folderInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                uploadFiles(e.target.files);
+                e.target.value = "";
+            }
+        });
+    }
 
     // RAG 右侧主页签切换（合规研判 vs 智能助手）
     document.querySelectorAll(".pane-tab-btn").forEach(btn => {
@@ -894,61 +913,203 @@ function deleteProjectFile(fileID) {
     });
 }
 
-function uploadFiles(filesList) {
-    const stageSelect = document.getElementById("upload-stage-select").value;
-    showLoading("智能文件类型识别与解析归档中...");
+// 递归解析拖拽落入的文件及文件夹目录结构
+async function processDroppedItems(dataTransfer) {
+    const fileList = [];
+    const items = dataTransfer.items;
 
-    let count = 0;
-    Array.from(filesList).forEach(file => {
-        const formData = new FormData();
-        formData.append("file", file);
-        
-        let resolvedStage = stageSelect;
-        if (stageSelect === "auto") {
-            const fn = file.name;
-            if (fn.includes("可研") || fn.includes("批复") || fn.includes("立项")) resolvedStage = "立项";
-            else if (fn.includes("招标") || fn.includes("中标") || fn.includes("公告")) resolvedStage = "招标";
-            else if (fn.includes("合同") || fn.includes("协议") || fn.includes("变更")) resolvedStage = "合同";
-            else if (fn.includes("实施") || fn.includes("方案") || fn.includes("测试报告")) resolvedStage = "实施";
-            else if (fn.includes("监理")) resolvedStage = "监理";
-            else if (fn.includes("会议") || fn.includes("纪要") || fn.includes("协调")) resolvedStage = "过程";
-            else if (fn.includes("验收") || fn.includes("移交")) resolvedStage = "验收";
-            else if (fn.includes("维保") || fn.includes("运维")) resolvedStage = "运维";
-            else resolvedStage = "过程";
+    if (!items || items.length === 0) {
+        return Array.from(dataTransfer.files || []);
+    }
+
+    async function traverseEntry(entry, path = "") {
+        if (entry.isFile) {
+            return new Promise((resolve) => {
+                entry.file((file) => {
+                    file.relativePath = path + file.name;
+                    fileList.push(file);
+                    resolve();
+                }, () => resolve());
+            });
+        } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const readAllEntries = () => {
+                return new Promise((resolve) => {
+                    dirReader.readEntries(async (entries) => {
+                        if (!entries || entries.length === 0) {
+                            resolve();
+                        } else {
+                            for (const childEntry of entries) {
+                                await traverseEntry(childEntry, path + entry.name + "/");
+                            }
+                            await readAllEntries();
+                            resolve();
+                        }
+                    }, () => resolve());
+                });
+            };
+            await readAllEntries();
         }
-        
-        formData.append("stage", resolvedStage);
+    }
 
-        fetch(`/api/projects/${currentProject.id}/files`, {
-            method: "POST",
-            headers: { "X-CSRF-Token": csrfToken },
-            body: formData
-        })
-        .then(async res => {
-            count++;
-            if (!res.ok) {
-                const err = await res.json();
-                alert(`文件 [${file.name}] 解析归档失败: ` + err.error);
+    const tasks = [];
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file") {
+            const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
+            if (entry) {
+                tasks.push(traverseEntry(entry));
+            } else {
+                const f = item.getAsFile();
+                if (f) fileList.push(f);
             }
-            if (count === filesList.length) {
-                // 触发重新 AI 分析
-                fetch(`/api/projects/${currentProject.id}/analyze`, {
-                    method: "POST",
-                    headers: { "X-CSRF-Token": csrfToken }
-                })
-                .then(res => res.json())
-                .then(() => {
-                    hideLoading();
-                    openProjectDetails(currentProject.id);
-                })
-                .catch(() => hideLoading());
-            }
-        })
-        .catch(() => {
-            count++;
-            if (count === filesList.length) hideLoading();
+        }
+    }
+
+    await Promise.all(tasks);
+    return fileList;
+}
+
+// ==========================================
+// 模态弹窗文件及目录上传管理 (图三/图四/图五规范)
+// ==========================================
+window.modalUploadQueue = [];
+let isModalUploading = false;
+
+function openUploadModal() {
+    const modal = document.getElementById("modal-upload-files");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    
+    // 初始化拖拽监听
+    const dropArea = document.getElementById("modal-drop-area");
+    if (dropArea && !dropArea.dataset.bound) {
+        dropArea.dataset.bound = "true";
+        dropArea.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = "#6366f1";
+            dropArea.style.background = "#eef2ff";
         });
+        dropArea.addEventListener("dragleave", () => {
+            dropArea.style.borderColor = "#c7d2fe";
+            dropArea.style.background = "#faf5ff";
+        });
+        dropArea.addEventListener("drop", async (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = "#c7d2fe";
+            dropArea.style.background = "#faf5ff";
+            const files = await processDroppedItems(e.dataTransfer);
+            if (files && files.length > 0) {
+                handleModalFilesSelected(files);
+            }
+        });
+    }
+}
+
+function closeUploadModal() {
+    const modal = document.getElementById("modal-upload-files");
+    if (modal) modal.classList.add("hidden");
+}
+
+function resolveFileStageCategory(file) {
+    const pathAndName = (file.relativePath || file.webkitRelativePath || file.name || "").toLowerCase();
+    
+    if (pathAndName.includes("1") || pathAndName.includes("立项") || pathAndName.includes("可研") || pathAndName.includes("批复") || pathAndName.includes("建议书")) {
+        return "1. 立项阶段文件";
+    } else if (pathAndName.includes("2") || pathAndName.includes("过程") || pathAndName.includes("管理") || pathAndName.includes("纪要") || pathAndName.includes("会议") || pathAndName.includes("核验")) {
+        return "2. 项目管理文件";
+    } else if (pathAndName.includes("3") || pathAndName.includes("设计") || pathAndName.includes("架构") || pathAndName.includes("srs") || pathAndName.includes("需求")) {
+        return "3. 设计阶段文件";
+    } else if (pathAndName.includes("4") || pathAndName.includes("实施") || pathAndName.includes("施工") || pathAndName.includes("测试") || pathAndName.includes("隐蔽") || pathAndName.includes("到货")) {
+        return "4. 实施阶段文件";
+    } else if (pathAndName.includes("5") || pathAndName.includes("监理") || pathAndName.includes("旁站") || pathAndName.includes("巡检")) {
+        return "5. 监理文件";
+    } else if (pathAndName.includes("6") || pathAndName.includes("设备") || pathAndName.includes("硬件") || pathAndName.includes("软件") || pathAndName.includes("运维") || pathAndName.includes("维保") || pathAndName.includes("安全") || pathAndName.includes("库房") || pathAndName.includes("装具")) {
+        return "6. 设备文件及系统软件";
+    } else if (pathAndName.includes("7") || pathAndName.includes("合同") || pathAndName.includes("协议") || pathAndName.includes("招标") || pathAndName.includes("中标") || pathAndName.includes("财务") || pathAndName.includes("发票") || pathAndName.includes("付款") || pathAndName.includes("决算") || pathAndName.includes("审计")) {
+        return "7. 财务管理文件";
+    } else if (pathAndName.includes("8") || pathAndName.includes("验收") || pathAndName.includes("竣工") || pathAndName.includes("移交") || pathAndName.includes("终验") || pathAndName.includes("鉴定")) {
+        return "8. 验收文件";
+    }
+    
+    return "2. 项目管理文件";
+}
+
+function handleModalFilesSelected(filesList) {
+    const filesArray = Array.from(filesList || []);
+    if (filesArray.length === 0) return;
+
+    filesArray.forEach((file) => {
+        const relPath = file.relativePath || file.webkitRelativePath || file.name;
+        // 判定是否已经在队列中
+        const exists = window.modalUploadQueue.some(item => item.name === file.name && item.relativePath === relPath && item.size === file.size);
+        if (!exists) {
+            const item = {
+                id: "q_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+                file: file,
+                name: file.name,
+                relativePath: relPath,
+                size: file.size,
+                stage: resolveFileStageCategory(file),
+                status: "pending", // pending | uploading | success | error
+                progress: 0,
+                errorMsg: ""
+            };
+            window.modalUploadQueue.push(item);
+        }
     });
+
+    renderModalUploadQueueTable();
+}
+
+function renderModalUploadQueueTable() {
+    if (typeof window.renderModalUploadQueueTable === "function") {
+        window.renderModalUploadQueueTable();
+    }
+}
+
+function removeSingleQueueItem(itemId) {
+    if (typeof window.removeSingleQueueItem === "function") {
+        window.removeSingleQueueItem(itemId);
+    }
+}
+
+function clearModalQueue() {
+    if (typeof window.clearModalQueue === "function") {
+        window.clearModalQueue();
+    }
+}
+
+function retrySingleUpload(itemId) {
+    if (typeof window.retrySingleUpload === "function") {
+        window.retrySingleUpload(itemId);
+    }
+}
+
+function retryAllFailedUploads() {
+    if (typeof window.retryAllFailedUploads === "function") {
+        window.retryAllFailedUploads();
+    }
+}
+
+async function startModalUploadProcessing() {
+    if (typeof window.startModalUploadProcessing === "function") {
+        await window.startModalUploadProcessing();
+    }
+}
+                if (data.files) {
+                    currentProjectFiles = data.files;
+                    if (typeof renderProjectFilesDirectory === "function") {
+                        renderProjectFilesDirectory(data.files);
+                    }
+                }
+            }
+        } catch (e) {}
+
+        if (typeof openProjectDetails === "function") {
+            openProjectDetails(projId);
+        }
+    }
 }
 
 // 5.2 右侧分析模块

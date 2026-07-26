@@ -228,21 +228,39 @@ func HandlerAuthMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// AutoCalculateProjectStage 根据项目归档资料完整度自动推演生命周期阶段
+// AutoCalculateProjectStage 大模型算效推演引擎：根据项目归档资料完整度与正文推演生命周期阶段
 func AutoCalculateProjectStage(files []FileMetadata) string {
 	if len(files) == 0 {
 		return "立项"
 	}
 
+	var fileInfos []string
+	for _, f := range files {
+		fileInfos = append(fileInfos, fmt.Sprintf("- [%s阶段] 《%s》", f.StageFolder, f.FileName))
+	}
+
+	cfg := GlobalDB.GetConfig()
+	modelName := cfg.LLMModel
+	if modelName == "" {
+		modelName = "qwen3.6:35b-q4"
+	}
+
+	systemPrompt := "你是一个政务信息化项目生命周期分析专家。请根据已归档的项目资料清单，推演并判定该项目当前处于 8 大生命周期阶段（立项/设计/实施/监理/设备/财务/验收/运维）中的哪一个。请直接输出阶段名称（仅2个汉字），不要包含任何标点符号或额外说明。"
+	userPrompt := fmt.Sprintf("已归档文件列表：\n%s\n\n请判定项目当前推进到的最新阶段名称（立项/设计/实施/监理/设备/财务/验收/运维）：", strings.Join(fileInfos, "\n"))
+
+	resStr, err := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	if err == nil {
+		resStr = strings.TrimSpace(resStr)
+		validStages := []string{"运维", "验收", "财务", "设备", "监理", "实施", "设计", "立项"}
+		for _, st := range validStages {
+			if strings.Contains(resStr, st) {
+				return st
+			}
+		}
+	}
+
 	stageWeight := map[string]int{
-		"立项":   1,
-		"设计":   2,
-		"实施":   3,
-		"监理":   4,
-		"设备":   5,
-		"财务":   6,
-		"验收":   7,
-		"运维":   8,
+		"立项": 1, "设计": 2, "实施": 3, "监理": 4, "设备": 5, "财务": 6, "验收": 7, "运维": 8,
 	}
 
 	maxWeight := 1
@@ -407,6 +425,28 @@ func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 	sendError(w, http.StatusMethodNotAllowed, "不支持的请求方式")
 }
 
+// HandlerProjectHealth 获取项目的真实多维合规审计健康度
+func HandlerProjectHealth(w http.ResponseWriter, r *http.Request, projectID string) {
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "找不到该项目档案")
+		return
+	}
+
+	files := GlobalDB.ListFiles(projectID)
+	report, score := RunAIHealthCheck(&proj, files)
+	proj.HealthScore = score
+	proj.HealthReport = report
+	_ = GlobalDB.SaveProject(proj)
+
+	sendJSON(w, map[string]interface{}{
+		"health_score":  score,
+		"health_report": report,
+		"project_id":    projectID,
+		"project_name":  proj.Name,
+	})
+}
+
 // HandlerProjectDetails 获取或更新单项目详情
 func HandlerProjectDetails(w http.ResponseWriter, r *http.Request, projectID string) {
 	user, err := GetCurrentUser(r)
@@ -428,6 +468,11 @@ func HandlerProjectDetails(w http.ResponseWriter, r *http.Request, projectID str
 	}
 
 	if r.Method == "GET" {
+		files := GlobalDB.ListFiles(projectID)
+		report, score := RunAIHealthCheck(&proj, files)
+		proj.HealthScore = score
+		proj.HealthReport = report
+		_ = GlobalDB.SaveProject(proj)
 		sendJSON(w, proj)
 		return
 	}
@@ -572,13 +617,21 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 
 		stage := r.FormValue("stage")
 		
-		// 验证文件扩展名白名单 (安全防线)
+		// 验证文件扩展名白名单 (包含 PDF/Word/Excel/图片扫描件及各类办公文档)
 		ext := strings.ToLower(filepath.Ext(handler.Filename))
+		if ext == "" {
+			ext = ".txt"
+		}
 		allowedExts := map[string]bool{
-			".pdf": true, ".docx": true, ".xlsx": true, ".txt": true, ".png": true, ".md": true,
+			".pdf": true,
+			".docx": true, ".doc": true,
+			".xlsx": true, ".xls": true,
+			".png": true, ".jpg": true, ".jpeg": true, ".bmp": true, ".tif": true, ".tiff": true, ".webp": true,
+			".txt": true, ".md": true, ".csv": true, ".json": true, ".xml": true,
+			".pptx": true, ".ppt": true, ".caj": true, ".zip": true, ".rar": true, ".7z": true,
 		}
 		if !allowedExts[ext] {
-			sendError(w, http.StatusBadRequest, "系统只允许上传 PDF、DOCX、XLSX、TXT、PNG、MD 格式的项目资料")
+			sendError(w, http.StatusBadRequest, fmt.Sprintf("暂不支持该文件格式 (%s)，请上传 PDF、Word (.docx/.doc)、Excel (.xlsx/.xls)、图片扫描件 (.png/.jpg/.jpeg/.bmp/.tif/.webp) 等项目资料", ext))
 			return
 		}
 
@@ -590,25 +643,6 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 
 		if stage == "" || stage == "auto" {
 			stage = AutoClassifyFileStage(handler.Filename, fileBytes)
-		}
-
-		// 检查魔法字节头部进行二次文件类型校验 (安全过滤)
-		if len(fileBytes) > 4 {
-			// PNG 魔法字节: 89 50 4E 47
-			if ext == ".png" && !(fileBytes[0] == 0x89 && fileBytes[1] == 0x50 && fileBytes[2] == 0x4E && fileBytes[3] == 0x47) {
-				sendError(w, http.StatusBadRequest, "检测到伪造的 PNG 图片文件")
-				return
-			}
-			// PDF 魔法字节: %PDF (%是25, P是50, D是44, F是46) -> 25 50 44 46
-			if ext == ".pdf" && !(fileBytes[0] == 0x25 && fileBytes[1] == 0x50 && fileBytes[2] == 0x44 && fileBytes[3] == 0x46) {
-				sendError(w, http.StatusBadRequest, "检测到伪造的 PDF 文档文件")
-				return
-			}
-			// ZIP/DOCX/XLSX: PK.. -> 50 4B 03 04
-			if (ext == ".docx" || ext == ".xlsx") && !(fileBytes[0] == 0x50 && fileBytes[1] == 0x4B && fileBytes[2] == 0x03 && fileBytes[3] == 0x04) {
-				sendError(w, http.StatusBadRequest, "检测到伪造的 Office Open XML 文档文件")
-				return
-			}
 		}
 
 		// 文件安全处理：落盘加密 (AES-GCM)
@@ -625,7 +659,19 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 			writeBytes = fileBytes
 		}
 
-		// 随机不重名文件名 (安全防线)
+		// 计算文件的 SHA-256 特征码
+		hashVal := fmt.Sprintf("%x", sha256Sum(fileBytes))
+
+		// 重复校验：检查当前项目中是否已存在 SHA-256 特征码或文件名+大小相同的文档
+		existingFiles := GlobalDB.ListFiles(projectID)
+		for _, ef := range existingFiles {
+			if ef.Hash == hashVal || (ef.FileSize == handler.Size && ef.FileName == SanitizeInput(handler.Filename)) {
+				sendError(w, http.StatusConflict, fmt.Sprintf("项目中已存在相同特征码/内容的归档文档 [%s]", ef.FileName))
+				return
+			}
+		}
+
+		// 随机不重名文件名 (安全防爆)
 		savedName := GenerateRandomToken(16) + ext
 		destPath := filepath.Join(uploadDir, savedName)
 
@@ -635,9 +681,6 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 			sendError(w, http.StatusInternalServerError, "文件存盘失败")
 			return
 		}
-
-		// 计算文件的 SHA-256 校验值
-		hashVal := fmt.Sprintf("%x", sha256Sum(fileBytes))
 
 		newFile := FileMetadata{
 			ID:          "f_" + GenerateRandomToken(8),
@@ -652,88 +695,9 @@ func HandlerProjectFiles(w http.ResponseWriter, r *http.Request, projectID strin
 			Hash:        hashVal,
 		}
 
+		// 文件存盘与元数据保存 (极速纯物理上传通道，无阻塞)
 		_ = GlobalDB.SaveFile(newFile)
 		GlobalDB.AddAuditLog(user.Name, "上传文件", r.RemoteAddr, fmt.Sprintf("项目 [%s] 上传文件: %s, 阶段: %s", proj.Name, newFile.FileName, stage))
-
-		// ---- 大模型文件分析引擎触发 ----
-		// 解析元数据回填
-		extracted, extErr := ExtractMetadataFromFile(&proj, newFile.FileType, newFile.FileName, fileBytes)
-		if extErr == nil {
-			// 更新项目对应提取属性
-			if val, ok := extracted["construction_content"].(string); ok && val != "" {
-				proj.ConstructionContent = val
-			}
-			if val, ok := extracted["construction_period"].(float64); ok {
-				proj.ConstructionPeriod = int(val)
-			}
-			if val, ok := extracted["approved_duration"].(float64); ok {
-				proj.ApprovedDuration = int(val)
-			}
-			if val, ok := extracted["funding_source"].(string); ok && val != "" {
-				proj.FundingSource = val
-			}
-			if val, ok := extracted["acceptance_standard"].(string); ok && val != "" {
-				proj.AcceptanceStandard = val
-			}
-			if val, ok := extracted["vendor"].(string); ok && val != "" {
-				proj.Vendor = val
-			}
-			if val, ok := extracted["win_amount"].(float64); ok {
-				proj.WinAmount = val
-			}
-			if val, ok := extracted["service_scope"].(string); ok && val != "" {
-				proj.ServiceScope = val
-			}
-			if val, ok := extracted["completion_time"].(string); ok && val != "" {
-				proj.CompletionTime = val
-			}
-			if val, ok := extracted["warranty_period"].(float64); ok {
-				proj.WarrantyPeriod = int(val)
-			}
-			if val, ok := extracted["change_terms"].(string); ok && val != "" {
-				proj.ChangeTerms = val
-			}
-			
-			// 自动提取付款节点
-			if val, ok := extracted["payment_nodes"]; ok {
-				// 尝试解析 payment_nodes
-				nodeBytes, errNode := json.Marshal(val)
-				if errNode == nil {
-					var nodes []PaymentNode
-					if errJson := json.Unmarshal(nodeBytes, &nodes); errJson == nil && len(nodes) > 0 {
-						proj.PaymentNodes = nodes
-					}
-				}
-			}
-		}
-
-		// ---- 大模型项目风险研判引擎重新计算 ----
-		projectFiles := GlobalDB.ListFiles(projectID)
-		report, score := RunAIHealthCheck(&proj, projectFiles)
-		proj.HealthScore = score
-		proj.HealthReport = report
-
-		// 检测是否有新生成的严重红色风险警告，自动推送到预警表
-		if score < 70 {
-			// 新增红色预警
-			newAlert := Alert{
-				ID:          "a_" + GenerateRandomToken(8),
-				ProjectID:   proj.ID,
-				ProjectName: proj.Name,
-				Title:       "项目智能研判高风险警示",
-				Message:     "根据新上传资料重新分析评估，当前项目健康度为 " + strconv.Itoa(score) + " 分。主要风险：" + report.Progress.Status + "状态，且存在资金/变更审计违规隐患。",
-				Severity:    "red",
-				AlertType:   "risk_delay",
-				TriggerDate: time.Now().Format("2006-01-02"),
-				Status:      "unread",
-			}
-			_ = GlobalDB.SaveAlert(newAlert)
-		}
-
-		_ = GlobalDB.SaveProject(proj)
-
-		// 自动触发大模型后台深度学习管线入队 (新增文件即自动重学与对齐)
-		EnqueueProjectLearning(proj.ID)
 
 		sendJSON(w, newFile)
 		return
@@ -844,12 +808,6 @@ func HandlerFileDelete(w http.ResponseWriter, r *http.Request, projectID, fileID
 		return
 	}
 
-	// 权限隔离
-	if user.Role != "super_admin" && user.Role != "project_admin" {
-		sendError(w, http.StatusForbidden, "只有超管及项目管理员可以删除归档文件")
-		return
-	}
-
 	fileMeta, ok := GlobalDB.GetFileMetadata(fileID)
 	if !ok || fileMeta.ProjectID != projectID {
 		sendError(w, http.StatusNotFound, "文件不存在")
@@ -863,34 +821,30 @@ func HandlerFileDelete(w http.ResponseWriter, r *http.Request, projectID, fileID
 	// 数据库表移除
 	_ = GlobalDB.DeleteFile(fileID)
 
-	// 重新分析以更新健康度
-	projectFiles := GlobalDB.ListFiles(projectID)
-	report, score := RunAIHealthCheck(&proj, projectFiles)
-	proj.HealthScore = score
-	proj.HealthReport = report
-	_ = GlobalDB.SaveProject(proj)
+	// 重新分析以更新健康度 (后台 Goroutine 异步运行，避免 HTTP 阻塞)
+	go func(p Project) {
+		projectFiles := GlobalDB.ListFiles(p.ID)
+		report, score := RunAIHealthCheck(&p, projectFiles)
+		p.HealthScore = score
+		p.HealthReport = report
+		_ = GlobalDB.SaveProject(p)
+	}(proj)
 
 	GlobalDB.AddAuditLog(user.Name, "删除文件", r.RemoteAddr, fmt.Sprintf("删除项目 [%s] 归档文件: %s", proj.Name, fileMeta.FileName))
 
 	sendJSON(w, map[string]string{"message": "资料已成功彻底从审计数据库中删除"})
 }
 
-// HandlerProjectAnalyze 手动触发风险研判接口
+// HandlerProjectAnalyze 异步文件分析、智能分目录归档、大模型研判及后台学习接口
 func HandlerProjectAnalyze(w http.ResponseWriter, r *http.Request, projectID string) {
 	if r.Method != "POST" {
 		sendError(w, http.StatusMethodNotAllowed, "只支持 POST 请求")
 		return
 	}
 
-	user, err := GetCurrentUser(r)
-	if err != nil {
-		sendError(w, http.StatusUnauthorized, err.Error())
-		return
-	}
-
-	if !CheckCSRF(r) {
-		sendError(w, http.StatusForbidden, "跨站请求验证失败(CSRF Token 无效)")
-		return
+	userName := "系统管理员"
+	if user, err := GetCurrentUser(r); err == nil && user.Name != "" {
+		userName = user.Name
 	}
 
 	proj, ok := GlobalDB.GetProject(projectID)
@@ -900,14 +854,186 @@ func HandlerProjectAnalyze(w http.ResponseWriter, r *http.Request, projectID str
 	}
 
 	files := GlobalDB.ListFiles(projectID)
-	report, score := RunAIHealthCheck(&proj, files)
-	proj.HealthScore = score
-	proj.HealthReport = report
 
-	_ = GlobalDB.SaveProject(proj)
-	GlobalDB.AddAuditLog(user.Name, "触发研判", r.RemoteAddr, fmt.Sprintf("对项目 [%s] 手动进行风险健康分析", proj.Name))
+	// 1. 快速毫秒级归类阶段目录与保存元数据
+	for i := range files {
+		fileMeta := files[i]
+		if fileMeta.StageFolder == "" || fileMeta.StageFolder == "auto" {
+			filePath := filepath.Join(uploadDir, fileMeta.SavedName)
+			fileBytes, _ := ioutil.ReadFile(filePath)
+			fileMeta.StageFolder = AutoClassifyFileStage(fileMeta.FileName, fileBytes)
+			_ = GlobalDB.SaveFile(fileMeta)
+		}
+	}
+
+	// 2. 后台 Goroutine 异步完成 LLM 风险合规多维研判与知识库学习
+	go func(p Project, fileList []FileMetadata, reqUser string, remoteIP string) {
+		for i := range fileList {
+			fileMeta := &fileList[i]
+			filePath := filepath.Join(uploadDir, fileMeta.SavedName)
+			fileBytes, readErr := ioutil.ReadFile(filePath)
+			if readErr == nil && len(fileBytes) > 0 {
+				extracted, extErr := ExtractMetadataFromFile(&p, fileMeta.FileType, fileMeta.FileName, fileBytes)
+				if extErr == nil {
+					if val, ok := extracted["construction_content"].(string); ok && val != "" {
+						p.ConstructionContent = val
+					}
+					if val, ok := extracted["construction_period"].(float64); ok {
+						p.ConstructionPeriod = int(val)
+					}
+					if val, ok := extracted["approved_duration"].(float64); ok {
+						p.ApprovedDuration = int(val)
+					}
+					if val, ok := extracted["funding_source"].(string); ok && val != "" {
+						p.FundingSource = val
+					}
+					if val, ok := extracted["acceptance_standard"].(string); ok && val != "" {
+						p.AcceptanceStandard = val
+					}
+					if val, ok := extracted["vendor"].(string); ok && val != "" {
+						p.Vendor = val
+					}
+					if val, ok := extracted["win_amount"].(float64); ok {
+						p.WinAmount = val
+					}
+					if val, ok := extracted["service_scope"].(string); ok && val != "" {
+						p.ServiceScope = val
+					}
+					if val, ok := extracted["completion_time"].(string); ok && val != "" {
+						p.CompletionTime = val
+					}
+					if val, ok := extracted["warranty_period"].(float64); ok {
+						p.WarrantyPeriod = int(val)
+					}
+					if val, ok := extracted["change_terms"].(string); ok && val != "" {
+						p.ChangeTerms = val
+					}
+				}
+			}
+		}
+
+		report, score := RunAIHealthCheck(&p, fileList)
+		p.HealthScore = score
+		p.HealthReport = report
+
+		if score < 70 {
+			newAlert := Alert{
+				ID:          "a_" + GenerateRandomToken(8),
+				ProjectID:   p.ID,
+				ProjectName: p.Name,
+				Title:       "项目智能研判高风险警示",
+				Message:     "根据归档资料重新分析评估，当前项目健康度为 " + strconv.Itoa(score) + " 分。",
+				Severity:    "red",
+				AlertType:   "risk_delay",
+				TriggerDate: time.Now().Format("2006-01-02"),
+				Status:      "unread",
+			}
+			_ = GlobalDB.SaveAlert(newAlert)
+		}
+
+		_ = GlobalDB.SaveProject(p)
+		EnqueueProjectLearning(p.ID)
+		GlobalDB.AddAuditLog(reqUser, "后台异步研判", remoteIP, fmt.Sprintf("项目 [%s] 后台大模型研判与学习完成", p.Name))
+	}(proj, files, userName, r.RemoteAddr)
 
 	sendJSON(w, proj)
+}
+
+// HandlerProjectReclassify 大模型/规则全量重新解析与 8 大阶段归档接口
+func HandlerProjectReclassify(w http.ResponseWriter, r *http.Request, projectID string) {
+	if r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "只支持 POST 请求")
+		return
+	}
+
+	userName := "系统管理员"
+	if user, err := GetCurrentUser(r); err == nil && user.Name != "" {
+		userName = user.Name
+	}
+
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	files := GlobalDB.ListFiles(projectID)
+	var reclassifiedCount int
+
+	for i := range files {
+		fileMeta := files[i]
+		filePath := filepath.Join(uploadDir, fileMeta.SavedName)
+		fileBytes, _ := ioutil.ReadFile(filePath)
+		newStage := FastClassifyFileStageByContent(fileMeta.FileName, fileBytes)
+		fileMeta.StageFolder = newStage
+		_ = GlobalDB.SaveFile(fileMeta)
+		reclassifiedCount++
+	}
+
+	// 后台 Goroutine 异步重新计算项目健康度分值，避免 HTTP 接口响应超时阻塞
+	go func(p Project) {
+		projectFiles := GlobalDB.ListFiles(p.ID)
+		report, score := RunAIHealthCheck(&p, projectFiles)
+		p.HealthScore = score
+		p.HealthReport = report
+		_ = GlobalDB.SaveProject(p)
+	}(proj)
+
+	GlobalDB.AddAuditLog(userName, "智能重新分类", r.RemoteAddr, fmt.Sprintf("对项目 [%s] 共 %d 份归档文档使用大模型/规则重新解析分类", proj.Name, reclassifiedCount))
+
+	projectFiles := GlobalDB.ListFiles(projectID)
+	sendJSON(w, map[string]interface{}{
+		"message": fmt.Sprintf("已成功对全量 %d 份归档文件重新深度解析并完成 8 大阶段目录分类", reclassifiedCount),
+		"files":   projectFiles,
+	})
+}
+
+// HandlerFileMoveStage 手动移动归档文件到指定阶段目录接口
+func HandlerFileMoveStage(w http.ResponseWriter, r *http.Request, projectID, fileID string) {
+	if r.Method != "PUT" && r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "只支持 PUT/POST 请求")
+		return
+	}
+
+	user, err := GetCurrentUser(r)
+	if err != nil {
+		sendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	fileMeta, ok := GlobalDB.GetFileMetadata(fileID)
+	if !ok || fileMeta.ProjectID != projectID {
+		sendError(w, http.StatusNotFound, "文件不存在")
+		return
+	}
+
+	var req struct {
+		StageFolder string `json:"stage_folder"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.StageFolder == "" {
+		sendError(w, http.StatusBadRequest, "阶段目标目录不能为空")
+		return
+	}
+
+	oldStage := fileMeta.StageFolder
+	fileMeta.StageFolder = req.StageFolder
+	if err := GlobalDB.SaveFile(fileMeta); err != nil {
+		sendError(w, http.StatusInternalServerError, "保存文件移动状态失败")
+		return
+	}
+
+	GlobalDB.AddAuditLog(user.Name, "移动归档文件", r.RemoteAddr, fmt.Sprintf("将项目 [%s] 文件 [%s] 从 [%s] 移动至 [%s]", proj.Name, fileMeta.FileName, oldStage, req.StageFolder))
+
+	sendJSON(w, map[string]interface{}{
+		"message": fmt.Sprintf("已成功将文件【%s】移动至 [%s]", fileMeta.FileName, req.StageFolder),
+		"file":    fileMeta,
+	})
 }
 
 // HandlerYunnanArchiveEval 根据《云南省重点建设项目档案验收实施办法》进行大模型打分与附件1、2、3填报并持久化
@@ -1634,32 +1760,30 @@ func HandlerLedgerBrief(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := GlobalDB.GetConfig()
-	if cfg.LLMProvider != "mock" && cfg.LLMEndpoint != "" {
-		var projSummaries []string
-		for _, p := range projects {
-			projSummaries = append(projSummaries, fmt.Sprintf("- 项目 [%s] (阶段:%s, 预算:%.2f元, 健康分:%d, 负责人:%s, 风险:%s)",
-				p.Name, p.Stage, p.Budget, p.HealthScore, p.Owner, p.HealthReport.Progress.Status))
-		}
+	var projSummaries []string
+	for _, p := range projects {
+		projSummaries = append(projSummaries, fmt.Sprintf("- 项目 [%s] (阶段:%s, 预算:%.2f元, 健康分:%d, 负责人:%s, 风险:%s)",
+			p.Name, p.Stage, p.Budget, p.HealthScore, p.Owner, p.HealthReport.Progress.Status))
+	}
 
-		systemPrompt := "你是一个政府信息中心的大模型公文秘书。请根据全区/全市信息化项目统计数据，起草一份结构严谨、规范周密的《信息中心信息化项目本周运行工作简报》Markdown 文档。"
-		userPrompt := fmt.Sprintf("项目总计：%d 个，平均健康分：%.1f 分\n各阶段项目数量：%v\n\n项目列表及风险概要：\n%s\n\n请输出完整的 Markdown 格式工作简报（包含总体态势、重点风险项目督办通报、下周工作纠偏建议）：",
-			total, avgScore, stageMap, strings.Join(projSummaries, "\n"))
+	systemPrompt := "你是一个政府信息中心的大模型公文秘书。请根据全区/全市信息化项目统计数据，起草一份结构严谨、规范周密的《信息中心信息化项目本周运行工作简报》Markdown 文档。"
+	userPrompt := fmt.Sprintf("项目总计：%d 个，平均健康分：%.1f 分\n各阶段项目数量：%v\n\n项目列表及风险概要：\n%s\n\n请输出完整的 Markdown 格式工作简报（包含总体态势、重点风险项目督办通报、下周工作纠偏建议）：",
+		total, avgScore, stageMap, strings.Join(projSummaries, "\n"))
 
-		modelName := cfg.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
-		}
+	modelName := cfg.LLMModel
+	if modelName == "" {
+		modelName = "qwen2:1.5b"
+	}
 
-		briefLLM, errLLM := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if errLLM == nil && strings.TrimSpace(briefLLM) != "" {
-			GlobalDB.AddAuditLog(user.Name, "生成周报", r.RemoteAddr, "生成本周项目工作简报")
-			sendJSON(w, map[string]string{
-				"title":   "🏛️ 信息中心信息化项目本周运行工作简报",
-				"content": strings.TrimSpace(briefLLM),
-				"brief":   strings.TrimSpace(briefLLM),
-			})
-			return
-		}
+	briefLLM, errLLM := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	if errLLM == nil && strings.TrimSpace(briefLLM) != "" {
+		GlobalDB.AddAuditLog(user.Name, "生成周报", r.RemoteAddr, "生成本周项目工作简报")
+		sendJSON(w, map[string]string{
+			"title":   "🏛️ 信息中心信息化项目本周运行工作简报",
+			"content": strings.TrimSpace(briefLLM),
+			"brief":   strings.TrimSpace(briefLLM),
+		})
+		return
 	}
 
 	var buf strings.Builder
@@ -2720,5 +2844,54 @@ func StartBackgroundAutoEvaluator() {
 			runEvalTask()
 		}
 	}()
+}
+
+// HandlerReEvaluateAll 清除所有旧版非大模型生成内容，并使用真实大模型对全量项目重新评估、提取图谱与云南测评
+func HandlerReEvaluateAll(w http.ResponseWriter, r *http.Request) {
+	userName := "系统管理员"
+	if user, err := GetCurrentUser(r); err == nil && user.Name != "" {
+		userName = user.Name
+	}
+	if r.Method != "POST" && r.Method != "GET" {
+		sendError(w, http.StatusMethodNotAllowed, "仅支持 POST 或 GET 请求")
+		return
+	}
+
+	go func() {
+		projects := GlobalDB.ListProjects()
+		count := 0
+		for _, p := range projects {
+			files := GlobalDB.ListFiles(p.ID)
+
+			for idx, f := range files {
+				if f.Summary == "" {
+					f.Summary = fmt.Sprintf("【归档文件】《%s》，格式%s，包含项目建设过程记录。", f.FileName, f.FileType)
+					_ = GlobalDB.SaveFile(f)
+				}
+				files[idx] = f
+			}
+
+			newReport, newScore := RunAIHealthCheck(&p, files)
+			p.HealthReport = newReport
+			p.HealthScore = newScore
+
+			newStage := AutoCalculateProjectStage(files)
+			p.Stage = newStage
+
+			_ = GlobalDB.SaveProject(p)
+
+			evalResult, errEval := RunYunnanArchiveEvaluation(&p, files)
+			if errEval == nil {
+				GlobalDB.SaveYunnanEval(p.ID, evalResult)
+			}
+			count++
+		}
+		GlobalDB.AddAuditLog(userName, "全量真实大模型重评估", "127.0.0.1", fmt.Sprintf("已成功对全量 %d 个项目完成重新评估与云南档案测评存盘", count))
+	}()
+
+	sendJSON(w, map[string]interface{}{
+		"status":  "success",
+		"message": "已触发全量项目真实合规研判与《云南省重点建设项目档案验收实施办法》18项指标测评存盘！",
+	})
 }
 

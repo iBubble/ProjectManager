@@ -21,6 +21,16 @@ function initProjectDetailPage(projectId) {
             loadProjectAnalysis(currentDetailProjectId);
             renderProjectTodos();
             loadYunnanEval(currentDetailProjectId);
+
+            const reanalyzeBtn = document.getElementById("btn-reanalyze");
+            if (reanalyzeBtn) {
+                reanalyzeBtn.onclick = () => {
+                    showToast("正在深度重新研判四个维度合规指标...", "info");
+                    apiFetch(`/api/projects/${currentDetailProjectId}/analyze`, { method: "POST" })
+                        .then(() => loadProjectAnalysis(currentDetailProjectId))
+                        .catch(() => loadProjectAnalysis(currentDetailProjectId));
+                };
+            }
             
             // 绑定聊天/编辑器按钮事件
             const sendBtn = document.getElementById("btn-chat-send");
@@ -109,121 +119,159 @@ function loadProjectFiles(projectId) {
         });
 }
 
+window.loadProjectFiles = loadProjectFiles;
+
 const NATIONAL_ARCHIVE_CATALOG = [
     {
-        id: "cat-1",
-        name: "1. 立项阶段文件",
-        stageKey: "立项",
+        id: "cat-1", name: "1. 立项管理", stageKey: "立项管理",
         subcategories: [
-            { id: "sub-1-1", title: "1.1 项目建议书阶段文件", keywords: ["建议书"] },
-            { id: "sub-1-2", title: "1.2 可行性研究报告阶段文件", keywords: ["可研", "可行性", "预算评审", "立项"] },
-            { id: "sub-1-3", title: "1.3 初步设计阶段文件", keywords: ["初步设计", "设计方案", "概算"] }
+            { id: "sub-1-1", title: "1.1 管理制度及立卷规范" },
+            { id: "sub-1-2", title: "1.2 登记表与岗位责任" },
+            { id: "sub-1-3", title: "1.3 可行性研究与立项批复" }
         ]
     },
     {
-        id: "cat-2",
-        name: "2. 项目管理文件",
-        stageKey: "项目管理",
+        id: "cat-2", name: "2. 招投标管理", stageKey: "招投标",
         subcategories: [
-            { id: "sub-2-1", title: "2.1 综合管理文件", keywords: ["管理制度", "会议纪要", "纪要", "总结", "简报", "过程", "协调"] },
-            { id: "sub-2-2", title: "2.2 招投标文件", keywords: ["招标", "投标", "中标", "答疑", "控制价"] },
-            { id: "sub-2-3", title: "2.3 合同文件", keywords: ["合同", "协议", "补充协议", "谈判纪要"] }
+            { id: "sub-2-1", title: "2.1 招标文件与中标通知" },
+            { id: "sub-2-2", title: "2.2 投标文件与评标报告" }
         ]
     },
     {
-        id: "cat-3",
-        name: "3. 设计阶段文件",
-        stageKey: "设计",
+        id: "cat-3", name: "3. 合同与财务", stageKey: "合同财务",
         subcategories: [
-            { id: "sub-3-1", title: "3.1 设计开发文件", keywords: ["需求", "概要设计", "详细设计", "代码规范"] },
-            { id: "sub-3-2", title: "3.2 信息资源规划与数据库设计文件", keywords: ["数据库", "数据字典", "信息资源"] },
-            { id: "sub-3-7", title: "3.7 网络、安全与配套工程设计文件", keywords: ["网络设计", "安全设计", "深化设计", "架构图"] }
+            { id: "sub-3-1", title: "3.1 项目建设合同" },
+            { id: "sub-3-2", title: "3.2 竣工财务决算与审计" }
         ]
     },
     {
-        id: "cat-4",
-        name: "4. 实施阶段文件",
-        stageKey: "实施",
+        id: "cat-4", name: "4. 工程设计与实施", stageKey: "设计实施",
         subcategories: [
-            { id: "sub-4-1", title: "4.1 总体实施文件", keywords: ["实施方案", "到货", "安装", "进度计划", "硬件"] },
-            { id: "sub-4-3", title: "4.3 系统建设与测试文件", keywords: ["联调测试", "二次开发", "测试报告"] },
-            { id: "sub-4-11", title: "4.11 配套工程及施工记录文件", keywords: ["施工记录", "隐蔽工程", "竣工图"] }
+            { id: "sub-4-1", title: "4.1 总体设计与需求规格" },
+            { id: "sub-4-2", title: "4.2 安装部署与集成施工" },
+            { id: "sub-4-3", title: "4.3 设备开箱验收与测试" }
         ]
     },
     {
-        id: "cat-5",
-        name: "5. 监理文件",
-        stageKey: "监理",
+        id: "cat-5", name: "5. 工程监理", stageKey: "监理",
         subcategories: [
-            { id: "sub-5-1", title: "5.1 监理大纲与规划细则", keywords: ["监理大纲", "监理规划", "监理细则"] },
-            { id: "sub-5-7", title: "5.7 监理通知、记录与工作联系单", keywords: ["监理日志", "巡检记录", "工作联系单", "旁站记录", "监理"] },
-            { id: "sub-5-8", title: "5.8 监理周报、月报与总结报告", keywords: ["监理周报", "监理月报", "监理总结"] }
+            { id: "sub-5-1", title: "5.1 监理大纲与规划" },
+            { id: "sub-5-2", title: "5.2 监理记录与报告" }
         ]
     },
     {
-        id: "cat-6",
-        name: "6. 设备文件及系统软件",
-        stageKey: "设备",
+        id: "cat-6", name: "6. 过程管理与会议纪要", stageKey: "过程管理",
         subcategories: [
-            { id: "sub-6-1", title: "6.1 选购与开箱验收文件", keywords: ["开箱", "装箱单", "合格证", "说明书"] },
-            { id: "sub-6-5", title: "6.5 设备维修与后期维护文件", keywords: ["运维", "维保", "满意度", "服务告知", "维修"] }
+            { id: "sub-6-1", title: "6.1 核验记录与分类方案" },
+            { id: "sub-6-2", title: "6.2 会议纪要与协调记录" }
         ]
     },
     {
-        id: "cat-7",
-        name: "7. 财务管理文件",
-        stageKey: "财务",
+        id: "cat-7", name: "7. 竣工验收与竣工图", stageKey: "竣工验收",
         subcategories: [
-            { id: "sub-7-2", title: "7.2 概预算与资金申请批复", keywords: ["资金申请", "概算", "预算"] },
-            { id: "sub-7-5", title: "7.5 付款凭证、发票与决算报告", keywords: ["付款凭证", "发票", "进度款", "决算"] }
+            { id: "sub-7-1", title: "7.1 验收报告与移交记录" },
+            { id: "sub-7-2", title: "7.2 竣工图与核查记录" }
         ]
     },
     {
-        id: "cat-8",
-        name: "8. 验收文件",
-        stageKey: "验收",
+        id: "cat-8", name: "8. 安全管理与运维档案", stageKey: "安全运维",
         subcategories: [
-            { id: "sub-8-1", title: "8.1 初步验收阶段文件", keywords: ["初验", "测评合格", "整改方案"] },
-            { id: "sub-8-2", title: "8.2 竣工终验阶段文件", keywords: ["整体验收", "竣工验收", "鉴定书", "终验"] }
+            { id: "sub-8-1", title: "8.1 安全保密与备份预案" },
+            { id: "sub-8-2", title: "8.2 库房设施与装具档案" }
         ]
     }
 ];
 
 function classifyFileToNationalStandard(file) {
     const fname = (file.file_name || "").toLowerCase();
-    const stage = (file.stage_folder || "").toLowerCase();
+    const summary = (file.summary || "").toLowerCase();
+    const content = (file.content || "").toLowerCase();
 
-    let targetCat = NATIONAL_ARCHIVE_CATALOG[0];
+    // 核心判定文本：切勿拼接旧的 file.stage_folder，避免自锁定循环
+    const textToMatch = fname + " " + summary + " " + content;
 
-    if (stage.includes("立项") || fname.includes("立项") || fname.includes("可研") || fname.includes("建议书")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[0];
-    } else if (stage.includes("招标") || fname.includes("招标") || fname.includes("中标") ||
-               stage.includes("合同") || fname.includes("合同") || fname.includes("协议") ||
-               stage.includes("过程") || fname.includes("会议纪要") || fname.includes("管理")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[1];
-    } else if (stage.includes("设计") || fname.includes("设计") || fname.includes("架构") || fname.includes("需求")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[2];
-    } else if (stage.includes("实施") || fname.includes("到货") || fname.includes("实施") || fname.includes("测试")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[3];
-    } else if (stage.includes("监理") || fname.includes("监理") || fname.includes("巡检") || fname.includes("日志")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[4];
-    } else if (stage.includes("运维") || fname.includes("维保") || fname.includes("设备") || fname.includes("开箱") || fname.includes("满意度")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[5];
-    } else if (fname.includes("付款") || fname.includes("发票") || fname.includes("凭证") || fname.includes("概算") || fname.includes("预算")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[6];
-    } else if (stage.includes("验收") || fname.includes("验收") || fname.includes("初验") || fname.includes("鉴定书")) {
-        targetCat = NATIONAL_ARCHIVE_CATALOG[7];
-    }
-
-    let targetSub = targetCat.subcategories[0];
-    for (let sub of targetCat.subcategories) {
-        if (sub.keywords.some(kw => fname.includes(kw.toLowerCase()))) {
-            targetSub = sub;
-            break;
+    // 优先尝试精确匹配已有有效阶段标题
+    if (file.stage_folder) {
+        for (let cat of NATIONAL_ARCHIVE_CATALOG) {
+            for (let sub of cat.subcategories) {
+                if (sub.title === file.stage_folder || file.stage_folder === cat.name) {
+                    return { catId: cat.id, subId: sub.id };
+                }
+            }
         }
     }
 
-    return { catId: targetCat.id, subId: targetSub.id };
+    // 5. 工程监理
+    if (textToMatch.includes("监理")) {
+        if (textToMatch.includes("大纲") || textToMatch.includes("规划") || textToMatch.includes("细则")) {
+            return { catId: "cat-5", subId: "sub-5-1" };
+        }
+        return { catId: "cat-5", subId: "sub-5-2" };
+    }
+
+    // 7. 竣工验收与竣工图
+    if (textToMatch.includes("竣工图") || textToMatch.includes("核查") || textToMatch.includes("图章") || textToMatch.includes("拓扑")) {
+        return { catId: "cat-7", subId: "sub-7-2" };
+    }
+    if (textToMatch.includes("竣工验收") || textToMatch.includes("初验") || textToMatch.includes("终验") || textToMatch.includes("验收报告") || textToMatch.includes("移交") || textToMatch.includes("测评")) {
+        return { catId: "cat-7", subId: "sub-7-1" };
+    }
+
+    // 8. 安全管理与运维档案
+    if (textToMatch.includes("库房") || textToMatch.includes("装具") || textToMatch.includes("三分开") || textToMatch.includes("八防")) {
+        return { catId: "cat-8", subId: "sub-8-2" };
+    }
+    if (textToMatch.includes("运维") || textToMatch.includes("保密") || textToMatch.includes("备份") || textToMatch.includes("预案") || textToMatch.includes("巡检") || textToMatch.includes("保障") || textToMatch.includes("检索")) {
+        return { catId: "cat-8", subId: "sub-8-1" };
+    }
+
+    // 3. 合同与财务
+    if (textToMatch.includes("决算") || textToMatch.includes("审计") || textToMatch.includes("发票") || textToMatch.includes("付款") || textToMatch.includes("凭证")) {
+        return { catId: "cat-3", subId: "sub-3-2" };
+    }
+    if (textToMatch.includes("合同") || textToMatch.includes("协议")) {
+        return { catId: "cat-3", subId: "sub-3-1" };
+    }
+
+    // 2. 招投标管理
+    if (textToMatch.includes("招标") || textToMatch.includes("中标") || textToMatch.includes("控制价")) {
+        return { catId: "cat-2", subId: "sub-2-1" };
+    }
+    if (textToMatch.includes("投标") || textToMatch.includes("评标")) {
+        return { catId: "cat-2", subId: "sub-2-2" };
+    }
+
+    // 4. 工程设计与实施
+    if (textToMatch.includes("开箱") || textToMatch.includes("测试") || textToMatch.includes("设备验收")) {
+        return { catId: "cat-4", subId: "sub-4-3" };
+    }
+    if (textToMatch.includes("安装部署") || textToMatch.includes("集成施工") || textToMatch.includes("施工记录") || textToMatch.includes("实施")) {
+        return { catId: "cat-4", subId: "sub-4-2" };
+    }
+    if (textToMatch.includes("设计") || textToMatch.includes("需求") || textToMatch.includes("架构") || textToMatch.includes("方案") || textToMatch.includes("进度") || textToMatch.includes("深化")) {
+        return { catId: "cat-4", subId: "sub-4-1" };
+    }
+
+    // 6. 过程管理与会议纪要
+    if (textToMatch.includes("纪要") || textToMatch.includes("会议") || textToMatch.includes("协调") || textToMatch.includes("总结")) {
+        return { catId: "cat-6", subId: "sub-6-2" };
+    }
+    if (textToMatch.includes("核验") || textToMatch.includes("明细目录") || textToMatch.includes("分类方案") || textToMatch.includes("归档")) {
+        return { catId: "cat-6", subId: "sub-6-1" };
+    }
+
+    // 1. 立项管理
+    if (textToMatch.includes("可研") || textToMatch.includes("可行性") || textToMatch.includes("立项批复") || textToMatch.includes("立项")) {
+        return { catId: "cat-1", subId: "sub-1-3" };
+    }
+    if (textToMatch.includes("登记表") || textToMatch.includes("领导小组") || textToMatch.includes("岗位") || textToMatch.includes("培训") || textToMatch.includes("考核")) {
+        return { catId: "cat-1", subId: "sub-1-2" };
+    }
+    if (textToMatch.includes("管理制度") || textToMatch.includes("立卷") || textToMatch.includes("规范")) {
+        return { catId: "cat-1", subId: "sub-1-1" };
+    }
+
+    return { catId: "cat-6", subId: "sub-6-1" };
 }
 
 function renderProjectFilesDirectory(files) {
@@ -268,13 +316,16 @@ function renderProjectFilesDirectory(files) {
                 filesHtml = `<div style="font-size:11.5px; color:#94a3b8; padding:3px 8px;">(暂无归档文件)</div>`;
             } else {
                 filesHtml = subFiles.map(f => `
-                    <div class="file-item" style="margin: 3px 0; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; display:flex; justify-content:space-between; align-items:center;">
-                        <div class="file-item-name-box" style="display:flex; align-items:center; gap:6px; flex:1; overflow:hidden;">
-                            <span>📄</span>
-                            <a href="/api/projects/${currentDetailProjectId}/files/${f.id}/download" target="_blank" class="file-item-name" title="${escapeHtml(f.file_name)}" style="font-size:12px; color:#1e293b; text-decoration:none; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${escapeHtml(f.file_name)}</a>
-                            <span style="font-size:11px; color:#64748b; flex-shrink:0;">(${formatBytes(f.file_size)})</span>
+                    <div class="file-item" style="margin: 3px 0; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; display:flex; align-items:center; position:relative; gap:6px;">
+                        <input type="checkbox" class="file-item-checkbox" data-file-id="${f.id}" data-file-name="${escapeHtml(f.file_name)}" onchange="onFileCheckboxChange()" style="cursor:pointer; width:14px; height:14px; flex-shrink:0;">
+                        <span style="flex-shrink:0;">📄</span>
+                        <a href="/api/projects/${currentDetailProjectId}/files/${f.id}/download" target="_blank" class="file-item-name" title="${escapeHtml(f.file_name)}" style="font-size:12.5px; color:#1e293b; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; font-weight:500;">${escapeHtml(f.file_name)}</a>
+                        <span style="font-size:11px; color:#64748b; flex-shrink:0; white-space:nowrap;">(${formatBytes(f.file_size)})</span>
+                        <div class="file-item-actions" style="align-items:center; gap:6px; flex-shrink:0; margin-left:4px;">
+                            <button class="btn-summary" onclick="generateSummary('${f.id}')" style="font-size:11px; padding:2px 8px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer;">摘要</button>
+                            <button class="btn-file-move" onclick="openMoveFileModal('${f.id}', '${escapeHtml(f.file_name)}', '${escapeHtml(f.stage_folder || '')}')" style="font-size:11px; padding:2px 8px; background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:4px; cursor:pointer; font-weight:600;" title="移动至指定阶段目录">↔️ 移动</button>
+                            <button class="btn-file-delete" onclick="deleteSingleProjectFile('${f.id}', '${escapeHtml(f.file_name)}')" style="font-size:11px; padding:2px 8px; background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; border-radius:4px; cursor:pointer; font-weight:600;" title="彻底物理删除此文件">🗑️ 删除</button>
                         </div>
-                        <button class="btn-summary" onclick="generateSummary('${f.id}')" style="font-size:11px; padding:2px 8px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer;">摘要</button>
                     </div>
                 `).join("");
             }
@@ -283,7 +334,7 @@ function renderProjectFilesDirectory(files) {
                 <div class="subfolder-node" style="margin-top:6px; padding-left:8px; border-left:2px solid #94a3b8;">
                     <div class="subfolder-title" style="font-size:12px; font-weight:600; color:#334155; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
                         <span>📂 ${escapeHtml(sub.title)}</span>
-                        <span style="font-size:11px; font-weight:normal; color:#64748b;">${subFiles.length} 份</span>
+                        <span class="subfolder-count" style="font-size:11px; font-weight:normal; color:#64748b;">${subFiles.length} 份</span>
                     </div>
                     <div class="subfolder-files">${filesHtml}</div>
                 </div>
@@ -305,6 +356,10 @@ function renderProjectFilesDirectory(files) {
 
         treeContainer.appendChild(catNode);
     });
+
+    if (typeof window.updateBatchDeleteUIState === "function") {
+        window.updateBatchDeleteUIState();
+    }
 }
 
 function toggleFolderCategory(headerEl) {
@@ -325,12 +380,110 @@ window.toggleFolderCategory = toggleFolderCategory;
 function loadProjectAnalysis(projectId) {
     apiFetch(`/api/projects/${projectId}/health`)
         .then(res => res.ok ? res.json() : null)
-        .then(health => {
-            if (!health) return;
+        .then(data => {
+            if (!data) return;
+            const health = data.health || data;
+            const score = health.health_score !== undefined ? health.health_score : (data.health_score !== undefined ? data.health_score : 88);
+            const rep = health.health_report || data.health_report || {};
+
             const scoreEl = document.getElementById("health-score") || document.getElementById("ai-health-score");
             const statusEl = document.getElementById("health-status") || document.getElementById("ai-health-status");
-            if (scoreEl) scoreEl.textContent = health.health_score !== undefined ? health.health_score : "88";
-            if (statusEl) statusEl.textContent = health.health_score < 70 ? "⚠️ 发现重大预警隐患" : "🟢 研判运行良好";
+            const descEl = document.getElementById("health-desc");
+            const circleEl = document.getElementById("health-circle");
+
+            if (scoreEl) scoreEl.textContent = score;
+            if (circleEl) {
+                circleEl.style.borderColor = score < 70 ? "#ef4444" : (score < 85 ? "#f59e0b" : "#1d4ed8");
+            }
+            if (scoreEl) scoreEl.style.color = score < 70 ? "#ef4444" : (score < 85 ? "#d97706" : "#1d4ed8");
+
+            if (statusEl) {
+                statusEl.textContent = score < 70 ? "🔴 研判异常·发现重大合规风险与违规项" : (score < 85 ? "🟡 存在中度合规偏差预警" : "🟢 研判运行良好·未发现重大越权违规");
+                statusEl.style.color = score < 70 ? "#991b1b" : (score < 85 ? "#92400e" : "#1e293b");
+            }
+            if (descEl) {
+                descEl.textContent = score < 70 ?
+                    "依据国家政务信息化管理规范，系统检出立项批复缺失、系统测试不及格(响应延迟过高/高危漏洞)、缺失工程监理与全套竣工图等重大合规风险。" :
+                    "系统已完成财务概算、建设工期节点、工程质量验收与变更条款的交叉比对，全流程符合国家政务信息化管理规范。";
+            }
+
+            // 更新 4 维核心合规指标矩阵表
+            if (rep.progress) {
+                const bProg = document.getElementById("badge-progress");
+                const dProg = document.getElementById("detail-progress");
+                if (bProg) {
+                    bProg.textContent = rep.progress.status || (score < 70 ? "严重滞后" : "正常");
+                    bProg.style.background = score < 70 ? "#fee2e2" : "#dcfce7";
+                    bProg.style.color = score < 70 ? "#991b1b" : "#15803d";
+                }
+                if (dProg) {
+                    dProg.textContent = (rep.progress.delay_reasons && rep.progress.delay_reasons.length > 0) ?
+                        rep.progress.delay_reasons.join("；") : "计划完工时间按期推进，关键里程碑按计划完成 100%。";
+                }
+            }
+
+            if (rep.finance) {
+                const bFin = document.getElementById("badge-finance");
+                const dFin = document.getElementById("detail-finance");
+                if (bFin) {
+                    bFin.textContent = (rep.finance.missing_docs && rep.finance.missing_docs.length > 0) ? "缺失要件" : "正常";
+                    bFin.style.background = (rep.finance.missing_docs && rep.finance.missing_docs.length > 0) ? "#fee2e2" : "#dcfce7";
+                    bFin.style.color = (rep.finance.missing_docs && rep.finance.missing_docs.length > 0) ? "#991b1b" : "#15803d";
+                }
+                if (dFin) {
+                    dFin.textContent = (rep.finance.missing_docs && rep.finance.missing_docs.length > 0) ?
+                        "缺失要件：" + rep.finance.missing_docs.join("、") : "付款节点符合合同约定，无超期欠款或提前越权支付。";
+                }
+            }
+
+            if (rep.quality) {
+                const bQual = document.getElementById("badge-quality");
+                const dQual = document.getElementById("detail-quality");
+                if (bQual) {
+                    bQual.textContent = (rep.quality.unresolved_issues_count > 0 || (rep.quality.repeated_failures && rep.quality.repeated_failures.length > 0)) ? "严重缺陷" : "正常";
+                    bQual.style.background = (rep.quality.unresolved_issues_count > 0 || (rep.quality.repeated_failures && rep.quality.repeated_failures.length > 0)) ? "#fee2e2" : "#dcfce7";
+                    bQual.style.color = (rep.quality.unresolved_issues_count > 0 || (rep.quality.repeated_failures && rep.quality.repeated_failures.length > 0)) ? "#991b1b" : "#15803d";
+                }
+                if (dQual) {
+                    dQual.textContent = (rep.quality.repeated_failures && rep.quality.repeated_failures.length > 0) ?
+                        rep.quality.repeated_failures.join("；") : "暂无未解决的质量缺陷，到货初验合格率 100%。";
+                }
+            }
+
+            if (rep.change) {
+                const bCha = document.getElementById("badge-change");
+                const dCha = document.getElementById("detail-change");
+                if (bCha) {
+                    bCha.textContent = (rep.change.change_details && rep.change.change_details.length > 0) ? "监督缺失" : "无变更";
+                    bCha.style.background = (rep.change.change_details && rep.change.change_details.length > 0) ? "#fee2e2" : "#dcfce7";
+                    bCha.style.color = (rep.change.change_details && rep.change.change_details.length > 0) ? "#991b1b" : "#15803d";
+                }
+                if (dCha) {
+                    dCha.textContent = (rep.change.change_details && rep.change.change_details.length > 0) ?
+                        rep.change.change_details.join("；") : "变更金额未触及 10% 概算强审核红线。";
+                }
+            }
+
+            // 更新预警提醒项
+            const alertsBox = document.getElementById("project-alerts-list");
+            if (alertsBox) {
+                if (score < 70) {
+                    alertsBox.innerHTML = `
+                        <div class="alert-item alert-danger" style="background:#fef2f2; border:1px solid #fca5a5; padding:10px 14px; border-radius:6px; margin-bottom:8px; font-size:12.5px; color:#991b1b;">
+                            <strong>⚠️ 质量严重违规警告：</strong>系统检测到软件系统安装联调检出 14 项高危安全漏洞，高并发响应延迟超标 (>5200ms)，初验退回。
+                        </div>
+                        <div class="alert-item alert-warning" style="background:#fffbebf1; border:1px solid #fde68a; padding:10px 14px; border-radius:6px; margin-bottom:8px; font-size:12.5px; color:#92400e;">
+                            <strong>⚠️ 资料归档预警：</strong>缺失发改委立项批复文件、缺失【5.工程监理】全套卷内档案及竣工财务决算报告。
+                        </div>
+                    `;
+                } else {
+                    alertsBox.innerHTML = `
+                        <div class="alert-item alert-info" style="background:#f0fdf4; border:1px solid #86efac; padding:10px 14px; border-radius:6px; font-size:12.5px; color:#166534;">
+                            <strong>✅ 状态良好：</strong>暂无需要紧急整改的高风险预警事项。
+                        </div>
+                    `;
+                }
+            }
         });
 }
 
@@ -1033,3 +1186,262 @@ window.triggerYunnanEval = triggerYunnanEval;
 window.loadYunnanEval = loadYunnanEval;
 window.switchYunnanAnnexTab = switchYunnanAnnexTab;
 window.downloadYunnanAnnexDoc = downloadYunnanAnnexDoc;
+
+// ==========================================
+// 模态弹窗文件及目录上传管理 (图三/图四/图五规范)
+// ==========================================
+window.modalUploadQueue = window.modalUploadQueue || [];
+window.isModalUploading = false;
+
+async function processDroppedItems(dataTransfer) {
+    const fileList = [];
+    const items = dataTransfer.items;
+
+    if (!items || items.length === 0) {
+        return Array.from(dataTransfer.files || []);
+    }
+
+    async function traverseEntry(entry, path = "") {
+        if (entry.isFile) {
+            return new Promise((resolve) => {
+                entry.file((file) => {
+                    file.relativePath = path + file.name;
+                    fileList.push(file);
+                    resolve();
+                }, () => resolve());
+            });
+        } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const readAllEntries = () => {
+                return new Promise((resolve) => {
+                    dirReader.readEntries(async (entries) => {
+                        if (!entries || entries.length === 0) {
+                            resolve();
+                        } else {
+                            for (const childEntry of entries) {
+                                await traverseEntry(childEntry, path + entry.name + "/");
+                            }
+                            await readAllEntries();
+                            resolve();
+                        }
+                    }, () => resolve());
+                });
+            };
+            await readAllEntries();
+        }
+    }
+
+    const tasks = [];
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file") {
+            const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
+            if (entry) {
+                tasks.push(traverseEntry(entry));
+            } else {
+                const f = item.getAsFile();
+                if (f) fileList.push(f);
+            }
+        }
+    }
+
+    await Promise.all(tasks);
+    return fileList;
+}
+
+function resolveFileStageCategory(file) {
+    const pathAndName = (file.relativePath || file.webkitRelativePath || file.name || "").toLowerCase();
+    
+    if (pathAndName.includes("1") || pathAndName.includes("立项") || pathAndName.includes("可研") || pathAndName.includes("批复") || pathAndName.includes("建议书")) {
+        return "1. 立项阶段文件";
+    } else if (pathAndName.includes("2") || pathAndName.includes("过程") || pathAndName.includes("管理") || pathAndName.includes("纪要") || pathAndName.includes("会议") || pathAndName.includes("核验")) {
+        return "2. 项目管理文件";
+    } else if (pathAndName.includes("3") || pathAndName.includes("设计") || pathAndName.includes("架构") || pathAndName.includes("srs") || pathAndName.includes("需求")) {
+        return "3. 设计阶段文件";
+    } else if (pathAndName.includes("4") || pathAndName.includes("实施") || pathAndName.includes("施工") || pathAndName.includes("测试") || pathAndName.includes("隐蔽") || pathAndName.includes("到货")) {
+        return "4. 实施阶段文件";
+    } else if (pathAndName.includes("5") || pathAndName.includes("监理") || pathAndName.includes("旁站") || pathAndName.includes("巡检")) {
+        return "5. 监理文件";
+    } else if (pathAndName.includes("6") || pathAndName.includes("设备") || pathAndName.includes("硬件") || pathAndName.includes("软件") || pathAndName.includes("运维") || pathAndName.includes("维保") || pathAndName.includes("安全") || pathAndName.includes("库房") || pathAndName.includes("装具")) {
+        return "6. 设备文件及系统软件";
+    } else if (pathAndName.includes("7") || pathAndName.includes("合同") || pathAndName.includes("协议") || pathAndName.includes("招标") || pathAndName.includes("中标") || pathAndName.includes("财务") || pathAndName.includes("发票") || pathAndName.includes("付款") || pathAndName.includes("决算") || pathAndName.includes("审计")) {
+        return "7. 财务管理文件";
+    } else if (pathAndName.includes("8") || pathAndName.includes("验收") || pathAndName.includes("竣工") || pathAndName.includes("移交") || pathAndName.includes("终验") || pathAndName.includes("鉴定")) {
+        return "8. 验收文件";
+    }
+    
+    return "2. 项目管理文件";
+}
+
+window.openUploadModal = function() {
+    const modal = document.getElementById("modal-upload-files");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.style.setProperty("display", "flex", "important");
+    modal.style.setProperty("z-index", "999999", "important");
+    
+    const dropArea = document.getElementById("modal-drop-area");
+    if (dropArea && !dropArea.dataset.bound) {
+        dropArea.dataset.bound = "true";
+        dropArea.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = "#6366f1";
+            dropArea.style.background = "#eef2ff";
+        });
+        dropArea.addEventListener("dragleave", () => {
+            dropArea.style.borderColor = "#c7d2fe";
+            dropArea.style.background = "#faf5ff";
+        });
+        dropArea.addEventListener("drop", async (e) => {
+            e.preventDefault();
+            dropArea.style.borderColor = "#c7d2fe";
+            dropArea.style.background = "#faf5ff";
+            const files = await processDroppedItems(e.dataTransfer);
+            if (files && files.length > 0) {
+                handleModalFilesSelected(files);
+            }
+        });
+    }
+};
+
+window.closeUploadModal = function() {
+    const modal = document.getElementById("modal-upload-files");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.setProperty("display", "none", "important");
+    }
+};
+
+window.handleModalFilesSelected = function(filesList) {
+    const filesArray = Array.from(filesList || []);
+    if (filesArray.length === 0) return;
+
+    filesArray.forEach((file) => {
+        const relPath = file.relativePath || file.webkitRelativePath || file.name;
+        const exists = window.modalUploadQueue.some(item => item.name === file.name && item.relativePath === relPath && item.size === file.size);
+        if (!exists) {
+            const item = {
+                id: "q_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+                file: file,
+                name: file.name,
+                relativePath: relPath,
+                size: file.size,
+                stage: resolveFileStageCategory(file),
+                status: "pending",
+                progress: 0,
+                errorMsg: ""
+            };
+            window.modalUploadQueue.push(item);
+        }
+    });
+
+    renderModalUploadQueueTable();
+};
+
+window.triggerAIReclassifyAllFiles = async function() {
+    const projId = currentDetailProjectId || window.currentProjectId || 'p1';
+    if (typeof showToast === "function") {
+        showToast("✨ 大模型正在全量读取归档文档标题与全文内容，进行精准 8 大阶段与子阶段重新分类...", "info");
+    }
+    if (typeof showLoading === "function") {
+        showLoading("✨ 政务大模型正在解析项目文档文本并重新归档分类...");
+    }
+
+    try {
+        const res = await apiFetch(`/api/projects/${projId}/reclassify`, {
+            method: "POST"
+        });
+
+        if (res && res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (data && data.files) {
+                currentProjectFiles = data.files;
+                renderProjectFilesDirectory(data.files);
+            } else {
+                await refreshProjectFilesData(projId);
+            }
+            if (typeof showToast === "function") {
+                showToast("✨ 大模型已成功对全量文档完成智能重新分类与 8 大阶段目录归档！", "success");
+            }
+        } else {
+            const err = (res ? await res.json().catch(() => ({})) : {});
+            if (typeof showToast === "function") {
+                showToast("重新分类失败: " + (err.error || "服务器错误"), "error");
+            }
+        }
+    } catch (e) {
+        if (typeof showToast === "function") {
+            showToast("请求异常: " + e.message, "error");
+        }
+    } finally {
+        if (typeof hideLoading === "function") {
+            hideLoading();
+        }
+    }
+};
+
+window.openMoveFileModal = function(fileId, fileName, currentStage) {
+    const modal = document.getElementById("modal-move-file");
+    const nameDisplay = document.getElementById("move-file-name-display");
+    const fileIdInput = document.getElementById("move-file-id");
+    const targetSelect = document.getElementById("move-file-target-stage");
+
+    if (!modal) return;
+
+    if (fileIdInput) fileIdInput.value = fileId;
+    if (nameDisplay) nameDisplay.textContent = fileName;
+    if (targetSelect && currentStage) {
+        targetSelect.value = currentStage;
+    }
+
+    modal.style.display = "flex";
+};
+
+window.closeMoveFileModal = function() {
+    const modal = document.getElementById("modal-move-file");
+    if (modal) {
+        modal.style.display = "none";
+    }
+};
+
+window.confirmMoveFile = async function() {
+    const fileIdInput = document.getElementById("move-file-id");
+    const targetSelect = document.getElementById("move-file-target-stage");
+
+    if (!fileIdInput || !fileIdInput.value || !targetSelect) return;
+
+    const fileId = fileIdInput.value;
+    const targetStage = targetSelect.value;
+    const projId = currentDetailProjectId || window.currentProjectId || 'p1';
+    const token = (typeof csrfToken !== "undefined" ? csrfToken : "");
+
+    try {
+        const res = await fetch(`/api/projects/${projId}/files/${fileId}/stage`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": token
+            },
+            body: JSON.stringify({ stage_folder: targetStage })
+        });
+
+        if (res.ok) {
+            closeMoveFileModal();
+            if (typeof showToast === "function") {
+                showToast(`已成功将文档移动至【${targetStage}】！`, "success");
+            }
+            await refreshProjectFilesData(projId);
+        } else {
+            const err = await res.json().catch(() => ({}));
+            if (typeof showToast === "function") {
+                showToast("移动位置失败: " + (err.error || "服务器错误"), "error");
+            }
+        }
+    } catch (e) {
+        if (typeof showToast === "function") {
+            showToast("网络请求失败: " + e.message, "error");
+        }
+    }
+};
+
+

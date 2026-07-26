@@ -149,12 +149,19 @@ func (db *Database) SetLLMCache(key, content, model, contextHash string) error {
 	return db.Save()
 }
 
+// ClearLLMCache 安全清空大模型缓存
+func (db *Database) ClearLLMCache() error {
+	db.mu.Lock()
+	db.LLMCache = make(map[string]LLMCacheEntry)
+	db.mu.Unlock()
+	return db.Save()
+}
+
 // Save 将数据库持久化到磁盘
 func (db *Database) Save() error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
+	db.mu.RLock()
 	data, err := json.MarshalIndent(db, "", "  ")
+	db.mu.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -169,7 +176,9 @@ func (db *Database) loadDefaultData() {
 		WatermarkText:   "政务内网安全审计",
 		IPAllowList:     "127.0.0.1,localhost",
 		FileAutoEncrypt: true,
-		LLMProvider:     "mock",
+		LLMProvider:     "ollama",
+		LLMEndpoint:     "http://ibubble.vicp.net:11434/api/generate",
+		LLMModel:        "qwen3.6:35b-q4",
 	}
 
 	// 1. 初始化四个权限级角色用户，超级管理员默认密码: admin123

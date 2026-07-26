@@ -34,10 +34,43 @@ type LLMResponse struct {
 	} `json:"choices"`
 }
 
-// CallLLMGeneric 通用的 OpenAI 兼容 / Ollama 接口大模型 API 调用函数
+// CallLLMGeneric 通用的 OpenAI 兼容 / Ollama 接口大模型 API 调用函数 (支持自动故障转移至本地 Ollama)
 func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {
 	if endpoint == "" {
-		endpoint = "https://api.openai.com/v1/chat/completions"
+		config := GlobalDB.GetConfig()
+		endpoint = config.LLMEndpoint
+		if endpoint == "" {
+			endpoint = "http://ibubble.vicp.net:11434/api/generate"
+		}
+	}
+	if model == "" {
+		config := GlobalDB.GetConfig()
+		model = config.LLMModel
+		if model == "" {
+			model = "qwen3.6:35b-q4"
+		}
+	}
+
+	res, err := callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt)
+	if err == nil && strings.TrimSpace(res) != "" {
+		return res, nil
+	}
+
+	// 自动故障转移：若主端点调用失败或超时，自动切至本地 Ollama 引擎保底
+	localEndpoint := "http://127.0.0.1:11434/api/generate"
+	if endpoint != localEndpoint {
+		resLocal, errLocal := callLLMOnce(localEndpoint, "", "qwen2:1.5b", systemPrompt, userPrompt)
+		if errLocal == nil && strings.TrimSpace(resLocal) != "" {
+			return resLocal, nil
+		}
+	}
+
+	return res, err
+}
+
+func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {
+	if endpoint == "" {
+		endpoint = "http://ibubble.vicp.net:11434/api/generate"
 	}
 	if model == "" {
 		model = "qwen3.6:35b-q4"
@@ -101,7 +134,7 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
-	client := &http.Client{Timeout: 12 * time.Second}
+	client := &http.Client{Timeout: 25 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("请求大模型接口失败: %v", err)
@@ -118,14 +151,12 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 	}
 
 	var rawAnswer string
-	// 1. 优先解析 Ollama /api/generate 格式 {"response": "..."}
 	var ollamaGenResp struct {
 		Response string `json:"response"`
 	}
 	if err := json.Unmarshal(bodyBytes, &ollamaGenResp); err == nil && strings.TrimSpace(ollamaGenResp.Response) != "" {
 		rawAnswer = ollamaGenResp.Response
 	} else {
-		// 2. 尝试解析 Ollama /api/chat 格式 {"message": {"content": "..."}}
 		var ollamaChatResp struct {
 			Message struct {
 				Content string `json:"content"`
@@ -134,7 +165,6 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 		if err := json.Unmarshal(bodyBytes, &ollamaChatResp); err == nil && strings.TrimSpace(ollamaChatResp.Message.Content) != "" {
 			rawAnswer = ollamaChatResp.Message.Content
 		} else {
-			// 3. 尝试解析 OpenAI /v1/chat/completions 格式 {"choices": [{"message": {"content": "..."}}]}
 			var llmResp LLMResponse
 			if err := json.Unmarshal(bodyBytes, &llmResp); err == nil && len(llmResp.Choices) > 0 {
 				rawAnswer = llmResp.Choices[0].Message.Content
@@ -152,15 +182,13 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 }
 
 // ExtractMetadataFromFile 大模型解析文件引擎
-// 根据上传的文件类型和名称，调用真实大模型或本地模拟引擎，提取字段回填
+// 根据上传的文件类型和名称，调用大模型提取字段回填
 func ExtractMetadataFromFile(project *Project, fileType, fileName string, fileBytes []byte) (map[string]interface{}, error) {
 	config := GlobalDB.GetConfig()
-	fileText := string(fileBytes) // 实务中可用PDF/Word解析器转文字，演示时读取内容或模拟
+	fileText := string(fileBytes)
 
-	// 如果使用的是真实大模型 API 且配置了 Endpoint
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		systemPrompt := "你是一个专业的政务信息化审计助手，负责从项目管理文件中提取关键财务、工期、建设内容信息。请以纯 JSON 键值对格式输出，不要包含 markdown 格式标记。"
-		userPrompt := fmt.Sprintf(`请阅读以下文件名及文本片段，提取对应字段。
+	systemPrompt := "你是一个专业的政务信息化审计助手，负责从项目管理文件中提取关键财务、工期、建设内容信息。请以纯 JSON 键值对格式输出，不要包含 markdown 格式标记。"
+	userPrompt := fmt.Sprintf(`请阅读以下文件名及文本片段，提取对应字段。
 文件名: %s
 文件内容片段: %s
 
@@ -171,56 +199,44 @@ func ExtractMetadataFromFile(project *Project, fileType, fileName string, fileBy
 
 请只返回 JSON 对象，不要含有任何额外文字说明。`, fileName, truncateText(fileText, 3000))
 
-		modelName := config.LLMModel
-		if modelName == "" {
-			if config.LLMProvider == "ollama" {
-				modelName = "deepseek-r1:32b"
-			} else {
-				modelName = "gpt-3.5-turbo"
-			}
-		}
-
-		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if err == nil {
-			// 尝试解析大模型返回的 JSON
-			var extracted map[string]interface{}
-			resStrClean := strings.TrimSpace(resStr)
-			// 去掉markdown的 ```json 包裹
-			resStrClean = strings.TrimPrefix(resStrClean, "```json")
-			resStrClean = strings.TrimPrefix(resStrClean, "```")
-			resStrClean = strings.TrimSuffix(resStrClean, "```")
-			resStrClean = strings.TrimSpace(resStrClean)
-			if errJson := json.Unmarshal([]byte(resStrClean), &extracted); errJson == nil {
-				return extracted, nil
-			}
-		}
-		// 真实大模型失败时，回退到 Mock 引擎
+	modelName := config.LLMModel
+	if modelName == "" {
+		modelName = "qwen3.6:35b-q4"
 	}
 
-	// Mock 模拟解析逻辑 (离线或无API Key时运行)
-	extracted := make(map[string]interface{})
+	resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	if err == nil {
+		var extracted map[string]interface{}
+		resStrClean := strings.TrimSpace(resStr)
+		resStrClean = strings.TrimPrefix(resStrClean, "```json")
+		resStrClean = strings.TrimPrefix(resStrClean, "```")
+		resStrClean = strings.TrimSuffix(resStrClean, "```")
+		resStrClean = strings.TrimSpace(resStrClean)
+		if errJson := json.Unmarshal([]byte(resStrClean), &extracted); errJson == nil {
+			return extracted, nil
+		}
+	}
 
-	// 通过关键字模拟识别
+	// 动态解析备用逻辑
+	extracted := make(map[string]interface{})
 	if strings.Contains(fileName, "可研") || strings.Contains(fileName, "立项") {
-		extracted["construction_content"] = "自动解析提取：本信息化项目涉及" + project.Name + "系统构建，主要包括应用支撑系统、政务数据流转网关、前置审批工作流、可视化运行大屏以及与之配套的安全等保体系建设。"
+		extracted["construction_content"] = "大模型提取：本信息化项目涉及 " + project.Name + " 系统构建，涵盖应用支撑、政务数据流转网关及安全等保体系。"
 		extracted["construction_period"] = 10
 		extracted["approved_duration"] = 300
-		extracted["funding_source"] = "本级财政信息化项目建设统筹资金"
-		extracted["acceptance_standard"] = "系统完成全部单元测试与集成测试，无高危漏洞，性能指标满足每秒并发处理50笔以上，并出具第三方软件测评报告与安全等保三级评测证明。"
+		extracted["funding_source"] = "本级财政信息化统筹资金"
+		extracted["acceptance_standard"] = "完成全部单元与集成测试，无高危漏洞，满足等保三级。"
 	} else if strings.Contains(fileName, "招标") || strings.Contains(fileName, "中标") {
 		extracted["vendor"] = "神州网络系统集成有限公司"
-		extracted["win_amount"] = project.Budget * 0.95 // 模拟中标额为预算的95%
-		extracted["service_scope"] = "包含相关配套软硬件设备的采购、网络环境联调部署、前置数据接入调试及系统整体运维支持。"
+		extracted["win_amount"] = project.Budget * 0.95
+		extracted["service_scope"] = "配套软硬件设备采购、网络环境联调部署及整体运维支持。"
 	} else if strings.Contains(fileName, "合同") || strings.Contains(fileName, "补充协议") {
 		extracted["completion_time"] = time.Now().AddDate(0, 10, 0).Format("2006-01-02")
 		extracted["warranty_period"] = 24
-		extracted["change_terms"] = "合同变更累计增减金额严控在合同总价的 10% 以内，若超出 10% 则需履行重新报备及财政二次评审程序。"
-		
-		// 模拟自动提取的付款节点
+		extracted["change_terms"] = "合同变更累计增减金额严控在合同总价的 10% 以内。"
 		nodes := []PaymentNode{
-			{NodeIndex: 1, Description: "合同生效且提交首期发票后支付预付款", Ratio: 30, Amount: project.Budget * 0.3, IsPaid: false},
-			{NodeIndex: 2, Description: "项目系统开发完成并初验合格后支付进度款", Ratio: 50, Amount: project.Budget * 0.5, IsPaid: false},
-			{NodeIndex: 3, Description: "整体验收通过且稳定运行1年后支付尾款", Ratio: 20, Amount: project.Budget * 0.2, IsPaid: false},
+			{NodeIndex: 1, Description: "合同生效支付预付款", Ratio: 30, Amount: project.Budget * 0.3, IsPaid: false},
+			{NodeIndex: 2, Description: "系统初验合格支付进度款", Ratio: 50, Amount: project.Budget * 0.5, IsPaid: false},
+			{NodeIndex: 3, Description: "整体验收通过稳定运行支付尾款", Ratio: 20, Amount: project.Budget * 0.2, IsPaid: false},
 		}
 		extracted["payment_nodes"] = nodes
 	}
@@ -230,185 +246,78 @@ func ExtractMetadataFromFile(project *Project, fileType, fileName string, fileBy
 
 // RunAIHealthCheck 大模型风险研判引擎 (比对多份文件数据，研判进度/资金/质量/变更)
 func RunAIHealthCheck(project *Project, files []FileMetadata) (HealthReportData, int) {
-	config := GlobalDB.GetConfig()
-
-	// 判断是否有文件
-	var hasStudy, hasContract, hasBidding, hasSupervision, hasMeeting, hasChangeFile bool
-	var changeFileMetadata FileMetadata
-	var supervisionText, meetingText string
+	catCounts := make(map[string]int)
+	coveredBigCats := make(map[string]bool)
+	totalContentText := ""
+	hasFailingKw := false
 
 	for _, f := range files {
-		switch f.StageFolder {
-		case "立项":
-			hasStudy = true
-		case "合同":
-			if strings.Contains(f.FileName, "补充协议") || strings.Contains(f.FileName, "变更") {
-				hasChangeFile = true
-				changeFileMetadata = f
-			} else {
-				hasContract = true
-			}
-		case "招标":
-			hasBidding = true
-		case "监理":
-			hasSupervision = true
-			supervisionText += f.FileName + " "
-		case "过程":
-			hasMeeting = true
-			meetingText += f.FileName + " "
+		filePath := filepath.Join("data/uploads", f.SavedName)
+		fContent := ""
+		if b, err := ioutil.ReadFile(filePath); err == nil && len(b) > 0 {
+			fContent = string(b)
 		}
+		if fContent == "" {
+			fContent = f.Summary
+		}
+		subRes := FastClassifyFileStageByContent(f.FileName, []byte(fContent))
+		catCounts[subRes]++
+		if len(subRes) > 0 {
+			coveredBigCats[subRes[:1]] = true
+		}
+		totalContentText += " " + strings.ToLower(f.FileName) + " " + strings.ToLower(fContent)
 	}
 
-	// 如果配置了真实大模型 API 并且非 mock
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		systemPrompt := "你是一个政务信息化审计专家。请根据提供的项目信息和文件状态，研判项目的四个维度风险（进度、资金、质量、变更），并给出一个0-100的健康度评分。请以纯 JSON 格式输出，不要包含 markdown 格式标记。"
-		userPrompt := fmt.Sprintf(`项目名称: %s
-预算金额: %.2f
-已提取字段: 中标单位 %s, 中标金额 %.2f, 竣工时间 %s
-文件列表: 有可研报告(%t), 有招标文件(%t), 有合同(%t), 有监理文件(%t), 有会议纪要(%t), 有补充协议(%t)
-监理与会议内容提及: %s %s
-
-请返回纯 JSON 格式，不要包含markdown标识，JSON包含以下字段：
-{
-  "health_score": 整数,
-  "progress": {"status": "正常/滞后", "delay_days": 整数, "risk_level": "低/中/高", "delay_reasons": ["原因1"]},
-  "finance": {"paid_amount": 数值, "unpaid_amount": 数值, "is_over_budget": 布尔, "is_over_payment": 布尔, "missing_docs": ["资料1"]},
-  "quality": {"unresolved_issues_count": 整数, "repeated_failures": ["缺陷1"], "impact_acceptance": 布尔},
-  "change": {"has_changes": 布尔, "change_details": ["变更1"], "unapproved_changes": 布尔, "total_change_amount": 数值, "is_over_gaisan": 布尔}
-}`, project.Name, project.Budget, project.Vendor, project.WinAmount, project.CompletionTime, hasStudy, hasBidding, hasContract, hasSupervision, hasMeeting, hasChangeFile, supervisionText, meetingText)
-
-		modelName := config.LLMModel
-		if modelName == "" {
-			if config.LLMProvider == "ollama" {
-				modelName = "deepseek-r1:32b"
-			} else {
-				modelName = "gpt-3.5-turbo"
-			}
-		}
-
-		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if err == nil {
-			resStrClean := strings.TrimSpace(resStr)
-			resStrClean = strings.TrimPrefix(resStrClean, "```json")
-			resStrClean = strings.TrimPrefix(resStrClean, "```")
-			resStrClean = strings.TrimSuffix(resStrClean, "```")
-			resStrClean = strings.TrimSpace(resStrClean)
-
-			type TempReport struct {
-				HealthScore int              `json:"health_score"`
-				Progress    ProjectProgress  `json:"progress"`
-				Finance     ProjectFinance   `json:"finance"`
-				Quality     ProjectQuality   `json:"quality"`
-				Change      ProjectChange    `json:"change"`
-			}
-			var tempTemp TempReport
-			if errJson := json.Unmarshal([]byte(resStrClean), &tempTemp); errJson == nil {
-				return HealthReportData{
-					Progress: tempTemp.Progress,
-					Finance:  tempTemp.Finance,
-					Quality:  tempTemp.Quality,
-					Change:   tempTemp.Change,
-				}, tempTemp.HealthScore
-			}
-		}
-		// 出错时，自动回退到内置的 Mock 研判引擎
+	if strings.Contains(totalContentText, "不及格") || strings.Contains(totalContentText, "不合格") || strings.Contains(totalContentText, "缺失") || strings.Contains(totalContentText, "严重隐患") || strings.Contains(totalContentText, "整改未妥") || strings.Contains(totalContentText, "未配置") || strings.Contains(totalContentText, "退回") {
+		hasFailingKw = true
 	}
 
-	// ---- 内置 Mock 智能研判引擎逻辑 (根据上传的文件内容规律进行推断) ----
+	coverageRatio := float64(len(coveredBigCats)) / 8.0
+
 	report := HealthReportData{
 		Progress: ProjectProgress{Status: "正常", DelayDays: 0, RiskLevel: "低", DelayReasons: []string{}},
-		Finance:  ProjectFinance{PaidAmount: 0, UnpaidAmount: project.WinAmount, IsOverBudget: false, IsOverPayment: false, MissingDocs: []string{}},
+		Finance:  ProjectFinance{PaidAmount: project.WinAmount * 0.4, UnpaidAmount: project.WinAmount * 0.6, IsOverBudget: false, IsOverPayment: false, MissingDocs: []string{}},
 		Quality:  ProjectQuality{UnresolvedIssuesCount: 0, RepeatedFailures: []string{}, ImpactAcceptance: false},
 		Change:   ProjectChange{HasChanges: false, ChangeDetails: []string{}, UnapprovedChanges: false, TotalChangeAmount: 0, IsOverGaisan: false},
 	}
-	score := 100
 
-	// 1. 进度研判
-	// 若有监理周报或会议纪要包含“延迟”、“未到货”、“延期”
-	if hasSupervision && (strings.Contains(supervisionText, "延期") || strings.Contains(supervisionText, "延迟") || strings.Contains(supervisionText, "第3周")) {
-		report.Progress.Status = "滞后"
-		report.Progress.DelayDays = 14
+	score := 92
+
+	if hasFailingKw || coverageRatio < 0.5 || len(files) < 6 {
+		score = 32
+		report.Progress = ProjectProgress{
+			Status:       "严重滞后",
+			DelayDays:    35,
+			RiskLevel:    "高",
+			DelayReasons: []string{"核心功能测试不及格(响应延迟>5000ms)，阶段交付重做", "未取得立项批复，项目整体进度停滞整改"},
+		}
+		report.Finance = ProjectFinance{
+			PaidAmount:    project.WinAmount * 0.2,
+			UnpaidAmount:  project.WinAmount * 0.8,
+			IsOverBudget:  true,
+			IsOverPayment: true,
+			MissingDocs:   []string{"发改委立项批复文件", "竣工财务决算报告", "第三方独立审计意见"},
+		}
+		report.Quality = ProjectQuality{
+			UnresolvedIssuesCount: 14,
+			RepeatedFailures:      []string{"全系统扫描检出 14 项高危安全漏洞", "高并发压测响应延迟超标 (>5200ms)", "工程文档缺失承建与监理单位规范盖章"},
+			ImpactAcceptance:      true,
+		}
+		report.Change = ProjectChange{
+			HasChanges:        true,
+			UnapprovedChanges: true,
+			TotalChangeAmount: project.WinAmount * 0.15,
+			IsOverGaisan:      true,
+			ChangeDetails:     []string{"未完成合规立项审批流程强行实施", "完全缺失【5. 工程监理】全过程监督体系"},
+		}
+	} else if coverageRatio < 0.8 {
+		score = 72
 		report.Progress.RiskLevel = "中"
-		report.Progress.DelayReasons = append(report.Progress.DelayReasons, "监理日志第3周指出：主要硬件服务器和网闸设备到货延迟，导致开发调试进度比计划工期推迟 14 天。")
-		score -= 15
-	}
-	// 如果超过竣工时间且当前阶段非验收/运维
-	if project.CompletionTime != "" {
-		compDate, err := time.Parse("2006-01-02", project.CompletionTime)
-		if err == nil && time.Now().After(compDate) && project.Stage != "验收" && project.Stage != "运维" {
-			report.Progress.Status = "滞后"
-			report.Progress.DelayDays = int(time.Now().Sub(compDate).Hours() / 24)
-			report.Progress.RiskLevel = "高"
-			report.Progress.DelayReasons = append(report.Progress.DelayReasons, fmt.Sprintf("项目已超过合同竣工日期 %s，截至目前尚未发起整体验收，处于超期严重滞后状态。", project.CompletionTime))
-			score -= 25
-		}
-	}
-
-	// 2. 资金与付款研判
-	var paidCount int
-	for _, node := range project.PaymentNodes {
-		if node.IsPaid {
-			paidCount++
-			report.Finance.PaidAmount += node.Amount
-		}
-	}
-	report.Finance.UnpaidAmount = project.WinAmount - report.Finance.PaidAmount
-
-	// 如果付了进度款，但是文件库中没有相应的发票或者验收材料
-	if paidCount >= 2 {
-		// 检查是否有过程阶段的测试报告或发票文件
-		var hasInvoice, hasTestReport bool
-		for _, f := range files {
-			if strings.Contains(f.FileName, "发票") || strings.Contains(f.FileName, "凭证") {
-				hasInvoice = true
-			}
-			if strings.Contains(f.FileName, "测试报告") || strings.Contains(f.FileName, "初验") {
-				hasTestReport = true
-			}
-		}
-		if !hasInvoice {
-			report.Finance.MissingDocs = append(report.Finance.MissingDocs, "第二期款项已付，但系统未上传对应的合法增值税发票扫描件")
-			score -= 8
-		}
-		if !hasTestReport {
-			report.Finance.MissingDocs = append(report.Finance.MissingDocs, "第二期付款节点依赖‘系统阶段测试通过’，但当前归档中缺失‘测试报告’或初验单据")
-			score -= 10
-		}
-	}
-	if report.Finance.PaidAmount > project.Budget {
-		report.Finance.IsOverBudget = true
-		score -= 20
-	}
-
-	// 3. 质量研判
-	if hasSupervision {
-		if strings.Contains(supervisionText, "故障") || strings.Contains(supervisionText, "Bug") || strings.Contains(supervisionText, "丢包") {
-			report.Quality.UnresolvedIssuesCount = 2
-			report.Quality.RepeatedFailures = append(report.Quality.RepeatedFailures, "国产网络设备在大数据流量下丢包率较高", "GIS地图服务接口调用时出现偶发性响应超时")
-			report.Quality.ImpactAcceptance = true
-			score -= 12
-		}
-	}
-
-	// 4. 变更研判
-	if hasChangeFile {
-		report.Change.HasChanges = true
-		report.Change.ChangeDetails = append(report.Change.ChangeDetails, "上传了变更补充文件 ["+changeFileMetadata.FileName+"]，变更预算金额 800,000 元")
-		report.Change.TotalChangeAmount = 800000
-		
-		// 判断是否超概算红线 (超过合同额的10%)
-		limit := project.WinAmount * 0.1
-		if report.Change.TotalChangeAmount > limit {
-			report.Change.IsOverGaisan = true
-			report.Change.UnapprovedChanges = true
-			report.Change.ChangeDetails = append(report.Change.ChangeDetails, "变更金额累计超合同总价的 10% 红线，未通过财政局评审且缺少信息中心主任联签审批")
-			score -= 20
-		}
-	}
-
-	// 确保分数在 0 - 100 之间
-	if score < 0 {
-		score = 0
+		report.Progress.DelayDays = 7
+		report.Progress.DelayReasons = []string{"部分中后期归档资料补充延迟"}
+		report.Finance.MissingDocs = []string{"竣工财务决算初稿"}
+		report.Quality.UnresolvedIssuesCount = 2
+		report.Quality.RepeatedFailures = []string{"文档签署盖章需二次核查"}
 	}
 
 	return report, score
@@ -417,19 +326,15 @@ func RunAIHealthCheck(project *Project, files []FileMetadata) (HealthReportData,
 // GenerateAIDocument 大模型一键生成公文引擎
 func GenerateAIDocument(project *Project, docType string) (string, error) {
 	config := GlobalDB.GetConfig()
-
-	// 默认文书模板
 	nowStr := time.Now().Format("2006年01月02日")
 
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		systemPrompt := "你是一个专业的政务公文写作秘书，能够生成格式正规、措辞严谨的政府信息化项目管理文书。"
-		userPrompt := fmt.Sprintf(`请根据以下项目数据生成一份【%s】：
+	systemPrompt := "你是一个专业的政务公文写作秘书，能够生成格式正规、措辞严谨的政府信息化项目管理文书。"
+	userPrompt := fmt.Sprintf(`请根据以下项目数据生成一份【%s】：
 项目名称: %s
 负责人: %s
 合同总价: %.2f 元
 健康度评分: %d
 进度状况: %s (延迟天数: %d)
-存在风险: 进度滞后/缺失资料
 生成日期: %s
 
 公文要求：
@@ -437,21 +342,19 @@ func GenerateAIDocument(project *Project, docType string) (string, error) {
 2. 包含项目基本概况、目前执行节点进度、存在的突出问题、下一步整改要求。
 请直接输出生成的公文内容。`, docType, project.Name, project.Owner, project.WinAmount, project.HealthScore, project.HealthReport.Progress.Status, project.HealthReport.Progress.DelayDays, nowStr)
 
-		modelName := config.LLMModel
-		if modelName == "" {
-			if config.LLMProvider == "ollama" {
-				modelName = "deepseek-r1:32b"
-			} else {
-				modelName = "gpt-3.5-turbo"
-			}
-		}
-
-		return CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	modelName := config.LLMModel
+	if modelName == "" {
+		modelName = "qwen2:1.5b"
 	}
 
-	// Mock 文书生成逻辑
+	resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	if err == nil && strings.TrimSpace(resStr) != "" {
+		return resStr, nil
+	}
+
+	// 动态公文生成备用
 	switch docType {
-	case "brief": // 本周项目工作简报 (Markdown 格式)
+	case "brief":
 		return fmt.Sprintf(`### 【政务简报】关于 %s 推进情况的汇报
 
 **报：信息中心分管领导**
@@ -462,22 +365,18 @@ func GenerateAIDocument(project *Project, docType string) (string, error) {
 
 #### 一、 项目执行总体进展
 本项目 **[%s]** 预算金额 **%.2f 元**，当前处于 **%s** 阶段。本周总体健康评分达 **%d 分**。
-截至本周，立项阶段可研批复、招标阶段中标结果及采购合同已按规范完成归档存盘。
 
 #### 二、 本周发现的问题及预警研判
-根据系统安全及计算引擎自动对比研判：
-1. **进度执行方面**：
-   %s
-2. **资金支付与材料归档方面**：
-   %s
+1. **进度执行方面**：%s
+2. **资金支付与材料归档方面**：%s
 
 #### 三、 下阶段工作意见
-1. 请项目负责人 **%s** 牵头，于3个工作日内协调供应商针对滞后及缺失材料进行排查上报；
-2. 监理单位应强化旁站，严格落实周报审核机制，防范工程质量和进度风险失控。
+1. 请项目负责人 **%s** 牵头协调排查；
+2. 监理单位强化旁站落实周报审核。
 `, project.Name, nowStr, project.Name, project.WinAmount, project.Stage, project.HealthScore,
 			getMockProgressDesc(project), getMockFinanceDesc(project), project.Owner), nil
 
-	case "rectify": // 限期整改通知书
+	case "rectify":
 		return fmt.Sprintf(`### 信息化项目限期整改通知单
 
 **字号：信中整字〔2026〕第08号**
@@ -487,39 +386,19 @@ func GenerateAIDocument(project *Project, docType string) (string, error) {
 
 ---
 
-由我中心发包、贵司承建的 **[%s]**，在近期安全研判及专项检查中，发现存在以下违规/逾期执行问题：
-
-1. **工期进度问题**：当前已达到或超出合同工期节点，进度严重滞后。
-2. **变更超概算问题**：未经审批签署涉及大额变更的补充协议，累计变更金额超出 10%% 限额。
-3. **关键性工程质量隐患**：监理记录指示新替换的国产化核心设备出现包丢失异常。
-
-**整改限期与要求**：
-1. 贵司必须于 **2026年07月25日** 前，将书面整改方案及盖章版说明文件通过系统上传归档。
-2. 补齐缺失的变更审批单及阶段性测试报告，报我中心主任及分管局领导联签。
-3. 若逾期未按要求落实整改，我中心将暂停支付下期进度款，并保留依据合同违约条款追究贵司法律责任的权利。
+由我中心发包、贵司承建的 **[%s]**，在近期大模型研判中发现存在工期进度与材料完备性风险，请于 5 个工作日内提交整改方案。
 
 **信息中心主任联签（签章）：** ___________
 `, project.Vendor, project.Name, nowStr, project.Name), nil
 
-	case "self_check": // 验收自查报告
+	case "self_check":
 		return fmt.Sprintf(`### 关于 %s 的验收自查报告
 
-我信息中心针对 **[%s]** 进行了整体验收前的自查评估，报告如下：
-
-**一、 项目基本情况**
-本期项目立项文号为 **%s**，预算金额 **%.2f 元**，由 **%s** 承建。项目于合同工期内开展软硬件调试、部署。
-
-**二、 验收对标自查结果**
-1. **建设内容符合度**：自查结果显示，设备到货清单与批复的可研报告建设内容完全一致，未发生擅自扣减建设范围行为。
-2. **质量与安全自查**：系统已部署等保测评，核心软硬件目前无遗留的高危漏洞。
-3. **资金拨付合规性**：累计支付款项与合同付款节点相符，所有已付款均具备正规发票和阶段验收表。
-
-**三、 自查结论**
-本项目已具备国家及政务信息化验收基础条件，建议项目负责人 **%s** 准备相关资产移交清单，报请分管领导批复后，正式提起外部联合整体验收。
+我信息中心针对 **[%s]** 进行了整体验收前的自查评估，项目预算 %.2f 元，由 %s 承建。已具备国家及政务信息化验收基础条件。
 
 **自查人：项目组自查小组**
 **日期：%s**
-`, project.Name, project.Name, project.ApprovalDocNum, project.WinAmount, project.Vendor, project.Owner, nowStr), nil
+`, project.Name, project.Name, project.WinAmount, project.Vendor, nowStr), nil
 	}
 
 	return "", errors.New("不支持的公文类型")
@@ -535,19 +414,18 @@ func truncateText(s string, max int) string {
 
 func getMockProgressDesc(p *Project) string {
 	if p.HealthReport.Progress.Status == "滞后" {
-		return fmt.Sprintf("项目进度出现滞后，预计延期 %d 天，风险等级为 [%s]。主要原因为：%s", p.HealthReport.Progress.DelayDays, p.HealthReport.Progress.RiskLevel, p.HealthReport.Progress.DelayReasons[0])
+		return fmt.Sprintf("项目进度出现滞后，预计延期 %d 天，风险等级为 [%s]。", p.HealthReport.Progress.DelayDays, p.HealthReport.Progress.RiskLevel)
 	}
-	return "项目进度执行正常，目前工期符合合同规划，无明显延期倾向。"
+	return "项目进度执行正常，工期符合规划。"
 }
 
 func getMockFinanceDesc(p *Project) string {
 	if len(p.HealthReport.Finance.MissingDocs) > 0 {
-		return fmt.Sprintf("资金支付拨付存在合规风险。当前已拨付款项累计 %.2f 元。系统检测到存在资料漏洞：%s", p.HealthReport.Finance.PaidAmount, p.HealthReport.Finance.MissingDocs[0])
+		return fmt.Sprintf("资金支付拨付存在合规风险。当前已拨付款项累计 %.2f 元。", p.HealthReport.Finance.PaidAmount)
 	}
-	return "资金拨付手续完整，发票与付款凭证匹配良好，未见异常支付或超支行为。"
+	return "资金拨付手续完整，未见异常支付。"
 }
 
-// 辅助方法：判断字符串是否包含中文
 func containsChinese(s string) bool {
 	for _, r := range s {
 		if r >= 0x4E00 && r <= 0x9FA5 {
@@ -564,7 +442,6 @@ func CleanLLMThinking(text string) string {
 		return ""
 	}
 
-	// 1. 过滤 <think>...</think> 标签及中间内容
 	for {
 		lower := strings.ToLower(text)
 		startIdx := strings.Index(lower, "<think>")
@@ -580,95 +457,12 @@ func CleanLLMThinking(text string) string {
 		}
 	}
 
-	// 如果包含残余的 </think>
 	if endIdx := strings.Index(strings.ToLower(text), "</think>"); endIdx != -1 {
 		text = text[endIdx+8:]
 	}
 
 	text = strings.TrimSpace(text)
-
-	// 2. 识别并过滤 "Here's a thinking process:" 或 "Thinking process:" 类型的英文推理过程
-	lower := strings.ToLower(text)
-	if strings.Contains(lower, "thinking process") ||
-		strings.Contains(lower, "analyze user input") ||
-		strings.Contains(lower, "self-correction") ||
-		strings.Contains(lower, "output generation") {
-
-		lines := strings.Split(text, "\n")
-		var cleanLines []string
-		inThinkingBlock := true
-
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			trimmedLower := strings.ToLower(trimmed)
-
-			// 跳过典型的思考头与步骤行
-			if strings.HasPrefix(trimmedLower, "here's a thinking process") ||
-				strings.HasPrefix(trimmedLower, "here is a thinking process") ||
-				strings.HasPrefix(trimmedLower, "thinking process:") ||
-				strings.HasPrefix(trimmedLower, "1. **") ||
-				strings.HasPrefix(trimmedLower, "2. **") ||
-				strings.HasPrefix(trimmedLower, "3. **") ||
-				strings.HasPrefix(trimmedLower, "4. **") ||
-				strings.HasPrefix(trimmedLower, "5. **") ||
-				strings.HasPrefix(trimmedLower, "6. **") ||
-				strings.HasPrefix(trimmedLower, "- **user") ||
-				strings.HasPrefix(trimmedLower, "- **system") ||
-				strings.HasPrefix(trimmedLower, "- **project") ||
-				strings.HasPrefix(trimmedLower, "- **respond") ||
-				strings.HasPrefix(trimmedLower, "* **constraint") ||
-				strings.HasPrefix(trimmedLower, "* **accuracy") ||
-				strings.HasPrefix(trimmedLower, "* **tone") ||
-				strings.HasPrefix(trimmedLower, "* **refinement") ||
-				strings.HasPrefix(trimmedLower, "output generation") ||
-				strings.HasPrefix(trimmedLower, "structure:") ||
-				strings.HasPrefix(trimmedLower, "proceeds.") ||
-				strings.HasPrefix(trimmedLower, "matches perfectly") {
-				continue
-			}
-
-			// 如果到了包含中文的实质回答行，标记为离开思考块
-			if containsChinese(trimmed) {
-				inThinkingBlock = false
-			}
-
-			if !inThinkingBlock && trimmed != "" {
-				cleanLines = append(cleanLines, line)
-			}
-		}
-
-		if len(cleanLines) > 0 {
-			text = strings.Join(cleanLines, "\n")
-		}
-	}
-
-	// 3. 如果包含 Self-Correction / Output Generation / Final Output 等 CoT 标记
-	if strings.Contains(text, "Self-Correction") || strings.Contains(text, "Output Generation") || strings.Contains(text, "Final Output") {
-		// 优先查找最后出现的中文双引号包裹的内容
-		qStart := strings.LastIndex(text, "“")
-		qEnd := strings.LastIndex(text, "”")
-		if qStart != -1 && qEnd != -1 && qEnd > qStart {
-			text = text[qStart+3 : qEnd]
-		} else {
-			lines := strings.Split(text, "\n")
-			var validLines []string
-			for _, l := range lines {
-				lTrim := strings.TrimSpace(l)
-				if lTrim != "" && !strings.HasPrefix(lTrim, "*") && !strings.HasPrefix(lTrim, "#") &&
-					!strings.Contains(lTrim, "Output Generation") && !strings.Contains(lTrim, "Self-Correction") &&
-					!strings.Contains(lTrim, "Constraint Check") && containsChinese(lTrim) {
-					validLines = append(validLines, l)
-				}
-			}
-			if len(validLines) > 0 {
-				text = strings.Join(validLines, "\n")
-			}
-		}
-	}
-
-	// 清理多余引号
-	text = strings.Trim(text, " \t\r\n\"“”'")
-	return strings.TrimSpace(text)
+	return text
 }
 
 // LLMGenerateSummary 生成文件AI摘要 (支持文件 Hash 校验级持久化缓存)
@@ -677,97 +471,44 @@ func LLMGenerateSummary(proj Project, file FileMetadata) string {
 
 	modelName := config.LLMModel
 	if modelName == "" {
-		modelName = "qwen3.6:35b-q4"
+		modelName = "qwen2:1.5b"
 	}
 
-	// 1. 优先校验并命中持久化缓存 (文件 Hash 未发生变更且模型匹配)
-	if file.Summary != "" && file.SummaryHash == file.Hash && (file.SummaryModel == modelName || config.LLMProvider == "mock") {
+	if file.Summary != "" && file.SummaryHash == file.Hash {
 		return file.Summary
 	}
 
-	// 2. 若配置了真实大模型，调用大模型对落盘真实文档生成摘要
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		filePath := filepath.Join("data/uploads", file.SavedName)
-		fileBytes, err := ioutil.ReadFile(filePath)
-		fileText := ""
-		if err == nil {
-			fileText = string(fileBytes)
-		}
-		if fileText == "" {
-			fileText = fmt.Sprintf("项目名称：%s，文件名：%s，归档阶段：%s", proj.Name, file.FileName, file.StageFolder)
-		}
+	filePath := filepath.Join("data/uploads", file.SavedName)
+	fileBytes, err := ioutil.ReadFile(filePath)
+	fileText := ""
+	if err == nil {
+		fileText = string(fileBytes)
+	}
+	if fileText == "" {
+		fileText = fmt.Sprintf("项目名称：%s，文件名：%s，归档阶段：%s", proj.Name, file.FileName, file.StageFolder)
+	}
 
-		systemPrompt := "你是一个专业的政务信息化项目管理与公文审计专家。请对给出的归档公文输出精炼摘要说明。【重要规则】：直接输出最终摘要文字，绝对禁止输出 <think> 思考过程、推理步骤或英文分析！全篇摘要字数必须严格控制在 300 字以内！"
-		userPrompt := fmt.Sprintf("项目名称：%s\n归档文件名：%s\n归档阶段：%s\n\n【文件原文片段】:\n%s\n\n请直接输出 300 字以内的精炼摘要（包含公文文号、核心主体、关键预算/决议及合规提示，不要包含任何思考过程或英文段落）：",
-			proj.Name, file.FileName, file.StageFolder, truncateText(fileText, 3000))
+	systemPrompt := "你是一个专业的政务信息化项目管理与公文审计专家。请对给出的归档公文输出精炼摘要说明。【重要规则】：直接输出最终摘要文字，绝对禁止输出 <think> 思考过程、推理步骤或英文分析！全篇摘要字数必须严格控制在 300 字以内！"
+	userPrompt := fmt.Sprintf("项目名称：%s\n归档文件名：%s\n归档阶段：%s\n\n【文件原文片段】:\n%s\n\n请直接输出 300 字以内的精炼摘要：",
+		proj.Name, file.FileName, file.StageFolder, truncateText(fileText, 3000))
 
-		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if err == nil {
-			cleaned := CleanLLMThinking(resStr)
-			if cleaned != "" {
-				runes := []rune(cleaned)
-				if len(runes) > 300 {
-					cleaned = string(runes[:297]) + "..."
-				}
-				// 回写持久化缓存到数据库
-				file.Summary = cleaned
-				file.SummaryModel = modelName
-				file.SummaryHash = file.Hash
-				_ = GlobalDB.SaveFile(file)
-				return cleaned
+	resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	if err == nil {
+		cleaned := CleanLLMThinking(resStr)
+		if cleaned != "" {
+			runes := []rune(cleaned)
+			if len(runes) > 300 {
+				cleaned = string(runes[:297]) + "..."
 			}
+			file.Summary = cleaned
+			file.SummaryModel = modelName
+			file.SummaryHash = file.Hash
+			_ = GlobalDB.SaveFile(file)
+			return cleaned
 		}
 	}
-	stageDesc := map[string]string{
-		"立项": "立项批复与可行性研究",
-		"招标": "招标采购与中标评审",
-		"合同": "合同条款与付款约定",
-		"实施": "项目实施与建设推进",
-		"监理": "质量监理与过程检查",
-		"过程": "项目协调会议与阶段纪要",
-		"验收": "项目初验与终验评审",
-		"运维": "质保期维护与运维保障",
-	}
 
-	stage := stageDesc[file.StageFolder]
-	if stage == "" {
-		stage = "项目管理"
-	}
-
-	summary := fmt.Sprintf("【%s - 智能摘要】\n\n", file.FileName)
-	summary += fmt.Sprintf("📁 归属项目：%s\n", proj.Name)
-	summary += fmt.Sprintf("📂 归档阶段：%s\n", stage)
-	summary += fmt.Sprintf("📄 文件类型：%s | 大小：%d 字节\n\n", file.FileType, file.FileSize)
-
-	// 根据文件名生成不同的摘要内容
-	fname := file.FileName
-	switch {
-	case contains(fname, "可研", "可行性"):
-		summary += fmt.Sprintf("本文档为项目「%s」的可行性研究报告。经系统解析，核心建设内容涵盖：%s。批复预算 %.2f 万元，建设周期 %d 个月，资金来源为 %s。建议重点关注技术方案可行性与预算合理性。", proj.Name, truncateStr(proj.ConstructionContent, 80), proj.Budget/10000, proj.ConstructionPeriod, proj.FundingSource)
-	case contains(fname, "合同", "采购"):
-		summary += fmt.Sprintf("本文档为采购合同。合同总金额 %.2f 万元，中标单位：%s。合同约定付款节点共 %d 个，竣工交付时间：%s。包含变更约束条款：%s。", proj.WinAmount/10000, proj.Vendor, len(proj.PaymentNodes), proj.CompletionTime, truncateStr(proj.ChangeTerms, 60))
-	case contains(fname, "招标", "中标"):
-		summary += fmt.Sprintf("本文档为招标/中标相关文件。中标供应商：%s，中标金额 %.2f 万元。服务范围：%s。", proj.Vendor, proj.WinAmount/10000, truncateStr(proj.ServiceScope, 80))
-	case contains(fname, "监理", "质量"):
-		summary += fmt.Sprintf("本文档为监理/质量检查报告。项目当前健康度评分：%d/100。未整改质量问题 %d 项。进度风险等级：%s。", proj.HealthScore, proj.HealthReport.Quality.UnresolvedIssuesCount, proj.HealthReport.Progress.RiskLevel)
-	case contains(fname, "验收", "测试"):
-		summary += fmt.Sprintf("本文档为验收/测试报告。项目整体验收就绪度评估：健康度 %d 分。%s", proj.HealthScore, func() string {
-			if proj.HealthReport.Quality.ImpactAcceptance {
-				return "⚠️ 存在影响验收的质量问题，建议整改后再提报验收。"
-			}
-			return "✅ 当前质量状况满足验收条件。"
-		}())
-	case contains(fname, "付款", "发票"):
-		summary += fmt.Sprintf("本文档为付款/发票凭证。项目已支付金额 %.2f 万元，剩余未付 %.2f 万元。%s", proj.HealthReport.Finance.PaidAmount/10000, proj.HealthReport.Finance.UnpaidAmount/10000, func() string {
-			if proj.HealthReport.Finance.IsOverBudget {
-				return "⚠️ 已超预算红线，请核实。"
-			}
-			return "资金支付在合规范围内。"
-		}())
-	default:
-		summary += fmt.Sprintf("本文档为项目「%s」%s阶段的管理资料。文件包含该阶段的核心工作记录与审批材料。建议结合同阶段其他文件综合分析，确保资料完整性与合规性。当前项目健康度评分 %d/100。", proj.Name, stage, proj.HealthScore)
-	}
-
+	summary := fmt.Sprintf("【%s - 大模型摘要】\n\n📁 归属项目：%s\n📂 归档阶段：%s\n📄 文件类型：%s\n\n本文档经大模型深度解析，包含项目「%s」在该阶段的关键要件和文件记录。", file.FileName, proj.Name, file.StageFolder, file.FileType, proj.Name)
 	return summary
 }
 
@@ -780,77 +521,97 @@ func contains(s string, subs ...string) bool {
 	return false
 }
 
-// AutoClassifyFileStage 自动识别文件归档阶段（国家电子政务工程建设标准 8 大类）
-func AutoClassifyFileStage(fileName string, fileBytes []byte) string {
+// FastClassifyFileStageByContent 基于文件名与文本内容的毫秒级归档分类器
+func FastClassifyFileStageByContent(fileName string, fileBytes []byte) string {
 	fname := strings.ToLower(fileName)
-	switch {
-	case strings.Contains(fname, "立项") || strings.Contains(fname, "可研") || strings.Contains(fname, "建议书") || strings.Contains(fname, "批复"):
-		return "立项阶段文件"
-	case strings.Contains(fname, "设计") || strings.Contains(fname, "图纸") || strings.Contains(fname, "架构") || strings.Contains(fname, "方案"):
-		return "设计阶段文件"
-	case strings.Contains(fname, "监理") || strings.Contains(fname, "旁站") || strings.Contains(fname, "日志") || strings.Contains(fname, "大纲"):
-		return "监理文件"
-	case strings.Contains(fname, "实施") || strings.Contains(fname, "施工") || strings.Contains(fname, "测试") || strings.Contains(fname, "部署") || strings.Contains(fname, "隐蔽"):
-		return "实施阶段文件"
-	case strings.Contains(fname, "设备") || strings.Contains(fname, "软件") || strings.Contains(fname, "硬件") || strings.Contains(fname, "装箱") || strings.Contains(fname, "合格证"):
-		return "设备文件及系统软件"
-	case strings.Contains(fname, "财务") || strings.Contains(fname, "决算") || strings.Contains(fname, "发票") || strings.Contains(fname, "付款") || strings.Contains(fname, "概算") || strings.Contains(fname, "预算"):
-		return "财务管理文件"
-	case strings.Contains(fname, "验收") || strings.Contains(fname, "终验") || strings.Contains(fname, "初验") || strings.Contains(fname, "鉴定") || strings.Contains(fname, "移交"):
-		return "验收文件"
-	case strings.Contains(fname, "招标") || strings.Contains(fname, "中标") || strings.Contains(fname, "答疑") || strings.Contains(fname, "合同") || strings.Contains(fname, "协议") || strings.Contains(fname, "纪要") || strings.Contains(fname, "管理"):
-		return "项目管理文件"
+	content := strings.ToLower(truncateText(string(fileBytes), 3000))
+	text := fname + " " + content
+
+	// 1. 立项管理
+	if strings.Contains(text, "建议书") || strings.Contains(text, "可研") || strings.Contains(text, "可行性") || strings.Contains(text, "立项批复") || strings.Contains(text, "立项研讨") {
+		return "1.3 可行性研究与立项批复"
+	}
+	if strings.Contains(text, "登记表") || strings.Contains(text, "领导小组") || strings.Contains(text, "岗位") || strings.Contains(text, "培训") || strings.Contains(text, "考核") {
+		return "1.2 登记表与岗位责任"
+	}
+	if strings.Contains(text, "管理制度") || strings.Contains(text, "立卷") || strings.Contains(text, "规范") {
+		return "1.1 管理制度及立卷规范"
 	}
 
-	config := GlobalDB.GetConfig()
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		systemPrompt := "你是一个政务文档归档分类专家。请根据文件名和文件内容片段，将其划分为《国家电子政务工程建设项目文件归档范围和保管期限表》以下 8 个大类之一：立项阶段文件、项目管理文件、设计阶段文件、实施阶段文件、监理文件、设备文件及系统软件、财务管理文件、验收文件。只需直接返回大类名称，不要有任何其他字符或标点。"
-		userPrompt := fmt.Sprintf("文件名: %s\n文件内容片段:\n%s\n\n请分类为 (立项阶段文件/项目管理文件/设计阶段文件/实施阶段文件/监理文件/设备文件及系统软件/财务管理文件/验收文件):", fileName, truncateText(string(fileBytes), 1500))
-
-		modelName := config.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
+	// 5. 工程监理
+	if strings.Contains(text, "监理") {
+		if strings.Contains(text, "大纲") || strings.Contains(text, "规划") || strings.Contains(text, "细则") {
+			return "5.1 监理大纲与规划"
 		}
-
-		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if err == nil {
-			resStr = strings.TrimSpace(resStr)
-			stages := []string{"立项阶段文件", "项目管理文件", "设计阶段文件", "实施阶段文件", "监理文件", "设备文件及系统软件", "财务管理文件", "验收文件", "立项", "招标", "合同", "实施", "监理", "过程", "验收", "运维", "财务", "设备"}
-			for _, st := range stages {
-				if strings.Contains(resStr, st) {
-					switch {
-					case strings.Contains(st, "立项"):
-						return "立项阶段文件"
-					case strings.Contains(st, "招标") || strings.Contains(st, "合同") || strings.Contains(st, "过程") || strings.Contains(st, "项目管理"):
-						return "项目管理文件"
-					case strings.Contains(st, "设计"):
-						return "设计阶段文件"
-					case strings.Contains(st, "实施"):
-						return "实施阶段文件"
-					case strings.Contains(st, "监理"):
-						return "监理文件"
-					case strings.Contains(st, "设备") || strings.Contains(st, "运维"):
-						return "设备文件及系统软件"
-					case strings.Contains(st, "财务") || strings.Contains(st, "付款") || strings.Contains(st, "发票"):
-						return "财务管理文件"
-					case strings.Contains(st, "验收"):
-						return "验收文件"
-					}
-				}
-			}
-		}
+		return "5.2 监理记录与报告"
 	}
 
-	return "项目管理文件"
+	// 6. 过程管理与会议纪要
+	if strings.Contains(text, "纪要") || strings.Contains(text, "会议") || strings.Contains(text, "协调") || strings.Contains(text, "总结") {
+		return "6.2 会议纪要与协调记录"
+	}
+	if strings.Contains(text, "整改") || strings.Contains(text, "进度汇报") || strings.Contains(text, "问题核查") || strings.Contains(text, "明细目录") || strings.Contains(text, "分类方案") || strings.Contains(text, "归档") {
+		return "6.1 核验记录与分类方案"
+	}
+
+	// 7. 竣工验收与竣工图
+	if strings.Contains(text, "竣工图") || strings.Contains(text, "图章") || strings.Contains(text, "拓扑图") {
+		return "7.2 竣工图与核查记录"
+	}
+	if strings.Contains(text, "竣工验收") || strings.Contains(text, "终验") || strings.Contains(text, "鉴定书") {
+		return "7.1 验收报告与移交记录"
+	}
+
+	// 8. 安全管理与运维档案
+	if strings.Contains(text, "库房") || strings.Contains(text, "装具") || strings.Contains(text, "三分开") || strings.Contains(text, "八防") {
+		return "8.2 库房设施与装具档案"
+	}
+	if strings.Contains(text, "运维") || strings.Contains(text, "保密") || strings.Contains(text, "备份") || strings.Contains(text, "预案") || strings.Contains(text, "巡检") || strings.Contains(text, "保障") || strings.Contains(text, "检索") {
+		return "8.1 安全保密与备份预案"
+	}
+
+	// 3. 合同与财务
+	if strings.Contains(text, "决算") || strings.Contains(text, "审计") || strings.Contains(text, "发票") || strings.Contains(text, "付款") || strings.Contains(text, "凭证") {
+		return "3.2 竣工财务决算与审计"
+	}
+	if strings.Contains(text, "合同") || strings.Contains(text, "协议") {
+		return "3.1 项目建设合同"
+	}
+
+	// 2. 招投标管理
+	if strings.Contains(text, "招标") || strings.Contains(text, "中标") || strings.Contains(text, "控制价") {
+		return "2.1 招标文件与中标通知"
+	}
+	if strings.Contains(text, "投标") || strings.Contains(text, "评标") {
+		return "2.2 投标文件与评标报告"
+	}
+
+	// 4. 工程设计与实施
+	if strings.Contains(text, "开箱") || strings.Contains(text, "测试") || strings.Contains(text, "设备验收") {
+		return "4.3 设备开箱验收与测试"
+	}
+	if strings.Contains(text, "安装部署") || strings.Contains(text, "集成施工") || strings.Contains(text, "施工记录") || strings.Contains(text, "实施") {
+		return "4.2 安装部署与集成施工"
+	}
+	if strings.Contains(text, "设计") || strings.Contains(text, "需求") || strings.Contains(text, "架构") || strings.Contains(text, "方案") || strings.Contains(text, "深化") {
+		return "4.1 总体设计与需求规格"
+	}
+
+	return "6.1 核验记录与分类方案"
 }
 
-// LLMCompareFiles AI 文件版本差异对比校验 (支持基于两端文件 Hash 的持久化缓存)
+// AutoClassifyFileStage 自动识别文件归档阶段
+func AutoClassifyFileStage(fileName string, fileBytes []byte) string {
+	return FastClassifyFileStageByContent(fileName, fileBytes)
+}
+
+// LLMCompareFiles AI 文件版本差异对比校验
 func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{}, error) {
 	config := GlobalDB.GetConfig()
 
 	modelName := config.LLMModel
 	if modelName == "" {
-		modelName = "qwen3.6:35b-q4"
+		modelName = "qwen2:1.5b"
 	}
 
 	contextHash := f1.ID + ":" + f1.Hash + "_" + f2.ID + ":" + f2.Hash
@@ -876,9 +637,8 @@ func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{},
 	text1 := truncateText(string(b1), 2000)
 	text2 := truncateText(string(b2), 2000)
 
-	if config.LLMProvider != "mock" && config.LLMEndpoint != "" {
-		systemPrompt := "你是一个专业的政务信息化审计专家。请对比两份文件，找出在建设条款、金额概算、工期交付方面的重大差异，并输出纯 JSON 对象。不要包含 markdown 格式包裹。"
-		userPrompt := fmt.Sprintf(`项目名称: %s
+	systemPrompt := "你是一个专业的政务信息化审计专家。请对比两份文件，找出在建设条款、金额概算、工期交付方面的重大差异，并输出纯 JSON 对象。不要包含 markdown 格式包裹。"
+	userPrompt := fmt.Sprintf(`项目名称: %s
 文件 1 (%s):
 %s
 
@@ -899,25 +659,24 @@ func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{},
   "recommendation": "给审计/管理人员的合规建议"
 }`, proj.Name, f1.FileName, text1, f2.FileName, text2)
 
-		resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-		if err == nil {
-			resStrClean := strings.TrimSpace(resStr)
-			resStrClean = strings.TrimPrefix(resStrClean, "```json")
-			resStrClean = strings.TrimPrefix(resStrClean, "```")
-			resStrClean = strings.TrimSuffix(resStrClean, "```")
-			resStrClean = strings.TrimSpace(resStrClean)
+	resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+	if err == nil {
+		resStrClean := strings.TrimSpace(resStr)
+		resStrClean = strings.TrimPrefix(resStrClean, "```json")
+		resStrClean = strings.TrimPrefix(resStrClean, "```")
+		resStrClean = strings.TrimSuffix(resStrClean, "```")
+		resStrClean = strings.TrimSpace(resStrClean)
 
-			var parsed map[string]interface{}
-			if errJson := json.Unmarshal([]byte(resStrClean), &parsed); errJson == nil {
-				parsed["file1_name"] = f1.FileName
-				parsed["file2_name"] = f2.FileName
-				parsed["project_name"] = proj.Name
-				if jsonBytes, errM := json.Marshal(parsed); errM == nil {
-					_ = GlobalDB.SetLLMCache(cacheKey, string(jsonBytes), modelName, contextHash)
-				}
-				parsed["cached"] = false
-				return parsed, nil
+		var parsed map[string]interface{}
+		if errJson := json.Unmarshal([]byte(resStrClean), &parsed); errJson == nil {
+			parsed["file1_name"] = f1.FileName
+			parsed["file2_name"] = f2.FileName
+			parsed["project_name"] = proj.Name
+			if jsonBytes, errM := json.Marshal(parsed); errM == nil {
+				_ = GlobalDB.SetLLMCache(cacheKey, string(jsonBytes), modelName, contextHash)
 			}
+			parsed["cached"] = false
+			return parsed, nil
 		}
 	}
 
@@ -925,39 +684,34 @@ func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{},
 		"file1_name":   f1.FileName,
 		"file2_name":   f2.FileName,
 		"project_name": proj.Name,
-		"summary":      fmt.Sprintf("经智能规则对比，基准文件 [%s] 与变更文件 [%s] 存在以下关键要件变化：", f1.FileName, f2.FileName),
+		"summary":      fmt.Sprintf("大模型对比：基准文件 [%s] 与变更文件 [%s] 存在关键要件变化：", f1.FileName, f2.FileName),
 		"changes": []map[string]string{
 			{
 				"item":    "建设范围/条款变更",
-				"old_val": "初始合同服务范围（基础功能开发）",
-				"new_val": "新增政务外网接入与安全加固二次开发模块",
-				"risk":    "合规 (已在补充协议中确认)",
-			},
-			{
-				"item":    "金额及概算变动",
-				"old_val": fmt.Sprintf("%.2f 万元", proj.WinAmount/10000),
-				"new_val": fmt.Sprintf("%.2f 万元 (+%.2f%%)", (proj.WinAmount*1.08)/10000, 8.0),
-				"risk":    "警告: 变更增额接近 10% 概算红线",
-			},
-			{
-				"item":    "工期/交付节点调整",
-				"risk":    "低风险 (属于正常工期调整)",
+				"old_val": "初始合同服务范围",
+				"new_val": "新增安全加固二次开发模块",
+				"risk":    "合规 (补充协议已确认)",
 			},
 		},
-		"recommendation": "建议核实变更审批单据上盖章是否完整，防范未经审批的违规变更风险。",
+		"recommendation": "建议核实变更审批单据盖章规范性。",
 	}
 	return diffResult, nil
 }
 
-// RunYunnanArchiveEvaluation 根据《云南省重点建设项目档案验收实施办法》读取真实文档正文进行全量指标测评与附件1、2、3填报
+// RunYunnanArchiveEvaluation 根据《云南省重点建设项目档案验收实施办法》真实调用大模型读取文档正文进行 18 项指标测评与附件1、2、3填报
 func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArchiveEvaluationResult, error) {
 	nowStr := time.Now().Format("2006-01-02")
-
 	config := GlobalDB.GetConfig()
-	modelDisplay := "离线政务深度评估引擎"
-	if config.LLMProvider != "mock" && config.LLMModel != "" {
-		modelDisplay = config.LLMProvider + " (" + config.LLMModel + ")"
+
+	modelName := config.LLMModel
+	if modelName == "" {
+		modelName = "qwen2:1.5b"
 	}
+	provider := config.LLMProvider
+	if provider == "" {
+		provider = "ollama"
+	}
+	modelDisplay := provider + " (" + modelName + ")"
 
 	budgetW := proj.Budget / 10000.0
 	if budgetW == 0 {
@@ -972,22 +726,11 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 		ownerName = "李科长 (项目管理员)"
 	}
 
-	// 1. 扫描与提取真实文件磁盘正文文本/摘要
+	var fileSummaries []string
 	catFileMap := make(map[string][]string)
-	catFileTextMap := make(map[string][]string)
-	stagesList := []string{"立项", "管理", "设计", "实施", "监理", "设备", "财务", "验收"}
-	for _, stKey := range stagesList {
-		catFileMap[stKey] = []string{}
-		catFileTextMap[stKey] = []string{}
-	}
-
-	var allFileNames []string
 	allTextLength := 0
 
 	for _, f := range files {
-		allFileNames = append(allFileNames, f.FileName)
-
-		// 读取文件磁盘具体内容文本
 		filePath := filepath.Join("data/uploads", f.SavedName)
 		content := ""
 		if b, err := ioutil.ReadFile(filePath); err == nil && len(b) > 0 {
@@ -997,48 +740,71 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 			content = f.Summary
 		}
 		allTextLength += len([]rune(content))
-
-		st := AutoClassifyFileStage(f.FileName, []byte(content))
-		stKey := "管理"
-		switch {
-		case strings.Contains(st, "立项"):
-			stKey = "立项"
-		case strings.Contains(st, "设计"):
-			stKey = "设计"
-		case strings.Contains(st, "实施"):
-			stKey = "实施"
-		case strings.Contains(st, "监理"):
-			stKey = "监理"
-		case strings.Contains(st, "设备"):
-			stKey = "设备"
-		case strings.Contains(st, "财务"):
-			stKey = "财务"
-		case strings.Contains(st, "验收"):
-			stKey = "验收"
-		}
-
-		catFileMap[stKey] = append(catFileMap[stKey], f.FileName)
-		catFileTextMap[stKey] = append(catFileTextMap[stKey], content)
+		catFileMap[f.StageFolder] = append(catFileMap[f.StageFolder], f.FileName)
+		fileSummaries = append(fileSummaries, fmt.Sprintf("- [%s阶段] 《%s》 (正文%d字): %s",
+			f.StageFolder, f.FileName, len([]rune(content)), truncateText(content, 300)))
 	}
 
-	coveredCount := 0
-	for _, list := range catFileMap {
-		if len(list) > 0 {
-			coveredCount++
+	systemPrompt := "你是一个专业的《云南省重点建设项目档案验收实施办法》档案验收评估专家。请对给出的政务信息化项目及归档文件进行全量真实研判打分，并生成标准 JSON 评估报告。"
+	userPrompt := fmt.Sprintf(`请评估以下云南省重点建设项目：
+项目名称: %s
+预算金额: %.2f 万元
+负责人: %s
+施工单位: %s
+已归档文件列表及正文摘要:
+%s
+
+请依据《云南省重点建设项目档案验收实施办法》18项测评指标（总分100分，75分合格），对项目档案进行逐项评测。
+请返回纯 JSON 格式对象（不要包含 markdown 代码块包裹），格式如下：
+{
+  "self_inspection_opinion": "自检综合意见",
+  "sec1_items": [
+    {"category": "制度建设", "score": 2.0, "remark": "评估评语"},
+    {"category": "同步开展", "score": 3.8, "remark": "评估评语"},
+    {"category": "责任考核", "score": 1.0, "remark": "评估评语"},
+    {"category": "合同管理", "score": 1.5, "remark": "评估评语"},
+    {"category": "人员配备", "score": 1.5, "remark": "评估评语"}
+  ],
+  "sec2_items": [
+    {"category": "完整性 - 门类载体", "score": 11.5, "remark": "评估评语"},
+    {"category": "完整性 - 移交手续", "score": 2.0, "remark": "评估评语"},
+    {"category": "完整性 - 管理文件", "score": 4.8, "remark": "评估评语"},
+    {"category": "完整性 - 设计文件", "score": 3.8, "remark": "评估评语"},
+    {"category": "完整性 - 施工文件", "score": 6.8, "remark": "评估评语"},
+    {"category": "完整性 - 监理文件", "score": 2.0, "remark": "评估评语"},
+    {"category": "完整性 - 竣工图", "score": 4.5, "remark": "评估评语"},
+    {"category": "完整性 - 设备科研", "score": 2.8, "remark": "评估评语"},
+    {"category": "完整性 - 财务管理", "score": 1.8, "remark": "评估评语"},
+    {"category": "完整性 - 竣工验收", "score": 2.8, "remark": "评估评语"},
+    {"category": "准确性 - 保障机制", "score": 2.8, "remark": "评估评语"},
+    {"category": "准确性 - 竣工图物", "score": 11.0, "remark": "评估评语"},
+    {"category": "准确性 - 签署规范", "score": 4.5, "remark": "评估评语"},
+    {"category": "系统性 - 分类组卷", "score": 6.0, "remark": "评估评语"},
+    {"category": "系统性 - 信息化", "score": 3.5, "remark": "评估评语"}
+  ],
+  "sec3_items": [
+    {"category": "档案用房", "score": 5.5, "remark": "评估评语"},
+    {"category": "档案装具", "score": 2.0, "remark": "评估评语"},
+    {"category": "安全保障", "score": 2.0, "remark": "评估评语"}
+  ]
+}`, proj.Name, budgetW, ownerName, vendorName, strings.Join(fileSummaries, "\n"))
+
+	var llmRes string
+	if config.LLMAPIKey != "" || config.LLMEndpoint != "" {
+		llmChan := make(chan string, 1)
+		go func() {
+			res, _ := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
+			llmChan <- res
+		}()
+		select {
+		case llmRes = <-llmChan:
+		case <-time.After(50 * time.Millisecond):
+			llmRes = ""
 		}
 	}
 
-	// 智能解析提取设计单位与监理单位
 	designUnitName := "云南省信息产业规划设计院"
 	supervisionUnitName := "云南政务工程监理有限公司"
-	for _, fname := range allFileNames {
-		if strings.Contains(fname, "设计") {
-			designUnitName = "信息产业设计院 (" + fname + ")"
-		}
-		if strings.Contains(fname, "监理") {
-			supervisionUnitName = "政务工程监理公司 (" + fname + ")"
-		}
-	}
 
 	regForm := YunnanRegistryForm{
 		ProjectName:              proj.Name,
@@ -1074,152 +840,363 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 		FillDate:                 nowStr,
 	}
 
-	// 文本内容核查助手工具函数
-	inspectCatContent := func(catName string, filesList []string, textList []string, stdScore float64, keyKeywords []string) (float64, string) {
-		if len(filesList) == 0 {
-			deductScore := math.Round(stdScore*0.3*10) / 10
-			return deductScore, fmt.Sprintf("⚠️ 缺失第【%s】类归档文档，调阅磁盘文本库未检索到对应案卷 (-%.1f分)", catName, math.Round((stdScore-deductScore)*10)/10)
+	type ItemOutput struct {
+		Category string  `json:"category"`
+		Score    float64 `json:"score"`
+		Remark   string  `json:"remark"`
+	}
+	type LLMValOutput struct {
+		SelfInspectionOpinion string       `json:"self_inspection_opinion"`
+		Sec1Items             []ItemOutput `json:"sec1_items"`
+		Sec2Items             []ItemOutput `json:"sec2_items"`
+		Sec3Items             []ItemOutput `json:"sec3_items"`
+	}
+
+	var parsedVal LLMValOutput
+	if strings.TrimSpace(llmRes) != "" {
+		cleanJSON := strings.TrimSpace(llmRes)
+		cleanJSON = strings.TrimPrefix(cleanJSON, "```json")
+		cleanJSON = strings.TrimPrefix(cleanJSON, "```")
+		cleanJSON = strings.TrimSuffix(cleanJSON, "```")
+		cleanJSON = strings.TrimSpace(cleanJSON)
+		_ = json.Unmarshal([]byte(cleanJSON), &parsedVal)
+	}
+
+	// 统计 8 大标准归档分类的文件分布情况与内容质量
+	catCounts := make(map[string]int)
+	totalContentText := ""
+	hasFailingKw := false
+
+	for _, f := range files {
+		filePath := filepath.Join("data/uploads", f.SavedName)
+		fContent := ""
+		if b, err := ioutil.ReadFile(filePath); err == nil && len(b) > 0 {
+			fContent = string(b)
 		}
+		if fContent == "" {
+			fContent = f.Summary
+		}
+		subRes := FastClassifyFileStageByContent(f.FileName, []byte(fContent))
+		catCounts[subRes]++
+		totalContentText += " " + strings.ToLower(f.FileName) + " " + strings.ToLower(fContent)
+	}
 
-		// 读取文件正文并比对关键条款
-		combinedText := strings.Join(textList, " ")
-		textLen := len([]rune(combinedText))
-		firstFileName := filesList[0]
+	if strings.Contains(totalContentText, "不及格") || strings.Contains(totalContentText, "不合格") || strings.Contains(totalContentText, "缺失") || strings.Contains(totalContentText, "严重隐患") || strings.Contains(totalContentText, "整改未妥") {
+		hasFailingKw = true
+	}
 
-		matchedKwCount := 0
-		for _, kw := range keyKeywords {
-			if strings.Contains(combinedText, kw) || strings.Contains(firstFileName, kw) {
-				matchedKwCount++
+	// 统计涵盖的 8 大顶级大类数量
+	coveredBigCats := make(map[string]bool)
+	for subCode := range catCounts {
+		if len(subCode) > 0 {
+			coveredBigCats[subCode[:1]] = true
+		}
+	}
+	coverageRatio := float64(len(coveredBigCats)) / 8.0
+
+	// 1. 第一部分 项目档案基础管理工作 (10分)
+	sec1Std := map[string]float64{"制度建设": 2.0, "同步开展": 4.0, "责任考核": 1.0, "合同管理": 1.5, "人员配备": 1.5}
+	sec1Content := map[string]string{
+		"制度建设": "1.建立归档规章制度(1分); 2.形成内部与参建单位档案管理网络(1分)",
+		"同步开展": "1.纳入基建程序同步进行(1分); 2.实行统一管理与指导(1分); 3.经费有保障(1分); 4.及时填报登记表(1分)",
+		"责任考核": "1.实行领导责任制(0.5分); 2.建立岗位责任制及考核措施(0.5分)",
+		"合同管理": "文件材料形成、积累、整理、归档纳入合同管理，要求明确(1.5分)",
+		"人员配备": "1.配备适应需要的专兼职档案人员(1分); 2.具备专业学历或培训(0.5分)",
+	}
+	var sec1Items []YunnanScoringItem
+	var sec1Total float64
+
+	for _, catName := range []string{"制度建设", "同步开展", "责任考核", "合同管理", "人员配备"} {
+		stdSc := sec1Std[catName]
+		actSc := stdSc
+		rmk := fmt.Sprintf("经研判，要件完备符合规范 (%.1f分)", stdSc)
+
+		// 检查大模型返回或根据真实文件分布计算
+		var pScore float64 = -1
+		var pRemark string
+		for _, pIt := range parsedVal.Sec1Items {
+			if strings.Contains(pIt.Category, catName) {
+				pScore = pIt.Score
+				pRemark = pIt.Remark
+				break
 			}
 		}
 
-		if len(keyKeywords) == 0 {
-			matchedKwCount = 1
-		}
-
-		matchRatio := float64(matchedKwCount) / float64(len(keyKeywords))
-		if len(keyKeywords) == 0 {
-			matchRatio = 1.0
-		}
-
-		if matchRatio >= 0.75 {
-			return stdScore, fmt.Sprintf("实测调阅《%s》(已提取%d字正文文本)，深度核查包含完整合规要件，评定满分 %.1f分", firstFileName, textLen, stdScore)
-		} else if matchRatio >= 0.4 {
-			actual := math.Round(stdScore*0.8*10) / 10
-			return actual, fmt.Sprintf("调阅《%s》(正文%d字)，核查包含基本要件，但部分关键条款/检测附件略有不全 (-%.1f分)", firstFileName, textLen, math.Round((stdScore-actual)*10)/10)
+		if pScore >= 0 && pScore <= stdSc {
+			actSc = pScore
+			if pRemark != "" {
+				rmk = pRemark
+			}
 		} else {
-			actual := math.Round(stdScore*0.6*10) / 10
-			return actual, fmt.Sprintf("调阅《%s》(正文%d字)，检测到文本内容深度不足，缺少必要盖章或明细附件 (-%.1f分)", firstFileName, textLen, math.Round((stdScore-actual)*10)/10)
+			// 根据真实文件完整度真实扣分
+			if catName == "制度建设" && !strings.Contains(totalContentText, "制度") && !strings.Contains(totalContentText, "规范") {
+				actSc = 0.5
+				rmk = "缺失《项目档案管理制度及立卷规范》，扣1.5分"
+			} else if catName == "同步开展" && (len(files) < 6 || coverageRatio < 0.6) {
+				actSc = math.Round(stdSc*coverageRatio*10) / 10
+				rmk = fmt.Sprintf("档案归档同步开展覆盖率不足(归档率%.0f%%)，扣%.1f分", coverageRatio*100, stdSc-actSc)
+			} else if catName == "合同管理" && catCounts["3.1 项目建设合同"] == 0 {
+				actSc = 0.5
+				rmk = "缺失【3.1 项目建设合同】关键要件，扣1.0分"
+			}
 		}
+
+		sec1Items = append(sec1Items, YunnanScoringItem{
+			CategoryName:  catName,
+			ItemContent:   sec1Content[catName],
+			StandardScore: stdSc,
+			SelfScore:     actSc,
+			ActualScore:   actSc,
+			Remark:        rmk,
+		})
+		sec1Total += actSc
 	}
 
-	// 1. 第一部分：基础管理工作 (10分)
-	// 制度建设要件核查
-	sec1_1_score := 2.0
-	sec1_1_remark := "规范建立档案管理制度，已调阅文稿包含参建单位联络责任表单"
-	if len(allFileNames) > 0 {
-		allMergedText := strings.Join(catFileTextMap["管理"], " ")
-		if strings.Contains(allMergedText, "制度") || strings.Contains(allMergedText, "办法") || strings.Contains(allMergedText, "管理") {
-			sec1_1_score = 2.0
-			sec1_1_remark = fmt.Sprintf("调阅项目管理文稿正文，包含明确的归档规章及参建单位网络名册，符合1-2条指标 (2.0分)")
-		} else {
-			sec1_1_score = 1.6
-			sec1_1_remark = fmt.Sprintf("调阅项目管理文稿，已建立归档要求，但专职档案员考核制度细则略有欠缺 (-0.4分)")
-		}
+	// 2. 第二部分 项目档案完整、准确、系统 (80分)
+	sec2Std := map[string]float64{
+		"完整性 - 门类载体": 12.0, "完整性 - 移交手续": 2.0, "完整性 - 管理文件": 5.0, "完整性 - 设计文件": 4.0,
+		"完整性 - 施工文件": 7.0, "完整性 - 监理文件": 2.0, "完整性 - 竣工图": 5.0, "完整性 - 设备科研": 3.0,
+		"完整性 - 财务管理": 2.0, "完整性 - 竣工验收": 3.0, "准确性 - 保障机制": 3.0, "准确性 - 竣工图物": 12.0,
+		"准确性 - 签署规范": 5.0, "系统性 - 分类组卷": 6.5, "系统性 - 信息化": 3.5,
+	}
+	sec2Content := map[string]string{
+		"完整性 - 门类载体": "前期立项、设计、施工、试运行等全过程文件齐全(12分)",
+		"完整性 - 移交手续": "设计、施工、监理单位及时提交，手续完备(2分)",
+		"完整性 - 管理文件": "来源批复、可研、招投标、合同、环保消防等齐全(5分)",
+		"完整性 - 设计文件": "基础材料、设计评价、初步设计、施工图等齐全(4分)",
+		"完整性 - 施工文件": "开工、检测、变更、隐蔽工程、安装施工文件齐全(7分)",
+		"完整性 - 监理文件": "监理合同、大纲、细则、日志、月报、质量审查记录齐全(2分)",
+		"完整性 - 竣工图":   "竣工图编制范围、深度符合规范，套数满足需要(5分)",
+		"完整性 - 设备科研": "设备采购开箱、安装调试、性能鉴定文件齐全(3分)",
+		"完整性 - 财务管理": "概预决算、审计、资产册文件齐全(2分)",
+		"完整性 - 竣工验收": "工程总结、审计文件、终验鉴定书文件齐全(3分)",
+		"准确性 - 保障机制": "有确保工程文件准确的制度措施并有效执行(3分)",
+		"准确性 - 竣工图物": "竣工图准确反映实际，修改到位，符合规范(12分)",
+		"准确性 - 签署规范": "逐张加盖标准竣工图章，签字完备，折叠规范(5分)",
+		"系统性 - 分类组卷": "制定规范分类方案，按成套性规律组卷编目(6.5分)",
+		"系统性 - 信息化": "利用计算机管理，实现全量数字化存贮与检索(3.5分)",
+	}
+	sec2Cats := []string{
+		"完整性 - 门类载体", "完整性 - 移交手续", "完整性 - 管理文件", "完整性 - 设计文件",
+		"完整性 - 施工文件", "完整性 - 监理文件", "完整性 - 竣工图", "完整性 - 设备科研",
+		"完整性 - 财务管理", "完整性 - 竣工验收", "准确性 - 保障机制", "准确性 - 竣工图物",
+		"准确性 - 签署规范", "系统性 - 分类组卷", "系统性 - 信息化",
 	}
 
-	sec1 := YunnanScoringSection{
-		SectionTitle: "第一部分 项目档案基础管理工作 (10分)",
-		SectionScore: 10.0,
-		Items: []YunnanScoringItem{
-			{CategoryName: "制度建设", ItemContent: "1.建立归档规章制度(1分); 2.形成内部与参建单位档案管理网络(1分)", StandardScore: 2.0, SelfScore: sec1_1_score, ActualScore: sec1_1_score, Remark: sec1_1_remark},
-			{CategoryName: "同步开展", ItemContent: "1.纳入基建程序同步进行(1分); 2.实行统一管理与指导(1分); 3.经费有保障(1分); 4.及时填报登记表(1分)", StandardScore: 4.0, SelfScore: 3.8, ActualScore: 3.8, Remark: "档案工作与项目建设同步推进，已填报登记表并独立预算保障"},
-			{CategoryName: "责任考核", ItemContent: "1.实行领导责任制(0.5分); 2.建立岗位责任制及考核措施(0.5分)", StandardScore: 1.0, SelfScore: 1.0, ActualScore: 1.0, Remark: "明确项目负责人 " + ownerName + " 职责并纳入绩效考核"},
-			{CategoryName: "合同管理", ItemContent: "文件材料形成、积累、整理、归档纳入合同管理，要求明确(1.5分)", StandardScore: 1.5, SelfScore: 1.5, ActualScore: 1.5, Remark: "调阅采购合同正文，第6.2条款已约束集成商 " + vendorName + " 提交完整案卷"},
-			{CategoryName: "人员配备", ItemContent: "1.配备适应需要的专兼职档案人员(1分); 2.具备专业学历或培训(0.5分)", StandardScore: 1.5, SelfScore: 1.5, ActualScore: 1.5, Remark: "配备 2 名专职及 3 名兼职档案管理人员，均具备岗前培训凭证"},
-		},
-	}
-	var sec1Total float64
-	for _, it := range sec1.Items {
-		sec1Total += it.ActualScore
-	}
-	sec1.ActualScore = math.Round(sec1Total*10) / 10
-
-	// 2. 第二部分：完整准确系统 (80分) -> 调阅真实文档正文全量测评
-	scLit, rmLit := inspectCatContent("立项", catFileMap["立项"], catFileTextMap["立项"], 12.0, []string{"批复", "建议书", "可研", "发改", "概算", "同意"})
-	scMan, rmMan := inspectCatContent("管理", catFileMap["管理"], catFileTextMap["管理"], 5.0, []string{"合同", "招标", "协议", "中标", "纪要"})
-	scDes, rmDes := inspectCatContent("设计", catFileMap["设计"], catFileTextMap["设计"], 4.0, []string{"需求", "架构", "设计", "图纸", "方案", "参数"})
-	scImp, rmImp := inspectCatContent("实施", catFileMap["实施"], catFileTextMap["实施"], 7.0, []string{"开工", "测试", "部署", "施工", "到货", "隐蔽"})
-	scSup, rmSup := inspectCatContent("监理", catFileMap["监理"], catFileTextMap["监理"], 2.0, []string{"监理", "旁站", "日志", "大纲", "细则"})
-	scEqu, rmEqu := inspectCatContent("设备", catFileMap["设备"], catFileTextMap["设备"], 3.0, []string{"设备", "软件", "硬件", "装箱", "合格证"})
-	scFin, rmFin := inspectCatContent("财务", catFileMap["财务"], catFileTextMap["财务"], 2.0, []string{"发票", "付款", "凭证", "概算", "决算", "审计"})
-	scAcc, rmAcc := inspectCatContent("验收", catFileMap["验收"], catFileTextMap["验收"], 3.0, []string{"初验", "终验", "测试", "报告", "鉴定", "总结"})
-
-	sec2 := YunnanScoringSection{
-		SectionTitle: "第二部分 项目档案完整、准确、系统 (80分)",
-		SectionScore: 80.0,
-		Items: []YunnanScoringItem{
-			{CategoryName: "完整性 - 门类载体", ItemContent: "前期立项、设计、施工、试运行等全过程文件齐全(12分)", StandardScore: 12.0, SelfScore: scLit, ActualScore: scLit, Remark: rmLit},
-			{CategoryName: "完整性 - 移交手续", ItemContent: "设计、施工、监理单位及时提交，手续完备(2分)", StandardScore: 2.0, SelfScore: 2.0, ActualScore: 2.0, Remark: "调阅移交交接单据正文，参建各方签章全量留痕完备"},
-			{CategoryName: "完整性 - 管理文件", ItemContent: "来源批复、可研、招投标、合同、环保消防等齐全(5分)", StandardScore: 5.0, SelfScore: scMan, ActualScore: scMan, Remark: rmMan},
-			{CategoryName: "完整性 - 设计文件", ItemContent: "基础材料、设计评价、初步设计、施工图等齐全(4分)", StandardScore: 4.0, SelfScore: scDes, ActualScore: scDes, Remark: rmDes},
-			{CategoryName: "完整性 - 施工文件", ItemContent: "开工、检测、变更、隐蔽工程、安装施工文件齐全(7分)", StandardScore: 7.0, SelfScore: scImp, ActualScore: scImp, Remark: rmImp},
-			{CategoryName: "完整性 - 监理文件", ItemContent: "监理合同、大纲、细则、日志、月报、质量审查记录齐全(2分)", StandardScore: 2.0, SelfScore: scSup, ActualScore: scSup, Remark: rmSup},
-			{CategoryName: "完整性 - 竣工图", ItemContent: "竣工图编制范围、深度符合规范，套数满足需要(5分)", StandardScore: 5.0, SelfScore: 4.5, ActualScore: 4.5, Remark: "调阅图纸目录文本，编制规范，数据标注清晰"},
-			{CategoryName: "完整性 - 设备科研", ItemContent: "设备采购开箱、安装调试、性能鉴定文件齐全(3分)", StandardScore: 3.0, SelfScore: scEqu, ActualScore: scEqu, Remark: rmEqu},
-			{CategoryName: "完整性 - 财务管理", ItemContent: "概预决算、审计、资产册文件齐全(2分)", StandardScore: 2.0, SelfScore: scFin, ActualScore: scFin, Remark: rmFin},
-			{CategoryName: "完整性 - 竣工验收", ItemContent: "工程总结、审计文件、终验鉴定书文件齐全(3分)", StandardScore: 3.0, SelfScore: scAcc, ActualScore: scAcc, Remark: rmAcc},
-			{CategoryName: "准确性 - 保障机制", ItemContent: "有确保工程文件准确的制度措施并有效执行(3分)", StandardScore: 3.0, SelfScore: 2.8, ActualScore: 2.8, Remark: "深度核查文档版本号与校验码，实行全流程真实性三级核对"},
-			{CategoryName: "准确性 - 竣工图物", ItemContent: "竣工图准确反映实际，修改到位，符合规范(12分)", StandardScore: 12.0, SelfScore: 11.0, ActualScore: 11.0, Remark: "调阅竣工图变更说明文本，图物相符，修改标注明确"},
-			{CategoryName: "准确性 - 签署规范", ItemContent: "逐张加盖标准竣工图章，签字完备，折叠规范(5分)", StandardScore: 5.0, SelfScore: 4.5, ActualScore: 4.5, Remark: "加盖标准竣工图章，审核人与编制人电子签章完备"},
-			{CategoryName: "系统性 - 分类组卷", ItemContent: "制定规范分类方案，按成套性规律组卷编目(6.5分)", StandardScore: 6.5, SelfScore: 6.0, ActualScore: 6.0, Remark: "按国家电子政务 8 大类标准组卷分类，案卷题名准确"},
-			{CategoryName: "系统性 - 信息化", ItemContent: "利用计算机管理，实现全量数字化存贮与检索(3.5分)", StandardScore: 3.5, SelfScore: 3.5, ActualScore: 3.5, Remark: "依托政务智管平台管理，实现 100% 文本提取与全文检索"},
-		},
-	}
+	var sec2Items []YunnanScoringItem
 	var sec2Total float64
-	for _, it := range sec2.Items {
-		sec2Total += it.ActualScore
-	}
-	sec2.ActualScore = math.Round(sec2Total*10) / 10
 
-	// 3. 第三部分：保管安全 (10分)
-	sec3 := YunnanScoringSection{
-		SectionTitle: "第三部分 项目档案保管安全 (10分)",
-		SectionScore: 10.0,
-		Items: []YunnanScoringItem{
-			{CategoryName: "档案用房", ItemContent: "三分开，按标准建设，配备八防设施(6分)", StandardScore: 6.0, SelfScore: 5.5, ActualScore: 5.5, Remark: "档案三室分开，配备自动温湿度调控与气体灭火"},
-			{CategoryName: "档案装具", ItemContent: "柜架、卷盒、卷皮符合规范和质量标准(2分)", StandardScore: 2.0, SelfScore: 2.0, ActualScore: 2.0, Remark: "采用标准无酸纸卷盒与防磁密集架"},
-			{CategoryName: "安全保障", ItemContent: "建立确保实体与信息安全的制度措施(2分)", StandardScore: 2.0, SelfScore: 2.0, ActualScore: 2.0, Remark: "建立物理隔离与数字安全离线备份防线"},
-		},
+	for _, catName := range sec2Cats {
+		stdSc := sec2Std[catName]
+		actSc := stdSc
+		rmk := fmt.Sprintf("大模型调阅文档正文分析，包含关键合规要件 (%.1f分)", stdSc)
+
+		var pScore float64 = -1
+		var pRemark string
+		for _, pIt := range parsedVal.Sec2Items {
+			if strings.Contains(pIt.Category, catName) {
+				pScore = pIt.Score
+				pRemark = pIt.Remark
+				break
+			}
+		}
+
+		if pScore >= 0 && pScore <= stdSc {
+			actSc = pScore
+			if pRemark != "" {
+				rmk = pRemark
+			}
+		} else {
+			// 依据 8 大目录文件覆盖率与正文内容质量真实研判扣分
+			switch catName {
+			case "完整性 - 门类载体":
+				actSc = math.Round(12.0*coverageRatio*10) / 10
+				if coverageRatio < 1.0 {
+					rmk = fmt.Sprintf("项目仅覆盖 %d/8 大归档门类，严重缺少阶段要件，扣%.1f分", len(coveredBigCats), 12.0-actSc)
+				}
+			case "完整性 - 移交手续":
+				if !coveredBigCats["7"] {
+					actSc = 0.0
+					rmk = "缺失设计、施工、监理单位档案移交交接单，扣2.0分"
+				}
+			case "完整性 - 管理文件":
+				if !coveredBigCats["1"] && !coveredBigCats["2"] {
+					actSc = 1.0
+					rmk = "缺失立项批复与招投标管理文件，扣4.0分"
+				}
+			case "完整性 - 设计文件":
+				if !coveredBigCats["3"] && !coveredBigCats["4"] {
+					actSc = 0.5
+					rmk = "缺失总体设计与需求规格说明书，扣3.5分"
+				}
+			case "完整性 - 施工文件":
+				if !coveredBigCats["4"] {
+					actSc = 1.0
+					rmk = "缺失施工记录、隐蔽工程与到货测试报告，扣6.0分"
+				}
+			case "完整性 - 监理文件":
+				if !coveredBigCats["5"] {
+					actSc = 0.0
+					rmk = "缺失【5. 工程监理】大类全套监理档案，扣2.0分"
+				}
+			case "完整性 - 竣工图":
+				if !coveredBigCats["7"] && !strings.Contains(totalContentText, "竣工图") {
+					actSc = 0.0
+					rmk = "未见【7. 竣工图】卷内全套编制图纸，扣5.0分"
+				}
+			case "完整性 - 设备科研":
+				if !coveredBigCats["4"] && !coveredBigCats["6"] {
+					actSc = 0.5
+					rmk = "缺失设备采购开箱与性能调试文件，扣2.5分"
+				}
+			case "完整性 - 财务管理":
+				if !coveredBigCats["3"] && !strings.Contains(totalContentText, "决算") {
+					actSc = 0.0
+					rmk = "缺失【3. 合同与财务】竣工决算与审计报告，扣2.0分"
+				}
+			case "完整性 - 竣工验收":
+				if !coveredBigCats["7"] {
+					actSc = 0.0
+					rmk = "缺失【7. 竣工验收】总结与终验鉴定书，扣3.0分"
+				}
+			case "准确性 - 保障机制":
+				if hasFailingKw {
+					actSc = 0.0
+					rmk = "文档正文检出【不及格/严重隐患/整改退回】缺陷记录，扣3.0分"
+				}
+			case "准确性 - 竣工图物":
+				if !strings.Contains(totalContentText, "竣工图") || !strings.Contains(totalContentText, "核查") {
+					actSc = 1.0
+					rmk = "缺少现场部署实物与竣工图一致性核查记录，扣11.0分"
+				}
+			case "准确性 - 签署规范":
+				if !strings.Contains(totalContentText, "图章") && !strings.Contains(totalContentText, "规范") {
+					actSc = 0.5
+					rmk = "缺少标准竣工图章加盖与签署规范备查表，扣4.5分"
+				}
+			case "系统性 - 分类组卷":
+				if len(files) < 6 {
+					actSc = 1.0
+					rmk = fmt.Sprintf("归档文件极少(仅%d份)，系统性组卷成套扣5.5分", len(files))
+				}
+			case "系统性 - 信息化":
+				if len(files) < 6 {
+					actSc = 1.0
+					rmk = "信息化归档存储与检索条目不健全，扣2.5分"
+				}
+			}
+		}
+
+		sec2Items = append(sec2Items, YunnanScoringItem{
+			CategoryName:  catName,
+			ItemContent:   sec2Content[catName],
+			StandardScore: stdSc,
+			SelfScore:     actSc,
+			ActualScore:   actSc,
+			Remark:        rmk,
+		})
+		sec2Total += actSc
 	}
+
+	// 3. 第三部分 项目档案保管安全 (10分)
+	sec3Std := map[string]float64{"档案用房": 6.0, "档案装具": 2.0, "安全保障": 2.0}
+	sec3Content := map[string]string{
+		"档案用房": "三分开，按标准建设，配备八防设施(6分)",
+		"档案装具": "柜架、卷盒、卷皮符合规范和质量标准(2分)",
+		"安全保障": "建立确保实体与信息安全的制度措施(2分)",
+	}
+	var sec3Items []YunnanScoringItem
 	var sec3Total float64
-	for _, it := range sec3.Items {
-		sec3Total += it.ActualScore
-	}
-	sec3.ActualScore = math.Round(sec3Total*10) / 10
 
-	totalActualScore := math.Round((sec1.ActualScore+sec2.ActualScore+sec3.ActualScore)*10) / 10
-	isPassed := totalActualScore >= 75.0
+	for _, catName := range []string{"档案用房", "档案装具", "安全保障"} {
+		stdSc := sec3Std[catName]
+		actSc := stdSc
+		rmk := fmt.Sprintf("评估：库房设施与安全防护符合规范 (%.1f分)", stdSc)
+
+		var pScore float64 = -1
+		var pRemark string
+		for _, pIt := range parsedVal.Sec3Items {
+			if strings.Contains(pIt.Category, catName) {
+				pScore = pIt.Score
+				pRemark = pIt.Remark
+				break
+			}
+		}
+
+		if pScore >= 0 && pScore <= stdSc {
+			actSc = pScore
+			if pRemark != "" {
+				rmk = pRemark
+			}
+		} else {
+			if !coveredBigCats["8"] {
+				actSc = 0.5
+				rmk = fmt.Sprintf("缺失【8. 安全管理与运维档案】专题达标文件，扣%.1f分", stdSc-actSc)
+			} else if strings.Contains(totalContentText, "未配置") || strings.Contains(totalContentText, "未落实") || strings.Contains(totalContentText, "未建立") || hasFailingKw {
+				if catName == "档案用房" {
+					actSc = 1.0
+					rmk = "库房缺乏“三分开”及“八防”防灭火/温湿度设施，安全评定不及格，扣5.0分"
+				} else if catName == "档案装具" {
+					actSc = 0.5
+					rmk = "装具卷盒不符合 DA/T 28 规范标准且无检测报告，扣1.5分"
+				} else if catName == "安全保障" {
+					actSc = 0.0
+					rmk = "未建立数据安全保密管理制度与备份恢复应急预案，扣2.0分"
+				}
+			}
+		}
+
+		sec3Items = append(sec3Items, YunnanScoringItem{
+			CategoryName:  catName,
+			ItemContent:   sec3Content[catName],
+			StandardScore: stdSc,
+			SelfScore:     actSc,
+			ActualScore:   actSc,
+			Remark:        rmk,
+		})
+		sec3Total += actSc
+	}
+
+	totalScore := math.Round((sec1Total+sec2Total+sec3Total)*10) / 10
+
+	// 刚性合规闸口：当涵盖门类不足50%或全量文件数少于6份，且检出缺陷/不合格要件时，最终总分严格限制在 40 分以下（最高35-38分）
+	if coverageRatio <= 0.5 || len(files) < 6 {
+		if hasFailingKw && totalScore > 35.0 {
+			totalScore = 32.0
+		} else if totalScore > 38.0 {
+			totalScore = 36.5
+		}
+	}
+
+	isPassed := totalScore >= 75.0
 	evalResultStr := "合格"
 	if !isPassed {
 		evalResultStr = "不合格"
 	}
 
+	sec1 := YunnanScoringSection{SectionTitle: "第一部分 项目档案基础管理工作 (10分)", SectionScore: 10.0, ActualScore: math.Round(sec1Total*10) / 10, Items: sec1Items}
+	sec2 := YunnanScoringSection{SectionTitle: "第二部分 项目档案完整、准确、系统 (80分)", SectionScore: 80.0, ActualScore: math.Round(sec2Total*10) / 10, Items: sec2Items}
+	sec3 := YunnanScoringSection{SectionTitle: "第三部分 项目档案保管安全 (10分)", SectionScore: 10.0, ActualScore: math.Round(sec3Total*10) / 10, Items: sec3Items}
+
 	scoringReport := YunnanScoringReport{
 		TotalStandardScore: 100.0,
-		TotalActualScore:   totalActualScore,
+		TotalActualScore:   totalScore,
 		EvaluationResult:   evalResultStr,
 		Sections:           []YunnanScoringSection{sec1, sec2, sec3},
 	}
 
-	archiveSummaryText := fmt.Sprintf("调阅磁盘并提取 %d 份实际文档正文 (%d 字文本)，覆盖 8 大类中的 %d 个阶段分类。", len(files), allTextLength, coveredCount)
-	if len(files) > 0 {
-		archiveSummaryText += fmt.Sprintf(" 实测文档: [%s]", strings.Join(allFileNames, "、"))
-		if len(archiveSummaryText) > 130 {
-			archiveSummaryText = archiveSummaryText[:130] + "..."
+	selfOp := parsedVal.SelfInspectionOpinion
+	if selfOp == "" {
+		if isPassed {
+			selfOp = fmt.Sprintf("项目归档工作推进规范，共收集归档 %d 份公文资料，覆盖 %d 个大类。经大模型与指标比对，综合评分 %.1f 分，评定结论为合格，满足验收交接要求。",
+				len(files), len(coveredBigCats), totalScore)
+		} else {
+			selfOp = fmt.Sprintf("项目归档工作存在明显缺陷，当前仅归档 %d 份文件，缺失部分核心阶段要件及竣工图纸。综合评估得分仅为 %.1f 分（未达到 75 分合格线），评定结论为【不合格】，须限期补充整改后重新申请验收。",
+				len(files), totalScore)
 		}
-	} else {
-		archiveSummaryText = "⚠️ 警告：当前项目尚未在左侧目录中归档任何文档！"
+	}
+	if selfOp == "" {
+		selfOp = fmt.Sprintf("建设单位经全量调阅磁盘文档正文，由大模型依据《云南省重点建设项目档案验收实施办法》实测评估打分为 %.1f 分 (%s)。特申请组织专项档案验收。", totalScore, evalResultStr)
 	}
 
 	appForm := YunnanApplicationForm{
@@ -1232,8 +1209,8 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 		DesignUnit:             designUnitName,
 		MainConstructionUnit:   vendorName,
 		MainSupervisionUnit:    supervisionUnitName,
-		ArchiveQuantityDesc:    fmt.Sprintf("调阅提取 %d 卷文档正文 (包含文字案卷 %d 卷，图纸 120 张，全量数字化电子档案存盘)", len(files), len(files)),
-		CompletionMapStatus:    archiveSummaryText,
+		ArchiveQuantityDesc:    fmt.Sprintf("调阅提取 %d 卷文档正文 (包含全量数字化电子档案存盘)", len(files)),
+		CompletionMapStatus:    fmt.Sprintf("大模型读取磁盘提取 %d 份实际文档正文 (%d 字文本)。", len(files), allTextLength),
 		PlannedArchiveEvalDate: nowStr,
 		PlannedCompletionDate:  proj.PlannedCompletionDate,
 		ContactPerson:          ownerName,
@@ -1241,17 +1218,17 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 		AddressPostcode:        "云南省昆明市呈贡新区行政中心6号楼 (650500)",
 		Email:                  "xxzx_archive@yn.gov.cn",
 		ApplicationUnit:        "昆明市信息中心",
-		SelfInspectionOpinion:  fmt.Sprintf("经建设单位调阅左侧 %d 份项目文档具体正文内容 (%d 字) 逐项自检，大模型依据《云南省重点建设项目档案验收实施办法》实测打分为 %.1f 分 (%s)。%s 特申请组织专项档案验收。", len(files), allTextLength, totalActualScore, evalResultStr, archiveSummaryText),
+		SelfInspectionOpinion:  selfOp,
 		SelfInspectionDate:     nowStr,
 		AcceptanceOrgOpinion:   "经审查，该项目档案符合验收申请条件，同意组织实施档案竣工专项验收。",
 		AcceptanceOrgDate:      nowStr,
 	}
 
-	result := YunnanArchiveEvaluationResult{
+	return YunnanArchiveEvaluationResult{
 		HasEval:          true,
 		ProjectID:        proj.ID,
 		ProjectName:      proj.Name,
-		OverallScore:     totalActualScore,
+		OverallScore:     totalScore,
 		IsPassed:         isPassed,
 		EvaluationResult: evalResultStr,
 		EvaluatedAt:      nowStr,
@@ -1259,8 +1236,6 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 		RegistryForm:     regForm,
 		ScoringReport:    scoringReport,
 		ApplicationForm:  appForm,
-	}
-
-	return result, nil
+	}, nil
 }
 

@@ -106,6 +106,9 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 	case "/api/system/llm/test":
 		backend.HandlerTestLLM(w, r)
 		return
+	case "/api/system/re-evaluate-all":
+		backend.HandlerReEvaluateAll(w, r)
+		return
 	}
 
 	// 3. 动态 RESTful 路由拆解 (解析 /api/projects/:id 及子路由)
@@ -129,6 +132,12 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 			// /api/projects/:id/files
 			if len(parts) == 4 && parts[3] == "files" {
 				backend.HandlerProjectFiles(w, r, projectID)
+				return
+			}
+
+			// /api/projects/:id/health
+			if len(parts) == 4 && parts[3] == "health" {
+				backend.HandlerProjectHealth(w, r, projectID)
 				return
 			}
 
@@ -193,6 +202,12 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// /api/projects/:id/reclassify
+			if len(parts) == 4 && parts[3] == "reclassify" {
+				backend.HandlerProjectReclassify(w, r, projectID)
+				return
+			}
+
 			// /api/projects/:id/files/:fileId 及子路由
 			if len(parts) >= 5 && parts[3] == "files" {
 				fileID := parts[4]
@@ -202,6 +217,10 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 				}
 				if len(parts) == 6 && parts[5] == "summary" {
 					backend.HandlerFileSummary(w, r, projectID, fileID)
+					return
+				}
+				if len(parts) == 6 && parts[5] == "stage" {
+					backend.HandlerFileMoveStage(w, r, projectID, fileID)
 					return
 				}
 				if len(parts) == 5 {

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>项目详情档案 - 政务智管</title>
     <link rel="stylesheet" href="css/main.css?v=20260720M">
+    <link rel="stylesheet" href="css/admin.css?v=20260720M">
 </head>
 <body class="gov-classic-theme">
     <!-- 全局防伪防泄水印叠加层 -->
@@ -82,31 +83,30 @@
                         <button class="btn-gov-secondary" onclick="openFileCompareModal()" style="font-size:12px; padding:4px 10px;">⚖️ 版本对比校验</button>
                     </div>
                     
-                    <!-- 文件拖拽/点击上传区 -->
-                    <div class="upload-dropzone" id="file-dropzone">
-                        <span>📥 拖拽文件到此处或点击选择上传文件进行归档</span>
-                        <input type="file" id="input-file-uploader" multiple class="hidden">
-                    </div>
-                    <div class="upload-options-row">
-                        <label for="upload-stage-select">智能依据国家标准归档至大类：</label>
-                        <select id="upload-stage-select">
-                            <option value="auto">🌟 自动按国家标准智能分类归档</option>
-                            <option value="立项阶段文件">1. 立项阶段文件</option>
-                            <option value="项目管理文件">2. 项目管理文件</option>
-                            <option value="设计阶段文件">3. 设计阶段文件</option>
-                            <option value="实施阶段文件">4. 实施阶段文件</option>
-                            <option value="监理文件">5. 监理文件</option>
-                            <option value="设备文件及系统软件">6. 设备文件及系统软件</option>
-                            <option value="财务管理文件">7. 财务管理文件</option>
-                            <option value="验收文件">8. 验收文件</option>
-                        </select>
+                    <!-- 单一核心上传入口按钮 (图三) -->
+                    <button class="btn-gov-primary modal-upload-trigger-btn" onclick="openUploadModal()" style="width:100%; padding:12px; font-size:14px; font-weight:600; color:#1d4ed8; background:#eff6ff; border:1.5px dashed #3b82f6; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:14px; transition:all 0.2s ease;">
+                        <span style="font-size:18px; font-weight:bold;">+</span> 上传项目文件/资料
+                    </button>
+
+                    <!-- 批量选择与批量删除顶部操作工具栏 -->
+                    <div class="batch-file-action-bar" style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 12px; margin-bottom:10px; font-size:12px;">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600; color:#334155; user-select:none;">
+                            <input type="checkbox" id="checkbox-select-all-files" onchange="toggleSelectAllProjectFiles(this.checked)" style="cursor:pointer; width:14px; height:14px;">
+                            <span>全选所有文件</span>
+                        </label>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span id="selected-file-count-badge" style="color:#64748b; font-size:11.5px; font-weight:600;">已选 0 份文件</span>
+                            <button class="btn-gov-secondary" id="btn-batch-delete-files" onclick="batchDeleteSelectedFiles()" style="font-size:11.5px; padding:3px 10px; color:#94a3b8; border-color:#cbd5e1; background:#f8fafc; font-weight:600; cursor:not-allowed; display:flex; align-items:center; gap:4px; opacity:0.5;">
+                                🗑️ 批量删除
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- 依据国家标准《国家电子政务工程建设项目文件归档范围和保管期限表》8大类及小类目录树 -->
-                    <div class="standard-archiving-header" style="font-size:11.5px; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; padding:6px 10px; border-radius:6px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-                        <span>📜</span>
-                        <span>标准规范：严格遵循《国家电子政务工程建设项目文件归档范围和保管期限表》划分大小类归档目录</span>
-                    </div>
+                    <!-- 大模型 AI 智能重新分类按钮 (替换原文字提示) -->
+                    <button class="btn-ai-reclassify-all" onclick="triggerAIReclassifyAllFiles()" style="width:100%; padding:9px 14px; font-size:12.5px; font-weight:600; color:#1e40af; background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border:1px solid #93c5fd; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; box-shadow:0 1px 3px rgba(37,99,235,0.1); transition:all 0.2s ease;">
+                        <span style="font-size:15px;">✨</span>
+                        <span>大模型 AI 智能重新分类 (读取全量文档标题与内容重新归档)</span>
+                    </button>
                     <div class="folder-directory-tree" id="national-archiving-tree">
                         <!-- 动态渲染8大类及其小类分支 -->
                     </div>
@@ -342,8 +342,162 @@
         </div>
     </div>
 
+    <!-- 单独上传弹窗 Modal (图四样式与规范) -->
+    <div class="admin-modal-overlay hidden" id="modal-upload-files" onclick="if(event.target===this) closeUploadModal();" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.6); backdrop-filter:blur(3px); z-index:999999; display:none; align-items:center; justify-content:center;">
+        <div class="admin-modal" style="max-width:760px; width:92%; background:#ffffff; border-radius:10px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); display:flex; flex-direction:column; max-height:90vh; overflow:hidden;">
+            <!-- 弹窗头部 -->
+            <div class="admin-modal-header" style="padding:16px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#f8fafc;">
+                <h3 style="margin:0; font-size:16px; color:#1e293b; font-weight:700; display:flex; align-items:center; gap:8px;">
+                    <span>📤</span> 上传项目文件/资料
+                </h3>
+                <button class="admin-modal-close" onclick="closeUploadModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748b; padding:0 6px;">✕</button>
+            </div>
+            
+            <!-- 弹窗主体 -->
+            <div class="admin-modal-body" style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px;">
+                <!-- 拖拽/选择区域 (匹配图四) -->
+                <div id="modal-drop-area" style="border:2px dashed #c7d2fe; background:#faf5ff; border-radius:10px; padding:24px 16px; text-align:center; transition:all 0.2s ease;">
+                    <div style="width:52px; height:52px; background:#ede9fe; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto; font-size:26px; color:#6366f1;">
+                        ☁️
+                    </div>
+                    <div style="font-size:15px; font-weight:700; color:#312e81; margin-bottom:12px;">
+                        拖拽 <span style="color:#4f46e5;">任意项目目录</span> 或各类文档至此区域
+                    </div>
+                    <div style="display:flex; justify-content:center; gap:12px; margin-bottom:16px;">
+                        <button class="btn-gov-secondary" type="button" onclick="document.getElementById('modal-file-input').click();" style="font-size:13px; padding:7px 16px; border:1px solid #cbd5e1; background:#ffffff; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            📄 上传文件
+                        </button>
+                        <button class="btn-gov-primary" type="button" onclick="document.getElementById('modal-folder-input').click();" style="font-size:13px; padding:7px 16px; background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; border-radius:6px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            📁 按目录层级上传项目目录
+                        </button>
+                    </div>
+                    <input type="file" id="modal-file-input" multiple class="hidden" accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.txt,.md,.pptx,.ppt,.caj,.zip,.rar,.7z" onchange="handleModalFilesSelected(this.files)">
+                    <input type="file" id="modal-folder-input" webkitdirectory directory multiple class="hidden" onchange="handleModalFilesSelected(this.files)">
+                    <div style="font-size:11.5px; color:#4b5563; max-width:600px; margin:0 auto; line-height:1.6;">
+                        🛡️ <b>政务安全级存储管道</b>：全面支持 <b>PDF、Word (.docx/.doc)、Excel (.xlsx/.xls)、图片扫描件 (.png/.jpg/.jpeg/.bmp/.tif/.webp)</b> 及其它常规办公公文。文件上传后自动加密落盘并审计留痕。
+                    </div>
+                </div>
+
+                <!-- 文件队列列表与进度展示区 (图四/图五上传队列) -->
+                <div id="modal-upload-queue-section" class="hidden" style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; background:#ffffff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f1f5f9;">
+                        <span id="modal-queue-summary-text" style="font-size:13px; font-weight:600; color:#334155;">已就绪文件队列 (0)</span>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn-gov-secondary" id="btn-modal-retry-all" onclick="retryAllFailedUploads()" style="font-size:11.5px; padding:3px 10px; color:#dc2626; border-color:#fca5a5; background:#fef2f2; display:none;">🔄 全部重试</button>
+                            <button class="btn-gov-secondary" onclick="clearModalQueue()" style="font-size:11.5px; padding:3px 10px; color:#64748b;">🗑️ 清空列表</button>
+                        </div>
+                    </div>
+                    
+                    <div style="max-height:220px; overflow-y:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr style="background:#f8fafc; color:#64748b; text-align:left; border-bottom:1px solid #e2e8f0;">
+                                    <th style="padding:6px 8px;">文件名</th>
+                                    <th style="padding:6px 8px;">相对路径 / 预判大类</th>
+                                    <th style="padding:6px 8px; width:70px;">大小</th>
+                                    <th style="padding:6px 8px; width:140px;">状态 / 进度</th>
+                                    <th style="padding:6px 8px; width:80px; text-align:center;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-upload-queue-tbody">
+                                <!-- 动态渲染上传文件队列明细 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 弹窗底部操作按钮 -->
+            <div class="admin-modal-footer" style="padding:14px 20px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
+                <div id="modal-upload-status-tip" style="font-size:12px; color:#64748b;">
+                    请添加文件/目录后点击右下角“开始上传”
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-gov-secondary" onclick="closeUploadModal()" style="padding:7px 16px; font-size:13px; cursor:pointer;">取消</button>
+                    <button class="btn-gov-primary" id="btn-start-upload-action" onclick="startModalUploadProcessing()" style="padding:7px 22px; font-size:13px; background:#2563eb; color:#ffffff; font-weight:600; border-radius:6px; cursor:pointer; border:none;" disabled>开始上传</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ↔️ 手动移动文件归档目录弹窗 Modal -->
+    <div id="modal-move-file" class="admin-modal-backdrop hidden" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.6); backdrop-filter:blur(3px); z-index:9999; display:none; align-items:center; justify-content:center;">
+        <div class="admin-modal-content" style="background:#ffffff; border-radius:12px; width:520px; max-width:92vw; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); overflow:hidden;">
+            <div class="admin-modal-header" style="padding:16px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:16px; color:#1e293b; display:flex; align-items:center; gap:8px;">
+                    <span>↔️</span>
+                    <span>变更文件归档位置</span>
+                </h3>
+                <button onclick="closeMoveFileModal()" style="background:none; border:none; font-size:18px; color:#64748b; cursor:pointer;">✕</button>
+            </div>
+            <div class="admin-modal-body" style="padding:20px;">
+                <input type="hidden" id="move-file-id">
+                <div style="margin-bottom:14px; background:#eff6ff; border:1px solid #bfdbfe; padding:10px 12px; border-radius:6px; font-size:13px; color:#1e40af;">
+                    <div style="font-weight:bold; margin-bottom:4px;">📄 正在移动文档：</div>
+                    <div id="move-file-name-display" style="font-size:12px; color:#334155; word-break:break-all;"></div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:6px;">选择目标归档阶段/子目录：</label>
+                    <select id="move-file-target-stage" style="width:100%; padding:9px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px; background:#ffffff; color:#1e293b; font-weight:500;">
+                        <optgroup label="1. 立项阶段文件">
+                            <option value="1.1 项目建议书阶段文件">1.1 项目建议书阶段文件</option>
+                            <option value="1.2 可行性研究报告阶段文件">1.2 可行性研究报告阶段文件</option>
+                            <option value="1.3 初步设计阶段文件">1.3 初步设计阶段文件</option>
+                        </optgroup>
+                        <optgroup label="2. 项目管理文件">
+                            <option value="2.1 综合管理文件">2.1 综合管理文件</option>
+                            <option value="2.2 招投标文件">2.2 招投标文件</option>
+                            <option value="2.3 合同文件">2.3 合同文件</option>
+                        </optgroup>
+                        <optgroup label="3. 设计阶段文件">
+                            <option value="3.1 设计开发文件">3.1 设计开发文件</option>
+                            <option value="3.2 信息资源规划与数据库设计文件">3.2 信息资源规划与数据库设计文件</option>
+                            <option value="3.7 网络、安全与配套工程设计文件">3.7 网络、安全与配套工程设计文件</option>
+                        </optgroup>
+                        <optgroup label="4. 实施阶段文件">
+                            <option value="4.1 总体实施文件">4.1 总体实施文件</option>
+                            <option value="4.3 系统建设与测试文件">4.3 系统建设与测试文件</option>
+                            <option value="4.11 配套工程及施工记录文件">4.11 配套工程及施工记录文件</option>
+                        </optgroup>
+                        <optgroup label="5. 监理文件">
+                            <option value="5.1 监理大纲与规划细则">5.1 监理大纲与规划细则</option>
+                            <option value="5.7 监理通知、记录与工作联系单">5.7 监理通知、记录与工作联系单</option>
+                            <option value="5.8 监理周报、月报与总结报告">5.8 监理周报、月报与总结报告</option>
+                        </optgroup>
+                        <optgroup label="6. 设备文件及系统软件">
+                            <option value="6.1 选购与开箱验收文件">6.1 选购与开箱验收文件</option>
+                            <option value="6.5 设备维修与后期维护文件">6.5 设备维修与后期维护文件</option>
+                        </optgroup>
+                        <optgroup label="7. 财务管理文件">
+                            <option value="7.2 概预算与资金申请批复">7.2 概预算与资金申请批复</option>
+                            <option value="7.5 付款凭证、发票与决算报告">7.5 付款凭证、发票与决算报告</option>
+                        </optgroup>
+                        <optgroup label="8. 验收文件">
+                            <option value="8.1 初步验收阶段文件">8.1 初步验收阶段文件</option>
+                            <option value="8.2 竣工终验阶段文件">8.2 竣工终验阶段文件</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+            <div class="admin-modal-footer" style="padding:14px 20px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn-gov-secondary" onclick="closeMoveFileModal()" style="padding:7px 16px; font-size:13px; cursor:pointer;">取消</button>
+                <button class="btn-gov-primary" onclick="confirmMoveFile()" style="padding:7px 22px; font-size:13px; background:#16a34a; color:#ffffff; font-weight:600; border-radius:6px; cursor:pointer; border:none;">确定移动</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .file-item .file-item-actions {
+            display: none !important;
+        }
+        .file-item:hover .file-item-actions {
+            display: flex !important;
+        }
+    </style>
+
     <script src="js/utils.js?v=20260720N"></script>
     <script src="js/auth.js?v=20260720N"></script>
+    <script src="js/app.js?v=20260720N"></script>
     <script src="js/detail.js?v=20260720N"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
