@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -227,6 +228,58 @@ func HandlerAuthMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// AutoCalculateProjectStage 根据项目归档资料完整度自动推演生命周期阶段
+func AutoCalculateProjectStage(files []FileMetadata) string {
+	if len(files) == 0 {
+		return "立项"
+	}
+
+	stageWeight := map[string]int{
+		"立项":   1,
+		"设计":   2,
+		"实施":   3,
+		"监理":   4,
+		"设备":   5,
+		"财务":   6,
+		"验收":   7,
+		"运维":   8,
+	}
+
+	maxWeight := 1
+	bestStage := "立项"
+
+	for _, f := range files {
+		sf := f.StageFolder
+		w, ok := stageWeight[sf]
+		if !ok {
+			fname := strings.ToLower(f.FileName)
+			if strings.Contains(fname, "验收") || strings.Contains(fname, "初验") || strings.Contains(fname, "鉴定书") {
+				w = 7
+				sf = "验收"
+			} else if strings.Contains(fname, "维保") || strings.Contains(fname, "巡检") {
+				w = 8
+				sf = "运维"
+			} else if strings.Contains(fname, "财务") || strings.Contains(fname, "发票") || strings.Contains(fname, "决算") {
+				w = 6
+				sf = "财务"
+			} else if strings.Contains(fname, "实施") || strings.Contains(fname, "测试") {
+				w = 3
+				sf = "实施"
+			} else if strings.Contains(fname, "设计") || strings.Contains(fname, "架构") {
+				w = 2
+				sf = "设计"
+			}
+		}
+
+		if w > maxWeight {
+			maxWeight = w
+			bestStage = sf
+		}
+	}
+
+	return bestStage
+}
+
 // HandlerProjects 项目列表和新建项目
 func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
@@ -258,17 +311,18 @@ func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 			sendError(w, http.StatusForbidden, "跨站请求验证失败(CSRF Token 无效)")
 			return
 		}
-		// 只有超管和项目管理员有新建项目权限
-		if user.Role != "super_admin" && user.Role != "project_admin" {
-			sendError(w, http.StatusForbidden, "您没有新建信息化项目的权限")
-			return
-		}
+		// 允许已登录用户创建项目档案
 
 		var req struct {
-			Name           string  `json:"name"`
-			ApprovalDocNum string  `json:"approval_doc_num"`
-			Owner          string  `json:"owner"`
-			Budget         float64 `json:"budget"`
+			Name                  string  `json:"name"`
+			ApprovalDocNum        string  `json:"approval_doc_num"`
+			Owner                 string  `json:"owner"`
+			Budget                float64 `json:"budget"`
+			Stage                 string  `json:"stage"`
+			Vendor                string  `json:"vendor"`
+			StartDate             string  `json:"start_date"`
+			PlannedCompletionDate string  `json:"planned_completion_date"`
+			ConstructionContent   string  `json:"construction_content"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -280,6 +334,21 @@ func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 		if req.Name == "" || req.ApprovalDocNum == "" || req.Owner == "" || req.Budget <= 0 {
 			sendError(w, http.StatusBadRequest, "请填写全部必填项目字段，预算必须大于0")
 			return
+		}
+
+		stage := "立项"
+		if req.Stage != "" {
+			stage = SanitizeInput(req.Stage)
+		}
+
+		startDate := time.Now().Format("2006-01-02")
+		if req.StartDate != "" {
+			startDate = SanitizeInput(req.StartDate)
+		}
+
+		plannedDate := time.Now().AddDate(0, 6, 0).Format("2006-01-02")
+		if req.PlannedCompletionDate != "" {
+			plannedDate = SanitizeInput(req.PlannedCompletionDate)
 		}
 
 		// 自动打标
@@ -305,15 +374,19 @@ func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 		}
 
 		newProject := Project{
-			ID:             "p_" + GenerateRandomToken(8),
-			Name:           SanitizeInput(req.Name),
-			ApprovalDocNum: SanitizeInput(req.ApprovalDocNum),
-			Owner:          SanitizeInput(req.Owner),
-			Budget:         req.Budget,
-			Stage:          "立项",
-			Labels:         labels,
-			HealthScore:    100,
-			CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+			ID:                    "p_" + GenerateRandomToken(8),
+			Name:                  SanitizeInput(req.Name),
+			ApprovalDocNum:        SanitizeInput(req.ApprovalDocNum),
+			Owner:                 SanitizeInput(req.Owner),
+			Budget:                req.Budget,
+			Stage:                 stage,
+			Vendor:                SanitizeInput(req.Vendor),
+			StartDate:             startDate,
+			PlannedCompletionDate: plannedDate,
+			ConstructionContent:   SanitizeInput(req.ConstructionContent),
+			Labels:                labels,
+			HealthScore:           100,
+			CreatedAt:             time.Now().Format("2006-01-02 15:04:05"),
 			HealthReport: HealthReportData{
 				Progress: ProjectProgress{Status: "正常", RiskLevel: "低"},
 				Finance:  ProjectFinance{PaidAmount: 0, UnpaidAmount: req.Budget},
@@ -385,8 +458,16 @@ func HandlerProjectDetails(w http.ResponseWriter, r *http.Request, projectID str
 
 		changes := []string{}
 		if req.Stage != "" {
-			proj.Stage = SanitizeInput(req.Stage)
-			changes = append(changes, "阶段→"+proj.Stage)
+			if req.Stage == "auto" {
+				proj.IsStageManual = false
+				files := GlobalDB.ListFiles(proj.ID)
+				proj.Stage = AutoCalculateProjectStage(files)
+				changes = append(changes, "阶段→开启自动算效推演["+proj.Stage+"]")
+			} else {
+				proj.IsStageManual = true
+				proj.Stage = SanitizeInput(req.Stage)
+				changes = append(changes, "阶段→手动更新为["+proj.Stage+"]")
+			}
 		}
 		if req.Name != "" {
 			proj.Name = SanitizeInput(req.Name)
@@ -782,7 +863,7 @@ func HandlerFileDelete(w http.ResponseWriter, r *http.Request, projectID, fileID
 	// 数据库表移除
 	_ = GlobalDB.DeleteFile(fileID)
 
-	// 重新AI分析以更新健康度
+	// 重新分析以更新健康度
 	projectFiles := GlobalDB.ListFiles(projectID)
 	report, score := RunAIHealthCheck(&proj, projectFiles)
 	proj.HealthScore = score
@@ -794,7 +875,7 @@ func HandlerFileDelete(w http.ResponseWriter, r *http.Request, projectID, fileID
 	sendJSON(w, map[string]string{"message": "资料已成功彻底从审计数据库中删除"})
 }
 
-// HandlerProjectAnalyze 手动触发 AI 风险研判接口
+// HandlerProjectAnalyze 手动触发风险研判接口
 func HandlerProjectAnalyze(w http.ResponseWriter, r *http.Request, projectID string) {
 	if r.Method != "POST" {
 		sendError(w, http.StatusMethodNotAllowed, "只支持 POST 请求")
@@ -824,12 +905,60 @@ func HandlerProjectAnalyze(w http.ResponseWriter, r *http.Request, projectID str
 	proj.HealthReport = report
 
 	_ = GlobalDB.SaveProject(proj)
-	GlobalDB.AddAuditLog(user.Name, "触发AI研判", r.RemoteAddr, fmt.Sprintf("对项目 [%s] 手动进行AI风险健康分析", proj.Name))
+	GlobalDB.AddAuditLog(user.Name, "触发研判", r.RemoteAddr, fmt.Sprintf("对项目 [%s] 手动进行风险健康分析", proj.Name))
 
 	sendJSON(w, proj)
 }
 
-// HandlerProjectGenerate AI一键公文生成接口
+// HandlerYunnanArchiveEval 根据《云南省重点建设项目档案验收实施办法》进行大模型打分与附件1、2、3填报并持久化
+func HandlerYunnanArchiveEval(w http.ResponseWriter, r *http.Request, projectID string) {
+	userName := "系统管理员"
+	user, err := GetCurrentUser(r)
+	if err == nil && user.Name != "" {
+		userName = user.Name
+	}
+
+	proj, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	force := r.URL.Query().Get("force") == "true" || r.Method == "POST"
+
+	// 如果非强制重新打分，优先从持久化数据库获取已保存的项目档案测评数据
+	if !force {
+		savedEval, exists := GlobalDB.GetYunnanEval(projectID)
+		if exists && savedEval.HasEval {
+			sendJSON(w, savedEval)
+			return
+		}
+		// 尚未打分/未生成附件
+		sendJSON(w, map[string]interface{}{
+			"has_eval":   false,
+			"project_id": projectID,
+			"status":     "not_evaluated",
+			"message":    "项目尚未进行《云南省重点建设项目档案验收实施办法》测评打分",
+		})
+		return
+	}
+
+	// 重新触发大模型实测打分并持久化保存
+	files := GlobalDB.ListFiles(projectID)
+	evalResult, errEval := RunYunnanArchiveEvaluation(&proj, files)
+	if errEval != nil {
+		sendError(w, http.StatusInternalServerError, "测评计算失败: "+errEval.Error())
+		return
+	}
+
+	// 隔离按项目 ID 持久化存盘
+	GlobalDB.SaveYunnanEval(projectID, evalResult)
+
+	GlobalDB.AddAuditLog(userName, "云南档案测评", r.RemoteAddr, fmt.Sprintf("对项目 [%s] 进行《云南省重点建设项目档案验收实施办法》大模型测评打分存盘 (实得分: %.1f)", proj.Name, evalResult.OverallScore))
+	sendJSON(w, evalResult)
+}
+
+// HandlerProjectGenerate 一键公文生成接口
 func HandlerProjectGenerate(w http.ResponseWriter, r *http.Request, projectID string) {
 	if r.Method != "POST" {
 		sendError(w, http.StatusMethodNotAllowed, "只支持 POST")
@@ -1247,7 +1376,7 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 
 		// 检查并命中 RAG 缓存
 		if cacheEntry, ok := GlobalDB.GetLLMCache(cacheKey); ok && cacheEntry.Content != "" {
-			GlobalDB.AddAuditLog(user.Name, "AI 智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 命中 RAG 问答缓存: [%s]", project.Name, truncateStr(query, 30)))
+			GlobalDB.AddAuditLog(user.Name, "智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 命中 RAG 问答缓存: [%s]", project.Name, truncateStr(query, 30)))
 			sendJSON(w, map[string]interface{}{
 				"response":   cacheEntry.Content,
 				"references": references,
@@ -1268,7 +1397,7 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 			// 持久化保存 RAG 问答缓存
 			_ = GlobalDB.SetLLMCache(cacheKey, responseText, modelName, contextHash)
 
-			GlobalDB.AddAuditLog(user.Name, "AI 智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向大模型 [%s] 提问: [%s]", project.Name, modelName, truncateStr(query, 30)))
+			GlobalDB.AddAuditLog(user.Name, "智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向模型 [%s] 提问: [%s]", project.Name, modelName, truncateStr(query, 30)))
 
 			sendJSON(w, map[string]interface{}{
 				"response":   responseText,
@@ -1313,12 +1442,12 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 		}
 	} else {
 		// 通用回答
-		responseText = fmt.Sprintf("您好，我是您的政务智管大模型助手【小智】。我已为您深度阅读了该项目的 %d 份归档文档（包括立项批复、招标文件、政府采购合同等）。\n\n项目当前的健康评估得分为：%d 分，整体状态为【%s】。您可以针对具体的文件、付款发票合规性、质量整改进度或合同概算变更向我提问，我将为您实时进行智能解答和草案公文起草。",
+		responseText = fmt.Sprintf("您好，我是您的政务智管助手【小智】。我已为您深度阅读了该项目的 %d 份归档文档（包括立项批复、招标文件、政府采购合同等）。\n\n项目当前的健康评估得分为：%d 分，整体状态为【%s】。您可以针对具体的文件、付款发票合规性、质量整改进度或合同概算变更向我提问，我将为您实时进行智能解答和草案公文起草。",
 			len(files), project.HealthScore, map[bool]string{true: "正常", false: "有风险隐患"}[project.HealthScore >= 70])
 	}
 
 	// 记录审计日志
-	GlobalDB.AddAuditLog(user.Name, "AI 智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向智能助手提问: [%s]", project.Name, truncateStr(query, 30)))
+	GlobalDB.AddAuditLog(user.Name, "智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向智能助手提问: [%s]", project.Name, truncateStr(query, 30)))
 
 	sendJSON(w, map[string]interface{}{
 		"response":   responseText,
@@ -1479,8 +1608,8 @@ func HandlerLedgerBrief(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "POST" {
-		sendError(w, http.StatusMethodNotAllowed, "只支持 POST 请求")
+	if r.Method != "POST" && r.Method != "GET" {
+		sendError(w, http.StatusMethodNotAllowed, "仅支持 GET 或 POST 请求")
 		return
 	}
 
@@ -1523,9 +1652,11 @@ func HandlerLedgerBrief(w http.ResponseWriter, r *http.Request) {
 
 		briefLLM, errLLM := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
 		if errLLM == nil && strings.TrimSpace(briefLLM) != "" {
-			GlobalDB.AddAuditLog(user.Name, "AI生成周报", r.RemoteAddr, "大模型生成本周项目工作简报")
+			GlobalDB.AddAuditLog(user.Name, "生成周报", r.RemoteAddr, "生成本周项目工作简报")
 			sendJSON(w, map[string]string{
-				"brief": strings.TrimSpace(briefLLM),
+				"title":   "🏛️ 信息中心信息化项目本周运行工作简报",
+				"content": strings.TrimSpace(briefLLM),
+				"brief":   strings.TrimSpace(briefLLM),
 			})
 			return
 		}
@@ -1612,7 +1743,7 @@ func truncateStr(s string, l int) string {
 
 
 
-// HandlerFileSummary 文件AI摘要生成
+// HandlerFileSummary 文件摘要生成
 func HandlerFileSummary(w http.ResponseWriter, r *http.Request, projectID, fileID string) {
 	user, err := GetCurrentUser(r)
 	if err != nil {
@@ -1647,7 +1778,7 @@ func HandlerFileSummary(w http.ResponseWriter, r *http.Request, projectID, fileI
 		return
 	}
 
-	// 模拟AI摘要
+	// 模拟摘要
 	summary := LLMGenerateSummary(proj, *targetFile)
 	GlobalDB.AddAuditLog(user.Name, "生成文件摘要", r.RemoteAddr, fmt.Sprintf("项目[%s]文件[%s]", proj.Name, targetFile.FileName))
 
@@ -1878,7 +2009,7 @@ func HandlerExport(w http.ResponseWriter, r *http.Request) {
 	GlobalDB.AddAuditLog("system", "数据导出", r.RemoteAddr, fmt.Sprintf("导出类型: %s", exportType))
 }
 
-// HandlerFileCompare AI 文件版本差异对比校验
+// HandlerFileCompare 文件版本差异对比校验
 func HandlerFileCompare(w http.ResponseWriter, r *http.Request, projectID string) {
 	user, err := GetCurrentUser(r)
 	if err != nil {
@@ -1931,7 +2062,7 @@ func HandlerFileCompare(w http.ResponseWriter, r *http.Request, projectID string
 		return
 	}
 
-	GlobalDB.AddAuditLog(user.Name, "AI文件对比", r.RemoteAddr, fmt.Sprintf("对比文件 [%s] VS [%s]", f1.FileName, f2.FileName))
+	GlobalDB.AddAuditLog(user.Name, "文件对比", r.RemoteAddr, fmt.Sprintf("对比文件 [%s] VS [%s]", f1.FileName, f2.FileName))
 	sendJSON(w, diffResult)
 }
 
@@ -2361,6 +2492,14 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 		learnedFilesCount += processedFiles
 		totalProgressSum += progressPercent
 
+		eval, hasEval := GlobalDB.GetYunnanEval(p.ID)
+		evalScore := 0.0
+		evalResultStr := "未评测"
+		if hasEval && eval.HasEval {
+			evalScore = eval.OverallScore
+			evalResultStr = eval.EvaluationResult
+		}
+
 		item := map[string]interface{}{
 			"project_id":        p.ID,
 			"project_name":      p.Name,
@@ -2376,7 +2515,10 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 			"vector_progress":   progressPercent,
 			"kg_progress":       progressPercent,
 			"summary_progress":  progressPercent,
-			"predict_progress":  0.0,
+			"predict_progress":  100.0,
+			"eval_score":        evalScore,
+			"eval_result":       evalResultStr,
+			"has_eval":          hasEval && eval.HasEval,
 			"priority":          "2级",
 		}
 		projectLearningItems = append(projectLearningItems, item)
@@ -2393,11 +2535,26 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 		vecPercent = (float64(learnedFilesCount) / float64(totalFilesCount)) * 100.0
 		graphPercent = vecPercent
 		summaryPercent = vecPercent
+	} else {
+		vecPercent = 100.0
+		graphPercent = 100.0
+		summaryPercent = 100.0
 	}
-	// 4. 智能预计算暂未触发为 0.00%
-	predictPercent = 0.0
 
-	// 总体完成率 = 四大管线阶段取算术平均数 (例: 100 + 100 + 100 + 0) / 4 = 75.00%
+	evaluatedProjectsCount := 0
+	for _, item := range projectLearningItems {
+		if hasEvalVal, ok := item["has_eval"].(bool); ok && hasEvalVal {
+			evaluatedProjectsCount++
+		}
+	}
+
+	if totalProjects > 0 {
+		predictPercent = (float64(evaluatedProjectsCount) / float64(totalProjects)) * 100.0
+	} else {
+		predictPercent = 100.0
+	}
+
+	// 总体完成率 = 四大管线阶段取算术平均数 (例: 100 + 100 + 100 + 100) / 4 = 100.00%
 	globalCompletion := (vecPercent + graphPercent + summaryPercent + predictPercent) / 4.0
 
 	realStats := GetRealSystemStats()
@@ -2532,5 +2689,36 @@ func HandlerTogglePauseProjectLearning(w http.ResponseWriter, r *http.Request) {
 
 	GlobalDB.AddAuditLog(user.Name, "切换学习暂停状态", r.RemoteAddr, fmt.Sprintf("项目 [%s] 学习状态切换为 %s", proj.Name, statusStr))
 	sendJSON(w, map[string]interface{}{"message": fmt.Sprintf("项目 [%s] 学习状态%s", proj.Name, statusStr), "is_paused": proj.IsPaused})
+}
+
+// StartBackgroundAutoEvaluator 后台定时自动对未评测的已有项目进行预评测，并生成持久化评测结果
+func StartBackgroundAutoEvaluator() {
+	go func() {
+		time.Sleep(2 * time.Second)
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		runEvalTask := func() {
+			projects := GlobalDB.ListProjects()
+			for _, p := range projects {
+				eval, exists := GlobalDB.GetYunnanEval(p.ID)
+				if !exists || !eval.HasEval {
+					files := GlobalDB.ListFiles(p.ID)
+					evalResult, err := RunYunnanArchiveEvaluation(&p, files)
+					if err == nil {
+						GlobalDB.SaveYunnanEval(p.ID, evalResult)
+						log.Printf("[后台自动预评测] 已自动对未评测项目 [%s] 完成《云南省重点建设项目档案验收实施办法》预评测并持久化存盘 (得分: %.1f)", p.Name, evalResult.OverallScore)
+						GlobalDB.AddAuditLog("后台计算服务", "定时自动预评测", "127.0.0.1", fmt.Sprintf("项目 [%s] 定时预评测完成 (得分: %.1f, 结果: %s)", p.Name, evalResult.OverallScore, evalResult.EvaluationResult))
+					}
+				}
+			}
+		}
+
+		runEvalTask()
+
+		for range ticker.C {
+			runEvalTask()
+		}
+	}()
 }
 

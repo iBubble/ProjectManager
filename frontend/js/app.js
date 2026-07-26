@@ -215,8 +215,9 @@ function registerEvents() {
         loadProjectLedger();
     });
 
-    // 手动大模型重新研判
-    document.getElementById("btn-reanalyze-ai").addEventListener("click", runAIReanalyze);
+    // 手动重新研判
+    const btnReanalyze = document.getElementById("btn-reanalyze") || document.getElementById("btn-reanalyze-ai");
+    if (btnReanalyze) btnReanalyze.addEventListener("click", runReanalyze);
 
     // 详情页主选项卡切换 (合规研判 / 智能助手 / 待办事项)
     document.querySelectorAll(".pane-tab-btn").forEach(btn => {
@@ -251,11 +252,11 @@ function registerEvents() {
         });
     }
 
-    // 大模型公文一键起草
+    // 公文一键起草
     document.querySelectorAll(".btn-gen-doc").forEach(btn => {
         btn.addEventListener("click", (e) => {
             const docType = e.target.getAttribute("data-type");
-            generateAIDocument(docType);
+            generateDocument(docType);
         });
     });
 
@@ -283,7 +284,7 @@ function registerEvents() {
         document.getElementById("modal-doc-preview").classList.add("hidden");
     });
 
-    // 安全设置与大模型接口保存
+    // 安全设置与接口保存
     document.getElementById("btn-save-security-settings").addEventListener("click", saveSecurityConfig);
     document.getElementById("btn-save-llm-settings").addEventListener("click", saveLLMConfig);
 
@@ -365,7 +366,7 @@ function registerEvents() {
         });
     });
 
-    // RAG 子功能页签切换（智能助手对话 vs AI表格 vs 定稿编辑器）
+    // RAG 子功能页签切换（智能助手对话 vs 数据表格 vs 定稿编辑器）
     document.querySelectorAll(".chat-mode-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
             document.querySelectorAll(".chat-mode-btn").forEach(b => b.classList.remove("active"));
@@ -576,7 +577,7 @@ function setCardFilter(type) {
         if (filterTag) filterTag.style.display = "inline-flex";
         if (tagText) {
             if (type === "acceptance") tagText.textContent = "当前筛选: 处于验收阶段项目";
-            if (type === "payment") tagText.textContent = "当前筛选: 待拨付款项项目";
+            if (type === "payment") tagText.textContent = "当前筛选: 代付款项项目";
             if (type === "risk") tagText.textContent = "当前筛选: 存在合规预警高危项目";
         }
     }
@@ -762,10 +763,10 @@ function createNewProject() {
 }
 
 // ==========================================================================
-// 5. 详情页加载 (对标“双区域划分：左侧文件归档、右侧 AI 研判 + 预警”)
+// 5. 详情页加载 (对标“双区域划分：左侧文件归档、右侧研判 + 预警”)
 // ==========================================================================
 function openProjectDetails(projectID) {
-    showLoading("装载大模型项目工作空间中...");
+    showLoading("装载项目工作空间中...");
 
     Promise.all([
         fetch(`/api/projects/${projectID}`).then(res => res.json()),
@@ -786,14 +787,14 @@ function openProjectDetails(projectID) {
         // 5.1 左侧区域：文件归档树渲染
         renderLeftFolderTree(files);
 
-        // 5.2 右侧区域：AI 研判指标报告
+        // 5.2 右侧区域：研判指标报告
         renderHealthRingScore(project.health_score);
         renderHealthReportTabs(project);
 
         // 5.3 右侧区域：该项目关联的预警列表
         renderProjectAlertsBox(projectID);
 
-        // 激活 AI 进度页签并默认选中“项目合规研判与预警”主选项卡
+        // 激活进度页签并默认选中“项目合规研判与预警”主选项卡
         document.querySelectorAll(".pane-tab-btn").forEach(btn => {
             if (btn.getAttribute("data-pane") === "compliance") btn.classList.add("active");
             else btn.classList.remove("active");
@@ -803,7 +804,7 @@ function openProjectDetails(projectID) {
         document.getElementById("pane-tab-rag-chat").classList.add("hidden");
         document.getElementById("pane-tab-rag-chat").classList.remove("active");
 
-        // 激活 AI 进度子选项卡
+        // 激活进度子选项卡
         document.querySelectorAll(".ai-tabs-nav .tab-btn").forEach(btn => {
             if (btn.getAttribute("data-tab") === "progress") btn.click();
         });
@@ -846,10 +847,10 @@ function renderLeftFolderTree(files) {
                 window.open(`/api/projects/${currentProject.id}/files/${file.id}/download`);
             });
 
-            // 大纲摘要 (调用大模型一键长文摘要 API)
+            // 大纲摘要 (调用一键长文摘要 API)
             item.querySelector(".btn-summary-file").addEventListener("click", (e) => {
                 e.stopPropagation();
-                showLoading("大模型解析长文档并提炼 300 字精简摘要中...");
+                showLoading("解析长文档并提炼 300 字精简摘要中...");
                 apiFetch(`/api/projects/${currentProject.id}/files/${file.id}/summary`, { method: "POST" })
                     .then(res => {
                         if (!res.ok) throw new Error("生成摘要失败");
@@ -857,7 +858,7 @@ function renderLeftFolderTree(files) {
                     })
                     .then(data => {
                         hideLoading();
-                        showDocPreview(`🤖 大模型文档摘要 - ${data.file_name}`, data.summary);
+                        showDocPreview(`🤖 文档摘要 - ${data.file_name}`, data.summary);
                     })
                     .catch(err => {
                         hideLoading();
@@ -950,7 +951,7 @@ function uploadFiles(filesList) {
     });
 }
 
-// 5.2 右侧 AI 分析模块
+// 5.2 右侧分析模块
 function renderHealthRingScore(score) {
     const ring = document.getElementById("health-ring-score-path");
     const text = document.getElementById("detail-health-score");
@@ -984,7 +985,7 @@ function renderHealthReportTabs(p) {
     const pContainer = document.getElementById("tab-progress");
     let pBadge = rep.progress.status === "正常" ? "status-ok" : (rep.progress.risk_level === "高" ? "status-danger" : "status-warning");
     let pList = (rep.progress.delay_reasons || []).map(r => `<li class="issue-item">${escapeHTML(r)}</li>`).join("");
-    if (rep.progress.status === "正常") pList = `<li>大模型分析监理周报与会议纪要：项目实施进度处于受控状态。</li>`;
+    if (rep.progress.status === "正常") pList = `<li>系统分析监理周报与会议纪要：项目实施进度处于受控状态。</li>`;
     pContainer.innerHTML = `
         <div class="analysis-status-row">进度状态：<span class="analysis-status-badge ${pBadge}">${rep.progress.status} (预计超期 ${rep.progress.delay_days} 天)</span></div>
         <ul class="analysis-list">${pList}</ul>
@@ -1028,8 +1029,8 @@ function renderHealthReportTabs(p) {
     `;
 }
 
-function runAIReanalyze() {
-    showLoading("大模型正在深度重算研判指标...");
+function runReanalyze() {
+    showLoading("正在深度重算研判指标...");
     fetch(`/api/projects/${currentProject.id}/analyze`, {
         method: "POST",
         headers: { "X-CSRF-Token": csrfToken }
@@ -1042,15 +1043,17 @@ function runAIReanalyze() {
             renderHealthReportTabs(p);
             startAlertsPoller();
         } else {
-            alert("AI研判失败");
+            alert("研判失败");
         }
     })
     .finally(() => hideLoading());
 }
 
-// 大模型一键起草公文
-function generateAIDocument(docType) {
-    showLoading("大模型正在起草正式公文草案...");
+function runAIReanalyze() { runReanalyze(); }
+
+// 一键起草公文
+function generateDocument(docType) {
+    showLoading("正在起草正式公文草案...");
     fetch(`/api/projects/${currentProject.id}/generate`, {
         method: "POST",
         headers: {
@@ -1294,7 +1297,7 @@ function saveSecurityConfig() {
 
 function saveLLMConfig() {
     if (currentSession.role !== "super_admin") {
-        alert("仅限超级管理员(信息中心主任)有权更改大模型参数接口！");
+        alert("仅限超级管理员(信息中心主任)有权更改接口参数！");
         return;
     }
 
@@ -1325,7 +1328,7 @@ function updateConfig(payload) {
     })
     .then(async res => {
         if (res.ok) {
-            showToast("🔒 安全与大模型通信设置已保存成功！", "success");
+            showToast("🔒 安全与通信设置已保存成功！", "success");
             applyWatermark();
         } else {
             const err = await res.json();
@@ -1407,7 +1410,7 @@ function renderWechatSimulator() {
             <div class="wechat-template-field">项目名称：<span>${escapeHTML(a.project_name)}</span></div>
             <div class="wechat-template-field">预警事件：<span style="font-weight:700; color:${riskColor}">${escapeHTML(a.title)}</span></div>
             <div class="wechat-template-ai">
-                💡 AI研判：根据上传文件，${truncateText(a.message, 95)}
+                💡 研判：根据上传文件，${truncateText(a.message, 95)}
             </div>
             <div class="wechat-template-link">
                 <span class="btn-wechat-goto">点击直达项目 ➡</span>
@@ -1486,7 +1489,7 @@ function escapeHTML(str) {
 }
 
 // ==========================================================================
-// RAG 大模型智能工作空间、周报简报与后台管理逻辑
+// RAG 智能工作空间、周报简报与后台管理逻辑
 // ==========================================================================
 
 // 一键生成本周项目简报公文
@@ -1529,7 +1532,7 @@ function sendRAGChatMessage() {
     flow.appendChild(userBubble);
     flow.scrollTop = flow.scrollHeight;
 
-    // 2. 追加 AI 思考中占位气泡
+    // 2. 追加思考中占位气泡
     const aiLoadingBubble = document.createElement("div");
     aiLoadingBubble.className = "chat-bubble-ai";
     aiLoadingBubble.id = "chat-loading-placeholder";
@@ -1552,7 +1555,7 @@ function sendRAGChatMessage() {
         body: JSON.stringify({ message: text, thinking_mode: chatThinkingMode })
     })
     .then(res => {
-        if (!res.ok) throw new Error("AI 对话请求失败，请检查登录会话状态");
+        if (!res.ok) throw new Error("对话请求失败，请检查登录会话状态");
         return res.json();
     })
     .then(data => {
@@ -1597,14 +1600,14 @@ function sendRAGChatMessage() {
     });
 }
 
-// 渲染 RAG AI提取的付款表
+// 渲染 RAG 提取的付款表
 function renderRAGPaymentTable() {
     const tableBody = document.getElementById("rag-payment-table-body");
     tableBody.innerHTML = "";
 
     const nodes = currentProject.payment_nodes;
     if (!nodes || nodes.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">大模型未提取到该项目付款节点，请上传正式采购合同进行自动识别。</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">未提取到该项目付款节点，请上传正式采购合同进行自动识别。</td></tr>`;
         return;
     }
 
@@ -1984,8 +1987,8 @@ function switchDetailRightTab(paneName) {
         }
     });
 
-    // 2. 右侧 3 个面板显隐
-    const panes = ["compliance", "rag-chat", "todos"];
+    // 2. 右侧 4 个面板显隐
+    const panes = ["compliance", "yn-eval", "rag-chat", "todos"];
     panes.forEach(name => {
         const el = document.getElementById("pane-tab-" + name);
         if (el) {

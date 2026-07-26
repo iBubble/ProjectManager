@@ -20,15 +20,38 @@ type Database struct {
 	Files        map[string]FileMetadata `json:"files"`        // fileID -> FileMetadata
 	Alerts       map[string]Alert        `json:"alerts"`       // alertID -> Alert
 	LLMCache     map[string]LLMCacheEntry `json:"llm_cache"`   // key -> LLMCacheEntry (RAG/对比/通用缓存)
-	Sessions     map[string]User          `json:"sessions"`    // token -> User (会话持久化)
-	AuditLogs    []AuditLog              `json:"audit_logs"`   // 审计日志列表
-	SystemConfig SystemConfig            `json:"system_config"`// 系统配置
+	Sessions          map[string]User                        `json:"sessions"`           // token -> User (会话持久化)
+	AuditLogs         []AuditLog                             `json:"audit_logs"`         // 审计日志列表
+	SystemConfig      SystemConfig                           `json:"system_config"`      // 系统配置
+	YunnanEvaluations map[string]YunnanArchiveEvaluationResult `json:"yunnan_evaluations"` // projectID -> 云南省重点项目档案测评结果
 }
 
 var (
 	GlobalDB *Database
 	once     sync.Once
 )
+
+// GetYunnanEval 获取指定项目的持久化档案测评数据
+func (db *Database) GetYunnanEval(projectID string) (YunnanArchiveEvaluationResult, bool) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	if db.YunnanEvaluations == nil {
+		return YunnanArchiveEvaluationResult{}, false
+	}
+	res, ok := db.YunnanEvaluations[projectID]
+	return res, ok
+}
+
+// SaveYunnanEval 保存指定项目的持久化档案测评数据
+func (db *Database) SaveYunnanEval(projectID string, eval YunnanArchiveEvaluationResult) {
+	db.mu.Lock()
+	if db.YunnanEvaluations == nil {
+		db.YunnanEvaluations = make(map[string]YunnanArchiveEvaluationResult)
+	}
+	db.YunnanEvaluations[projectID] = eval
+	db.mu.Unlock()
+	_ = db.Save()
+}
 
 // GetSession 获取持久化 Session
 func (db *Database) GetSession(token string) (User, bool) {
@@ -297,7 +320,7 @@ func (db *Database) loadDefaultData() {
 			{ID: "sd2_1", Title: "10.举报处理结果告知书_2026-07-03 15:37", Content: "市监举报告字〔2026〕第45号\n\n关于反映智慧城市会商系统存在数据泄露与偶发掉线情况的举报已调查完毕。\n经核实，我信息中心已督促承建方中科政务完成可视化图层内存泄漏补丁升级，项目整体工期依规顺延。", UpdatedAt: "2026-07-03 15:37:10", WordCount: 1136},
 			{ID: "sd2_2", Title: "9.投诉调解书_2026-07-03 15:36", Content: "市监投诉调字〔2026〕第32号\n\n投诉人反映的视频会商模块偶发掉线一事，经我信息中心多方调解，各方达成如下协议：\n1. 承建方中科政务信息技术有限公司于10个工作日内免费放开接口协议联调；\n2. 监理单位加强对接入数据的安全等保审计。", UpdatedAt: "2026-07-03 15:36:18", WordCount: 4389},
 			{ID: "sd2_3", Title: "4.限期提供身份证明材料通知书_2026-07-03 15:34", Content: "关于限期提供身份证明及企业资质材料的通知\n\n中科政务信息技术有限公司：\n在系统日常合规审计中，发现贵司未上传第二期进度款付款所需的阶段性测试报告与合法增值税发票。请在接到本通知起3日内予以补齐。", UpdatedAt: "2026-07-03 15:34:57", WordCount: 1365},
-			{ID: "sd2_4", Title: "5.投诉受理决定书_2026-06-29 15:58", Content: "关于智慧城市可视化会商系统延期的投诉受理决定\n\n本级信息中心已正式受理有关开发工期延误的诉求，并经初步核实决定启动AI风险健康检查。我们将组织监理单位对第三方接口延迟开放的客观原因进行联合核实。", UpdatedAt: "2026-06-29 15:58:15", WordCount: 1281},
+			{ID: "sd2_4", Title: "5.投诉受理决定书_2026-06-29 15:58", Content: "关于智慧城市可视化会商系统延期的投诉受理决定\n\n本级信息中心已正式受理有关开发工期延误的诉求，并经初步核实决定启动风险健康检查。我们将组织监理单位对第三方接口延迟开放的客观原因进行联合核实。", UpdatedAt: "2026-06-29 15:58:15", WordCount: 1281},
 		},
 	}
 
@@ -761,7 +784,7 @@ func (db *Database) loadDefaultData() {
 		User:      "manager",
 		Action:    "上传立项资料",
 		IP:        "127.0.0.1",
-		Details:   "上传文件 [1.立项批复文件-政务云数据中心.pdf]，AI自动识别归入【立项阶段】",
+		Details:   "上传文件 [1.立项批复文件-政务云数据中心.pdf]，自动识别归入【立项阶段】",
 		CreatedAt: nowStr,
 	})
 }

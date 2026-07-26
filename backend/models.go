@@ -78,18 +78,18 @@ type Project struct {
 	ApprovalDocNum      string           `json:"approval_doc_num"`     // 立项文号
 	Owner               string           `json:"owner"`                // 项目负责人
 	Budget              float64          `json:"budget"`               // 预算金额(元)
-	ConstructionContent string           `json:"construction_content"` // 建设内容 (AI提取)
-	ConstructionPeriod  int              `json:"construction_period"`  // 建设周期(月) (AI提取)
-	ApprovedDuration    int              `json:"approved_duration"`    // 批复工期(天) (AI提取)
-	FundingSource       string           `json:"funding_source"`       // 资金来源 (AI提取)
-	AcceptanceStandard  string           `json:"acceptance_standard"`  // 验收标准 (AI提取)
-	Vendor              string           `json:"vendor"`               // 中标单位 (AI提取)
-	WinAmount           float64          `json:"win_amount"`           // 中标金额(元) (AI提取)
-	ServiceScope        string           `json:"service_scope"`        // 服务范围 (AI提取)
-	PaymentNodes        []PaymentNode    `json:"payment_nodes"`        // 付款节点与比例 (AI提取)
-	CompletionTime      string           `json:"completion_time"`      // 竣工时间 (YYYY-MM-DD) (AI提取)
-	WarrantyPeriod      int              `json:"warranty_period"`      // 质保期限(月) (AI提取)
-	ChangeTerms         string           `json:"change_terms"`         // 变更约束条款 (AI提取)
+	ConstructionContent string           `json:"construction_content"` // 建设内容 (智能提取)
+	ConstructionPeriod  int              `json:"construction_period"`  // 建设周期(月) (智能提取)
+	ApprovedDuration    int              `json:"approved_duration"`    // 批复工期(天) (智能提取)
+	FundingSource       string           `json:"funding_source"`       // 资金来源 (智能提取)
+	AcceptanceStandard  string           `json:"acceptance_standard"`  // 验收标准 (智能提取)
+	Vendor              string           `json:"vendor"`               // 中标单位 (智能提取)
+	WinAmount           float64          `json:"win_amount"`           // 中标金额(元) (智能提取)
+	ServiceScope        string           `json:"service_scope"`        // 服务范围 (智能提取)
+	PaymentNodes        []PaymentNode    `json:"payment_nodes"`        // 付款节点与比例 (智能提取)
+	CompletionTime      string           `json:"completion_time"`      // 竣工时间 (YYYY-MM-DD) (智能提取)
+	WarrantyPeriod      int              `json:"warranty_period"`      // 质保期限(月) (智能提取)
+	ChangeTerms         string           `json:"change_terms"`         // 变更约束条款 (智能提取)
 	Stage               string           `json:"stage"`                // 当前阶段: 立项/招标/合同/实施/监理/过程/验收/运维
 	Labels              []string         `json:"labels"`               // 分类标签
 	HealthScore           int              `json:"health_score"`         // 健康度评分 (0-100)
@@ -99,6 +99,7 @@ type Project struct {
 	Chunks                []DocumentChunk       `json:"chunks"`          // 项目文档切片知识库
 	Priority              int                   `json:"priority"`        // 学习优先级 (1级/2级/3级)
 	IsPaused              int                   `json:"is_paused"`       // 学习挂起标志 (0正常, 1暂停)
+	IsStageManual         bool                  `json:"is_stage_manual"` // 是否手动覆盖项目阶段
 	CreatedAt             string           `json:"created_at"`
 	StartDate             string           `json:"start_date"`             // 开始日期 (YYYY-MM-DD)
 	PlannedCompletionDate string           `json:"planned_completion_date"` // 计划完工日期 (YYYY-MM-DD)
@@ -139,6 +140,108 @@ type ProjectKnowledgeGraph struct {
 	Summary     string       `json:"summary"`      // 图谱全局分析摘要
 }
 
+// YunnanRegistryForm 附件1: 云南省重点建设项目档案管理登记表
+type YunnanRegistryForm struct {
+	ProjectName              string  `json:"project_name"`              // 项目名称
+	UnitLegalPerson          string  `json:"unit_legal_person"`         // 建设单位或项目法人
+	Address                  string  `json:"address"`                   // 地址
+	Postcode                 string  `json:"postcode"`                  // 邮编
+	SupervisoryDept          string  `json:"supervisory_dept"`          // 上级主管部门
+	ApprovedBudgetTotal      float64 `json:"approved_budget_total"`     // 批准概算总投资(万元)
+	PlannedPeriodMonths      int     `json:"planned_period_months"`     // 计划工期(月)
+	MainSingleEngName        string  `json:"main_single_eng_name"`      // 主要单项工程名称
+	CompletedSingleEngName   string  `json:"completed_single_eng_name"` // 现已完成的单项工程
+	MainDesignUnit           string  `json:"main_design_unit"`          // 主要设计单位
+	MainConstructionUnit     string  `json:"main_construction_unit"`    // 主要施工单位
+	MainEquipmentInstallUnit string  `json:"main_equipment_install_unit"`// 主要设备安装单位
+	MainSupervisionUnit      string  `json:"main_supervision_unit"`     // 主要监理单位
+	ArchiveDeptName          string  `json:"archive_dept_name"`         // 档案管理部门名称
+	AffiliatedDept           string  `json:"affiliated_dept"`           // 隶属部门
+	ContactAddrPostcode      string  `json:"contact_addr_postcode"`     // 联系地址、邮编
+	LeaderAndPhone           string  `json:"leader_and_phone"`          // 负责人及电话
+	Email                    string  `json:"email"`                     // 电子邮箱
+	FilingTime               string  `json:"filing_time"`               // 项目建档时间
+	FullTimeStaffCount       int     `json:"full_time_staff_count"`     // 专职档案人员数量
+	PartTimeStaffCount       int     `json:"part_time_staff_count"`     // 兼职档案人员数量
+	StoreroomAreaSqm         float64 `json:"storeroom_area_sqm"`        // 库房面积(㎡)
+	OfficeAreaSqm            float64 `json:"office_area_sqm"`           // 档案工作用房面积(㎡)
+	FacilityEquipmentDesc    string  `json:"facility_equipment_desc"`   // 设施设备情况
+	ExistingArchiveVolume    int     `json:"existing_archive_volume"`   // 现有档案数量(卷)
+	ExistingArchiveBook      int     `json:"existing_archive_book"`     // (册)
+	ExistingArchivePiece     int     `json:"existing_archive_piece"`    // (件)
+	DrawingSheetsCount       int     `json:"drawing_sheets_count"`      // 图纸张数
+	SupervisoryUnitAbove     string  `json:"supervisory_unit_above"`    // 上级监督指导单位
+	FillUnit                 string  `json:"fill_unit"`                 // 填表单位
+	FillDate                 string  `json:"fill_date"`                 // 填表日期
+}
+
+// YunnanScoringItem 测评打分表单项
+type YunnanScoringItem struct {
+	CategoryName  string  `json:"category_name"`  // 分类名称
+	ItemContent   string  `json:"item_content"`   // 评分标准与具体指标
+	StandardScore float64 `json:"standard_score"` // 标准分值
+	SelfScore     float64 `json:"self_score"`     // 自评分值
+	ActualScore   float64 `json:"actual_score"`   // 实际得分
+	Remark        string  `json:"remark"`         // 打分依据与扣分说明
+}
+
+// YunnanScoringSection 测评表大块 (第一/二/三部分)
+type YunnanScoringSection struct {
+	SectionTitle string              `json:"section_title"` // 大块标题
+	SectionScore float64             `json:"section_score"` // 标准分值
+	ActualScore  float64             `json:"actual_score"`  // 实际得分
+	Items        []YunnanScoringItem `json:"items"`         // 具体细项
+}
+
+// YunnanScoringReport 附件2: 云南省重点建设项目档案验收测评表
+type YunnanScoringReport struct {
+	TotalStandardScore float64                `json:"total_standard_score"` // 100分
+	TotalActualScore   float64                `json:"total_actual_score"`   // 实际得分
+	EvaluationResult   string                 `json:"evaluation_result"`    // 合格 / 不合格
+	Sections           []YunnanScoringSection `json:"sections"`             // 三大部分细项
+}
+
+// YunnanApplicationForm 附件3: 云南省重点建设项目档案验收申请表
+type YunnanApplicationForm struct {
+	ProjectName            string  `json:"project_name"`              // 项目名称
+	ApprovalAgency         string  `json:"approval_agency"`           // 审批机关
+	ProjectApprovalDate    string  `json:"project_approval_date"`     // 立项日期
+	InvestmentScale        float64 `json:"investment_scale"`          // 投资规模(万元)
+	ConstructionPeriod     string  `json:"construction_period"`       // 建设时间
+	ConstructionUnit       string  `json:"construction_unit"`         // 建设单位(法人)
+	DesignUnit             string  `json:"design_unit"`               // 设计单位
+	MainConstructionUnit   string  `json:"main_construction_unit"`    // 主要施工单位
+	MainSupervisionUnit    string  `json:"main_supervision_unit"`     // 主要监理单位
+	ArchiveQuantityDesc    string  `json:"archive_quantity_desc"`     // 竣工档案数量
+	CompletionMapStatus    string  `json:"completion_map_status"`     // 竣工图及总目录编制情况
+	PlannedArchiveEvalDate string  `json:"planned_archive_eval_date"` // 计划档案验收日期
+	PlannedCompletionDate  string  `json:"planned_completion_date"`   // 计划竣工验收日期
+	ContactPerson          string  `json:"contact_person"`            // 联系人
+	ContactPhone           string  `json:"contact_phone"`             // 联系电话
+	AddressPostcode        string  `json:"address_postcode"`          // 地址/邮编
+	Email                  string  `json:"email"`                     // 电子邮箱
+	ApplicationUnit        string  `json:"application_unit"`          // 申请单位
+	SelfInspectionOpinion  string  `json:"self_inspection_opinion"`   // 自检意见
+	SelfInspectionDate     string  `json:"self_inspection_date"`      // 自检日期
+	AcceptanceOrgOpinion   string  `json:"acceptance_org_opinion"`    // 验收组织单位意见
+	AcceptanceOrgDate      string  `json:"acceptance_org_date"`       // 验收日期
+}
+
+// YunnanArchiveEvaluationResult 全套云南重点建设项目档案验收研判包
+type YunnanArchiveEvaluationResult struct {
+	HasEval          bool                   `json:"has_eval"`         // 是否已生成测评
+	ProjectID        string                 `json:"project_id"`
+	ProjectName      string                 `json:"project_name"`
+	OverallScore     float64                `json:"overall_score"`    // 总得分 (0-100)
+	IsPassed         bool                   `json:"is_passed"`        // 得分>=75为合格
+	EvaluationResult string                 `json:"evaluation_result"`// 结论: 合格 / 不合格
+	EvaluatedAt      string                 `json:"evaluated_at"`     // 研判时间
+	ModelName        string                 `json:"model_name"`       // 大模型/引擎名称
+	RegistryForm     YunnanRegistryForm     `json:"registry_form"`    // 附件1
+	ScoringReport    YunnanScoringReport    `json:"scoring_report"`   // 附件2
+	ApplicationForm  YunnanApplicationForm `json:"application_form"` // 附件3
+}
+
 // LLMCacheEntry 大模型通用持久化缓存条目 (RAG 对话、文件对比、工作简报等)
 type LLMCacheEntry struct {
 	Key         string `json:"key"`          // 缓存 Key (MD5)
@@ -160,7 +263,7 @@ type FileMetadata struct {
 	UploadedAt   string `json:"uploaded_at"`
 	StageFolder  string `json:"stage_folder"` // 对应的八个归档阶段
 	Hash         string `json:"hash"`         // 文件sha256
-	Summary      string `json:"summary"`      // 持久化缓存的 AI 摘要
+	Summary      string `json:"summary"`      // 持久化缓存的摘要
 	SummaryModel string `json:"summary_model"`// 产生摘要的大模型名称
 	SummaryHash  string `json:"summary_hash"` // 产生摘要时的文件 Hash (用于自动判断是否失效)
 }

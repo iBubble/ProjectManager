@@ -65,7 +65,7 @@ function setCardFilter(type) {
         if (filterTag) filterTag.style.display = "inline-flex";
         if (tagText) {
             if (type === "acceptance") tagText.textContent = "当前筛选: 处于验收阶段项目";
-            if (type === "payment") tagText.textContent = "当前筛选: 待拨付款项项目";
+            if (type === "payment") tagText.textContent = "当前筛选: 代付款项项目";
             if (type === "risk") tagText.textContent = "当前筛选: 存在合规预警高危项目";
         }
     }
@@ -224,3 +224,128 @@ window.initLedgerPage = initLedgerPage;
 window.setCardFilter = setCardFilter;
 window.sortLedgerBy = sortLedgerBy;
 window.renderLedgerTable = renderLedgerTable;
+
+function generateWeeklyLedgerBrief() {
+    const modal = document.getElementById("modal-doc-preview");
+    const titleEl = document.getElementById("preview-doc-title");
+    const contentEl = document.getElementById("preview-doc-content");
+
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    }
+
+    if (contentEl) contentEl.textContent = "正在调取全量在办项目进展，智能生成本周工作简报...";
+
+    fetch("/api/projects/brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject("请求简报失败"))
+    .then(data => {
+        if (titleEl) titleEl.textContent = data.title || "🏛️ 信息中心信息化项目本周运行工作简报";
+        if (contentEl) contentEl.textContent = data.content || data.brief || "无简报内容";
+    })
+    .catch(err => {
+        if (contentEl) contentEl.textContent = "⚠️ 生成周报失败: " + err;
+    });
+}
+
+function closeDocPreviewModal() {
+    const modal = document.getElementById("modal-doc-preview");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function downloadWeeklyBriefDoc() {
+    const title = document.getElementById("preview-doc-title").textContent || "本周信息化项目工作简报";
+    const content = document.getElementById("preview-doc-content").textContent || "";
+
+    const htmlStr = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:SimSun,STSong,serif;padding:30px;line-height:1.8;}h1{text-align:center;font-size:22pt;color:#111;}pre{white-space:pre-wrap;font-size:12pt;font-family:SimSun,STSong,serif;}</style></head><body><h1>${title}</h1><pre>${content}</pre></body></html>`;
+
+    const blob = new Blob([htmlStr], { type: "application/msword;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title}.doc`;
+    link.click();
+}
+
+window.generateWeeklyLedgerBrief = generateWeeklyLedgerBrief;
+window.closeDocPreviewModal = closeDocPreviewModal;
+window.downloadWeeklyBriefDoc = downloadWeeklyBriefDoc;
+
+function openNewProjectModal() {
+    const modal = document.getElementById("modal-new-project");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    }
+}
+
+function closeNewProjectModal() {
+    const modal = document.getElementById("modal-new-project");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function handleCreateNewProject(event) {
+    event.preventDefault();
+    const name = document.getElementById("np-name").value.trim();
+    const docNum = document.getElementById("np-doc-num").value.trim();
+    const owner = document.getElementById("np-owner").value.trim();
+    const budget = parseFloat(document.getElementById("np-budget").value);
+    const stage = document.getElementById("np-stage").value;
+    const startDate = document.getElementById("np-start-date").value;
+    const completionDate = document.getElementById("np-completion-date").value;
+    const vendor = document.getElementById("np-vendor").value.trim();
+    const content = document.getElementById("np-content").value.trim();
+
+    if (!name || !docNum || !owner || isNaN(budget) || budget <= 0) {
+        alert("请填写全部必填项目字段，预算必须大于0");
+        return;
+    }
+
+    if (typeof showLoading === "function") showLoading("正在提交新建项目建档，并开启大模型智能评测规则...");
+
+    fetch("/api/projects", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": typeof csrfToken !== "undefined" ? csrfToken : ""
+        },
+        body: JSON.stringify({
+            name: name,
+            approval_doc_num: docNum,
+            owner: owner,
+            budget: budget,
+            stage: stage,
+            vendor: vendor,
+            start_date: startDate,
+            planned_completion_date: completionDate,
+            construction_content: content
+        })
+    })
+    .then(res => {
+        if (!res.ok) return res.json().then(d => Promise.reject(d.error || "建档失败"));
+        return res.json();
+    })
+    .then(newProj => {
+        closeNewProjectModal();
+        const form = document.getElementById("form-new-project");
+        if (form) form.reset();
+        alert(`🎉 项目档案《${newProj.name}》建档成功！已自动开启大模型后台研判学习。`);
+        initLedgerPage();
+    })
+    .catch(err => alert("⚠️ 建档失败: " + err))
+    .finally(() => {
+        if (typeof hideLoading === "function") hideLoading();
+    });
+}
+
+window.openNewProjectModal = openNewProjectModal;
+window.closeNewProjectModal = closeNewProjectModal;
+window.handleCreateNewProject = handleCreateNewProject;

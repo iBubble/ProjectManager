@@ -299,15 +299,15 @@ function applyWatermark() {
 
 window.applyWatermark = applyWatermark;
 
-function updateAIStatusIndicator() {
-    const indicator = document.getElementById("ai-status-indicator");
+function updateStatusIndicator() {
+    const indicator = document.getElementById("engine-status-indicator") || document.getElementById("ai-status-indicator");
     if (!indicator) return;
 
     // 默认显示黄色闪烁 (正在加载)
     indicator.innerHTML = `
         <span class="status-dot dot-yellow-pulse" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #eab308; box-shadow: 0 0 8px #eab308; animation: pulse 1.5s infinite;"></span>
     `;
-    indicator.setAttribute("title", "正在探测大模型网关通信状态...");
+    indicator.setAttribute("title", "正在探测网关通信状态...");
 
     apiFetch("/api/system/llm/test")
         .then(res => res.json())
@@ -327,14 +327,14 @@ function updateAIStatusIndicator() {
                             indicator.innerHTML = `
                                 <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #22c55e; box-shadow: 0 0 8px #22c55e;"></span>
                             `;
-                            indicator.setAttribute("title", `🟢 远端大模型网关已成功连通\n厂商：${data.provider}\n端点：${data.endpoint}\n模型：${displayModel}\n延时：${data.latency_ms} ms`);
+                            indicator.setAttribute("title", `🟢 远端网关已成功连通\n厂商：${data.provider}\n端点：${data.endpoint}\n模型：${displayModel}\n延时：${data.latency_ms} ms`);
                         });
                 }
             } else {
                 indicator.innerHTML = `
                     <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
                 `;
-                indicator.setAttribute("title", `🔴 远端大模型网关连通失败\n错误：${data.message}`);
+                indicator.setAttribute("title", `🔴 远端网关连通失败\n错误：${data.message}`);
             }
         })
         .catch(err => {
@@ -345,4 +345,5 @@ function updateAIStatusIndicator() {
         });
 }
 
-window.updateAIStatusIndicator = updateAIStatusIndicator;
+window.updateStatusIndicator = updateStatusIndicator;
+window.updateAIStatusIndicator = updateStatusIndicator;

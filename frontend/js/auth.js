@@ -142,7 +142,9 @@ function updateHeaderUserInfo() {
     const roleEl = document.getElementById("current-user-role");
     if (nameEl) nameEl.textContent = currentSession.name || currentSession.username;
     if (roleEl) roleEl.textContent = formatRole(currentSession.role);
-    if (typeof updateAIStatusIndicator === "function") {
+    if (typeof updateStatusIndicator === "function") {
+        updateStatusIndicator();
+    } else if (typeof updateAIStatusIndicator === "function") {
         updateAIStatusIndicator();
     }
 }

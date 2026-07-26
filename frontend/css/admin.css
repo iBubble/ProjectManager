@@ -624,7 +624,7 @@
 
 .btn-kg-preview:hover { background: #cff4fc; }
 
-/* 4列独立学习步骤 Grid (镜像 AILeaning 效果) */
+/* 4列独立学习步骤 Grid */
 .pipeline-4cols-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

@@ -138,6 +138,12 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// /api/projects/:id/yunnan-eval
+			if len(parts) == 4 && parts[3] == "yunnan-eval" {
+				backend.HandlerYunnanArchiveEval(w, r, projectID)
+				return
+			}
+
 			// /api/projects/:id/generate
 			if len(parts) == 4 && parts[3] == "generate" {
 				backend.HandlerProjectGenerate(w, r, projectID)
@@ -258,6 +264,9 @@ func main() {
 	backend.InitNeo4j("http://127.0.0.1:7474", "neo4j", "neo4j")
 
 	log.Printf("成功加载项目管理平台数据库，当前在办项目共: %d 个", len(db.Projects))
+
+	// 启动后台定时自动预评测任务 (对未评测项目自动评估并落盘)
+	backend.StartBackgroundAutoEvaluator()
 
 	// 单入口请求监听，使用 RecoveryMiddleware 包装以提供崩溃防护
 	http.HandleFunc("/", RecoveryMiddleware(DispatcherRequest))

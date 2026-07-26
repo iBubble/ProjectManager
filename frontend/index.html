@@ -48,7 +48,7 @@
                     <span id="badge-alert-count" class="badge-red hidden" style="pointer-events: none;">0</span>
                 </div>
                 
-                <div id="ai-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
+                <div id="engine-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
                     <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #cbd5e1;"></span>
                 </div>
 
@@ -82,8 +82,8 @@
                     <span class="m-title">处于验收阶段</span>
                     <span class="m-value" id="metric-pending-acceptance">0</span>
                 </div>
-                <div class="metric-card filter-card" id="card-filter-payment" onclick="setCardFilter('payment')" title="点击仅筛选待拨付款的项目" style="cursor:pointer; transition:all 0.2s ease;">
-                    <span class="m-title">待拨付款期数</span>
+                <div class="metric-card filter-card" id="card-filter-payment" onclick="setCardFilter('payment')" title="点击仅筛选代付款的项目" style="cursor:pointer; transition:all 0.2s ease;">
+                    <span class="m-title">代付款期数</span>
                     <span class="m-value" id="metric-pending-payment">0</span>
                 </div>
                 <div class="metric-card filter-card border-danger" id="card-filter-risk" onclick="setCardFilter('risk')" title="点击仅筛选存在合规预警的高危项目" style="cursor:pointer; transition:all 0.2s ease;">
@@ -94,13 +94,15 @@
 
             <!-- 看板操作搜索过滤工具栏 -->
             <div class="ledger-action-bar">
-                <div class="search-box" style="flex:1; position:relative;">
-                    <input type="text" id="search-project" oninput="renderLedgerTable()" onkeydown="if(event.key==='Enter'){ renderLedgerTable(); event.preventDefault(); }" placeholder="🔍 检索项目或跨文件全文检索 (输入关键词，按回车也可过滤)...">
-                    <div id="fulltext-search-results" class="search-results-panel hidden" style="position:absolute; top:42px; left:0; right:0; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,0.15);"></div>
+                <div class="action-bar-left">
+                    <button id="btn-ledger-brief" class="btn-gov-secondary" onclick="generateWeeklyLedgerBrief()">📢 一键生成本周项目简报</button>
                 </div>
-                <div class="btn-group-actions">
-                    <button id="btn-ledger-brief" class="btn-gov-secondary" onclick="alert('📢 已自动提炼导出本周 11 个信息化在办项目进展简报。')">📢 一键生成本周项目简报</button>
-                    <button id="btn-new-project" class="btn-gov-primary" onclick="alert('➕ 新建项目建档请进入后台管理中心操作')">+ 新建项目建档</button>
+                <div class="action-bar-right">
+                    <div class="search-box" style="position:relative; width:320px;">
+                        <input type="text" id="search-project" oninput="renderLedgerTable()" onkeydown="if(event.key==='Enter'){ renderLedgerTable(); event.preventDefault(); }" placeholder="🔍 检索项目或跨文件全文检索..." style="width:100%;">
+                        <div id="fulltext-search-results" class="search-results-panel hidden" style="position:absolute; top:42px; left:0; right:0; z-index:100; box-shadow:0 8px 24px rgba(0,0,0,0.15);"></div>
+                    </div>
+                    <button id="btn-new-project" class="btn-gov-primary" onclick="openNewProjectModal()">+ 新建项目建档</button>
                 </div>
             </div>
 
@@ -133,6 +135,99 @@
                 </table>
             </div>
         </main>
+    </div>
+
+    <!-- 前台新建项目建档 Modal 弹窗 -->
+    <div id="modal-new-project" class="modal-overlay hidden" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.6); z-index:9999; display:none; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+        <div class="modal-card" style="width:720px; max-width:92vw; max-height:90vh; background:#ffffff; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden; border:1px solid #cbd5e1;">
+            <div class="modal-header" style="background:#0f2b5c; padding:16px 24px; color:#ffffff; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:16px; font-weight:700;">➕ 新建信息化项目档案建立</h3>
+                <button onclick="closeNewProjectModal()" style="font-size:18px; background:none; border:none; color:#94a3b8; cursor:pointer; line-height:1;">✕</button>
+            </div>
+            <div class="modal-body" style="padding:24px; overflow-y:auto; flex:1; background:#f8fafc; font-size:13.5px; color:#1e293b;">
+                <form id="form-new-project" onsubmit="handleCreateNewProject(event)" style="display:flex; flex-direction:column; gap:16px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">项目名称 <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="np-name" required placeholder="如：昆明市智慧交通一体化工程" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">立项文号 <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="np-doc-num" required placeholder="如：昆发改〔2026〕88号" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">项目负责人 <span style="color:#ef4444;">*</span></label>
+                            <input type="text" id="np-owner" required placeholder="如：李科长 (项目管理员)" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">立项预算 (元) <span style="color:#ef4444;">*</span></label>
+                            <input type="number" id="np-budget" required min="1000" step="1000" placeholder="如：12000000" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">当前生命阶段</label>
+                            <select id="np-stage" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#fff;">
+                                <option value="立项">立项阶段</option>
+                                <option value="设计">设计阶段</option>
+                                <option value="实施">实施阶段</option>
+                                <option value="监理">监理阶段</option>
+                                <option value="设备">设备阶段</option>
+                                <option value="财务">财务阶段</option>
+                                <option value="验收">验收阶段</option>
+                                <option value="运维">运维阶段</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">开始日期</label>
+                            <input type="date" id="np-start-date" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">计划完工日期</label>
+                            <input type="date" id="np-completion-date" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">中标/承建集成商名称</label>
+                        <input type="text" id="np-vendor" placeholder="如：中科政务信息技术有限公司" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                    </div>
+
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:6px; color:#334155;">建设内容与范围概要</label>
+                        <textarea id="np-content" rows="3" placeholder="简要描述建设规模、软件开发模块或硬件采购清单..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; font-family:inherit;"></textarea>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
+                        <button type="button" onclick="closeNewProjectModal()" style="font-size:13px; padding:8px 20px; background:#e2e8f0; color:#475569; border:none; border-radius:6px; cursor:pointer;">取消</button>
+                        <button type="submit" style="font-size:13px; padding:8px 24px; background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">🚀 立即提交建档</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 简报公文预览与下载导出 Modal 弹窗 -->
+    <div id="modal-doc-preview" class="modal-overlay hidden" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.6); z-index:9999; display:none; justify-content:center; align-items:center; backdrop-filter:blur(4px);">
+        <div class="modal-card" style="width:850px; max-width:92vw; max-height:88vh; background:#ffffff; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.25); display:flex; flex-direction:column; overflow:hidden; border:1px solid #cbd5e1;">
+            <div class="modal-header" style="background:#0f2b5c; padding:16px 24px; color:#ffffff; display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="preview-doc-title" style="margin:0; font-size:16px; font-weight:700;">🏛️ 信息中心信息化项目本周运行工作简报</h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button onclick="downloadWeeklyBriefDoc()" style="font-size:12.5px; padding:6px 14px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;">📥 导出 Word (.doc) 简报</button>
+                    <button onclick="closeDocPreviewModal()" style="font-size:18px; background:none; border:none; color:#94a3b8; cursor:pointer; line-height:1;">✕</button>
+                </div>
+            </div>
+            <div class="modal-body" style="padding:24px; overflow-y:auto; flex:1; background:#f8fafc; font-size:14px; line-height:1.7; color:#1e293b;">
+                <pre id="preview-doc-content" style="white-space:pre-wrap; word-break:break-word; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; margin:0; background:#ffffff; padding:20px; border-radius:8px; border:1px solid #e2e8f0;"></pre>
+            </div>
+            <div class="modal-footer" style="padding:12px 24px; background:#f1f5f9; border-top:1px solid #e2e8f0; text-align:right;">
+                <button onclick="closeDocPreviewModal()" style="font-size:13px; padding:6px 18px; background:#64748b; color:#fff; border:none; border-radius:6px; cursor:pointer;">关闭</button>
+            </div>
+        </div>
     </div>
 
     <script src="js/utils.js?v=20260720N"></script>

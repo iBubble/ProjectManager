@@ -343,13 +343,13 @@ function loadAdminSystemMonitor() {
         });
 }
 
-// 实时测试大模型 API 通信并获取可用模型
+// 实时测试 API 通信并获取可用模型
 function testLLMConnection() {
     const provider = document.getElementById("setting-llm-provider").value;
     const endpoint = document.getElementById("setting-llm-endpoint").value.trim();
     const key = document.getElementById("setting-llm-key").value.trim();
 
-    showLoading("正在向远端大模型网关发送通信握手报文...");
+    showLoading("正在向远端网关发送通信握手报文...");
     apiFetch("/api/system/llm/test", { 
         method: "POST",
         body: { provider, endpoint, api_key: key }
@@ -358,7 +358,7 @@ function testLLMConnection() {
     .then(data => {
         hideLoading();
         if (data.status === "success") {
-            showToast(data.message || "大模型接口握手成功！", "success");
+            showToast(data.message || "接口握手成功！", "success");
             const modelSelect = document.getElementById("setting-llm-model");
             if (modelSelect) {
                 modelSelect.innerHTML = "";
@@ -386,10 +386,10 @@ function testLLMConnection() {
     });
 }
 
-// 打开 AI 文件对比校验弹窗
+// 打开文件对比校验弹窗
 function openFileCompareModal() {
     if (!currentProjectFiles || currentProjectFiles.length < 2) {
-        showToast("该项目下需要至少 2 份归档资料才能发起 AI 版本对比校验", "warning");
+        showToast("该项目下需要至少 2 份归档资料才能发起版本对比校验", "warning");
         return;
     }
 
@@ -399,12 +399,12 @@ function openFileCompareModal() {
         <div class="admin-modal-overlay" id="file-compare-modal">
             <div class="admin-modal" style="max-width: 680px;">
                 <div class="admin-modal-header">
-                    <h3>⚖️ 大模型项目文件版本对比与校验</h3>
+                    <h3>⚖️ 项目文件版本对比与校验</h3>
                     <button class="admin-modal-close" onclick="closeAdminModal('file-compare-modal')">✕</button>
                 </div>
                 <div class="admin-modal-body">
                     <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px;">
-                        选择合同/可研/补充协议的两个版本，大模型将自动对比两份文件在建设范围、金额变动、工期调整方面的差异并给出合规建议。
+                        选择合同/可研/补充协议的两个版本，系统将自动对比两份文件在建设范围、金额变动、工期调整方面的差异并给出合规建议。
                     </p>
                     <div class="form-group">
                         <label>📁 基准对比文件 (版本 A / 原合同)</label>
@@ -418,7 +418,7 @@ function openFileCompareModal() {
                 </div>
                 <div class="admin-modal-footer">
                     <button class="btn-gov-secondary" onclick="closeAdminModal('file-compare-modal')">关闭</button>
-                    <button class="btn-gov-primary" onclick="submitFileCompare()">🤖 开始 AI 深度比对校验</button>
+                    <button class="btn-gov-primary" onclick="submitFileCompare()">🤖 开始深度比对校验</button>
                 </div>
             </div>
         </div>
@@ -436,7 +436,7 @@ function submitFileCompare() {
         return;
     }
 
-    showLoading("大模型逐行比对文档条款、概算金额变动与工期调整中...");
+    showLoading("系统逐行比对文档条款、概算金额变动与工期调整中...");
     apiFetch(`/api/projects/${currentProject.id}/files/compare`, {
         method: "POST",
         body: { file_id_1: f1, file_id_2: f2 }
@@ -461,7 +461,7 @@ function submitFileCompare() {
             <p style="font-size:12.5px; color:#475569; margin-bottom:10px;">${escapeHtml(res.summary)}</p>
             <table class="gov-table" style="font-size:12px; margin-bottom:10px;">
                 <thead>
-                    <tr><th>对比要项</th><th>基准版本 (A)</th><th>变更版本 (B)</th><th>AI研判判定</th></tr>
+                    <tr><th>对比要项</th><th>基准版本 (A)</th><th>变更版本 (B)</th><th>研判判定</th></tr>
                 </thead>
                 <tbody>${tableRows}</tbody>
             </table>
@@ -736,7 +736,7 @@ function saveSecurityConfig() {
 
 function saveLLMConfig() {
     if (!currentSession || currentSession.role !== "super_admin") {
-        alert("仅限超级管理员(信息中心主任)有权更改大模型参数接口！");
+        alert("仅限超级管理员(信息中心主任)有权更改接口参数！");
         return;
     }
 
@@ -766,9 +766,10 @@ function updateConfig(payload) {
     })
     .then(res => {
         if (res.ok) {
-            showToast("🔒 安全与大模型通信设置已保存成功！", "success");
+            showToast("🔒 安全与通信设置已保存成功！", "success");
             if (typeof applyWatermark === "function") applyWatermark();
-            if (typeof updateAIStatusIndicator === "function") updateAIStatusIndicator();
+            if (typeof updateStatusIndicator === "function") updateStatusIndicator();
+            else if (typeof updateAIStatusIndicator === "function") updateAIStatusIndicator();
         } else {
             showToast("保存失败，请检查参数", "error");
         }
@@ -783,7 +784,7 @@ window.saveSecurityConfig = saveSecurityConfig;
 window.saveLLMConfig = saveLLMConfig;
 
 // ==========================================================================
-// 大模型“学习进度看板”前端渲染与交互逻辑
+// “学习进度看板”前端渲染与交互逻辑
 // ==========================================================================
 function loadAdminLearningDashboard() {
     apiFetch("/api/system/learning-stats")
@@ -818,13 +819,32 @@ function loadAdminLearningDashboard() {
             const vectorCountEl = document.getElementById("step-vector-count");
             const kgCountEl = document.getElementById("step-kg-count");
             const summaryCountEl = document.getElementById("step-summary-count");
+            const evalCountEl = document.getElementById("step-eval-count");
+            const evalBarEl = document.getElementById("step-eval-bar");
+            const evalPercentEl = document.getElementById("step-eval-percent");
 
             const totalFiles = stats.total_files || 0;
             const learnedFiles = stats.learned_files || 0;
 
+            const projectsList = stats.projects_learning || [];
+            const totalProjects = stats.active_projects || projectsList.length;
+            const evaluatedCount = projectsList.filter(p => p.has_eval || (p.eval_score && p.eval_score > 0)).length;
+            const evalPercent = totalProjects > 0 ? (evaluatedCount / totalProjects) * 100 : 100;
+
             if (vectorCountEl) vectorCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
             if (kgCountEl) kgCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
             if (summaryCountEl) summaryCountEl.textContent = `${learnedFiles * 2} / ${totalFiles * 2} 段`;
+
+            if (evalCountEl) evalCountEl.textContent = `${evaluatedCount} / ${totalProjects} 项目`;
+            if (evalBarEl) evalBarEl.style.width = `${evalPercent}%`;
+            if (evalPercentEl) {
+                evalPercentEl.textContent = `${evalPercent.toFixed(2)}%`;
+                if (evalPercent >= 100) {
+                    evalPercentEl.className = "step-percent";
+                } else {
+                    evalPercentEl.className = "step-percent text-muted";
+                }
+            }
 
             // 自动判断是否有处于学习中/排队中的项目，同步锁定顶部全量学习按钮并启动轮询
             const hasActiveLearning = (stats.projects_learning || []).some(p => p.status === "learning" || p.status === "queued");
@@ -832,13 +852,13 @@ function loadAdminLearningDashboard() {
             if (btn) {
                 if (hasActiveLearning) {
                     btn.disabled = true;
-                    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 大模型全量学习中...`;
+                    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 全量学习中...`;
                     if (!learningPollInterval) {
                         startLearningPolling();
                     }
                 } else {
                     btn.disabled = false;
-                    btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
+                    btn.innerHTML = `🚀 开启全量项目深度学习`;
                 }
             }
 
@@ -911,7 +931,7 @@ function renderLearningProjectCards(projects) {
             statusBadgeText = `⏳ 排队中 (第 ${p.queue_position || 1} 位)`;
         }
 
-        let actionBtnHtml = `<button class="btn-gov-primary" style="width:auto !important; font-size:12px; padding:4px 12px; background:#4f46e5; border:none; border-radius:6px; color:#fff;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动大模型学习</button>`;
+        let actionBtnHtml = `<button class="btn-gov-primary" style="width:auto !important; font-size:12px; padding:4px 12px; background:#4f46e5; border:none; border-radius:6px; color:#fff;" onclick="triggerAdminProjectLearn('${p.project_id}')">🚀 启动深度学习</button>`;
         if (isLearning) {
             actionBtnHtml = `<button class="btn-gov-warning disabled" style="width:auto !important; font-size:12px; padding:4px 12px; border-radius:6px;" disabled><span class="spinner-border spinner-border-sm"></span> 正在深度研判...</button>`;
         } else if (isQueued) {
@@ -991,12 +1011,11 @@ function renderLearningProjectCards(projects) {
                 <!-- Col 4 -->
                 <div class="pipeline-col col-precompute">
                     <div class="col-head">
-                        <span>⚡ 4. 智能学习预计计算</span>
+                        <span>⚡ 4. 项目评测</span>
                     </div>
                     <div class="precompute-subitems">
-                        <div class="subitem"><span>全文生成: ${isLearned ? "已生成" : "待触发"}</span><span class="muted-num">0/22</span></div>
-                        <div class="subitem"><span>智能替换: 未配置</span><span class="muted-num">0/0</span></div>
-                        <div class="subitem"><span>精确复制: 未配置</span><span class="muted-num">0/0</span></div>
+                        <div class="subitem"><span style="font-weight:600; color:#1d4ed8;">⚖️ 档案预评测: ${p.eval_score !== undefined && p.eval_score !== null ? p.eval_score + '分 (' + (p.eval_result || '已评估') + ')' : '已自动预评测'}</span></div>
+                        <div class="subitem"><span style="color:#15803d; font-size:11.5px;">✓ 三表已自动生成并持久化存盘</span></div>
                     </div>
                     <div style="margin-top:10px; text-align:right;">
                         <button class="btn-kg-preview" onclick="toggleInlineKGVisualizer(this, '${p.project_id}', '${escapeHtml(p.project_name)}')">👁 预览知识图谱星空图</button>
@@ -1031,9 +1050,9 @@ function startLearningPolling() {
                     const btn = document.getElementById("btn-learn-all-projects");
                     if (btn) {
                         btn.disabled = false;
-                        btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
+                        btn.innerHTML = `🚀 开启全量项目深度学习`;
                     }
-                    showToast("🎉 全量项目大模型切片与知识图谱构建学习完成！", "success");
+                    showToast("🎉 全量项目切片与知识图谱构建学习完成！", "success");
                 }
             });
     }, 1200);
@@ -1043,9 +1062,9 @@ function triggerLearnAllProjects() {
     const btn = document.getElementById("btn-learn-all-projects");
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 大模型全量学习中...`;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> 全量学习中...`;
     }
-    showToast("已启动全量项目大模型“切片+三元组图谱”后台学习管线...", "info");
+    showToast("已启动全量项目“切片+三元组图谱”后台学习管线...", "info");
 
     apiFetch("/api/projects/learn-all", {
         method: "POST",
@@ -1059,13 +1078,13 @@ function triggerLearnAllProjects() {
         showToast("全量项目学习启动失败: " + err.message, "error");
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `🚀 开启全量项目大模型深度学习`;
+            btn.innerHTML = `🚀 开启全量项目深度学习`;
         }
     });
 }
 
 function triggerAdminProjectLearn(projectId) {
-    showToast("正在启动大模型“切片+知识图谱”后台学习管线...", "info");
+    showToast("正在启动“切片+知识图谱”后台学习管线...", "info");
     apiFetch(`/api/projects/${projectId}/learn`, {
         method: "POST",
         headers: { "X-CSRF-Token": getCsrfToken() }

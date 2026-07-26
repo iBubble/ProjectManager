@@ -27,7 +27,7 @@
                     <span id="badge-alert-count" class="badge-red hidden" style="pointer-events: none;">0</span>
                 </div>
                 
-                <div id="ai-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
+                <div id="engine-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
                     <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #cbd5e1;"></span>
                 </div>
 
@@ -81,7 +81,7 @@
                         </button>
                         <button class="admin-nav-item" data-admin-tab="llm" onclick="switchAdminTab('llm')">
                             <span class="nav-icon">🤖</span>
-                            <span class="nav-label">大模型接口配置</span>
+                            <span class="nav-label">引擎接口配置</span>
                         </button>
                         <button class="admin-nav-item" data-admin-tab="audit" onclick="switchAdminTab('audit')">
                             <span class="nav-icon">📋</span>
@@ -179,9 +179,9 @@
                         <div class="admin-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
                                 <h2>🧠 学习进度看板</h2>
-                                <span class="admin-panel-desc">全局监控所有项目的向量化入库、知识图谱提取与智能学习预计计算状态</span>
+                                <span class="admin-panel-desc">全局监控所有项目的向量化入库、知识图谱提取与项目评测持久化状态</span>
                             </div>
-                            <button id="btn-learn-all-projects" onclick="triggerLearnAllProjects()" style="width: auto !important; max-width: 320px; font-size:13px; padding:8px 16px; background:#0f2b5c; border:none; color:#fff; border-radius:6px; font-weight:600; cursor:pointer;">🚀 开启全量项目大模型深度学习</button>
+                            <button id="btn-learn-all-projects" onclick="triggerLearnAllProjects()" style="width: auto !important; max-width: 320px; font-size:13px; padding:8px 16px; background:#0f2b5c; border:none; color:#fff; border-radius:6px; font-weight:600; cursor:pointer;">🚀 开启全量项目深度学习</button>
                         </div>
                         <div class="admin-panel-body">
                             
@@ -311,13 +311,15 @@
                                         </div>
 
                                         <div class="step-progress-item">
-                                            <div class="step-head">
-                                                <span>⚡ 4. 智能学习预计计算</span>
-                                                <span class="step-num">0 / 44 项</span>
-                                            </div>
-                                            <div class="progress-bar-thick">
-                                                <div class="progress-bar-fill grad-light-purple" style="width: 0%;"></div>
-                                            </div>
+                                             <div class="step-head">
+                                                 <span>⚖️ 4. 项目评测</span>
+                                                 <span class="step-num" id="step-eval-count">0 / 0 项目</span>
+                                             </div>
+                                             <div class="progress-bar-thick">
+                                                 <div class="progress-bar-fill grad-light-purple" id="step-eval-bar" style="width: 100%;"></div>
+                                             </div>
+                                             <div class="step-percent" id="step-eval-percent">100.00%</div>
+                                         </div>
                                             <div class="step-percent text-muted">0.00%</div>
                                         </div>
                                     </div>
@@ -460,10 +462,10 @@
                         </div>
                     </div>
 
-                    <!-- 子面板：大模型接口配置 -->
+                    <!-- 子面板：引擎接口配置 -->
                     <div class="admin-panel" id="admin-panel-llm">
                         <div class="admin-panel-header">
-                            <h2>🤖 离线政务大模型 API 配置</h2>
+                            <h2>🤖 离线政务引擎 API 配置</h2>
                             <span class="admin-panel-desc">配置本地 DeepSeek / 规则引擎 Gateway 接口与密钥</span>
                         </div>
                         <div class="admin-panel-body">
@@ -473,7 +475,7 @@
                                         <label>模型引擎服务商</label>
                                         <select id="setting-llm-provider">
                                             <option value="mock">DeepSeek-R1 (离线规则研判内置引擎)</option>
-                                            <option value="openai">OpenAI 兼容 Gateway</option>
+                                            <option value="openai">通用 兼容 Gateway</option>
                                             <option value="ollama">Ollama 本地私有化部署</option>
                                         </select>
                                     </div>
@@ -486,13 +488,13 @@
                                         <input type="password" id="setting-llm-key" value="******">
                                     </div>
                                     <div class="form-group">
-                                        <label>选用的大模型名称 (Model Name)</label>
+                                        <label>选用的模型名称 (Model Name)</label>
                                         <select id="setting-llm-model" style="width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 12px;">
                                             <option value="">(请先测试连接以加载模型)</option>
                                         </select>
                                     </div>
                                     <div style="display:flex; gap:10px; margin-top: 16px;">
-                                        <button type="submit" class="btn-gov-primary">保存大模型配置</button>
+                                        <button type="submit" class="btn-gov-primary">保存配置</button>
                                         <button type="button" class="btn-gov-secondary" onclick="testLLMConnection()">测试 Gateway 连通性</button>
                                     </div>
                                 </form>
@@ -575,7 +577,7 @@
                                         <tr><td style="font-weight:700; width:200px;">系统名称</td><td>政务智管・信息化项目全生命周期智能管控平台</td></tr>
                                         <tr><td style="font-weight:700;">系统版本</td><td>v1.0.0-beta (2026-07-20)</td></tr>
                                         <tr><td style="font-weight:700;">部署模式</td><td>内网涉密场景 · 本地私有化部署</td></tr>
-                                        <tr><td style="font-weight:700;">大模型引擎</td><td>DeepSeek-R1 政务自训版 (离线规则研判)</td></tr>
+                                        <tr><td style="font-weight:700;">计算引擎</td><td>DeepSeek-R1 政务自训版 (离线规则研判)</td></tr>
                                         <tr><td style="font-weight:700;">数据存储</td><td>本地 JSON 文件数据库 + AES-GCM 文件加密</td></tr>
                                         <tr><td style="font-weight:700;">服务端口</td><td>127.0.0.1:81 (FRP 外网穿透)</td></tr>
                                         <tr><td style="font-weight:700;">安全标准</td><td>等保 2.0 · CSRF 防护 · XSS 转义 · 操作审计留痕</td></tr>

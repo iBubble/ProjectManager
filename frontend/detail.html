@@ -26,7 +26,7 @@
                     <span id="badge-alert-count" class="badge-red hidden" style="pointer-events: none;">0</span>
                 </div>
                 
-                <div id="ai-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
+                <div id="engine-status-indicator" style="display: flex; align-items: center; margin-right: 12px; cursor: pointer;">
                     <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #cbd5e1;"></span>
                 </div>
 
@@ -53,9 +53,22 @@
             <!-- 详情页头部栏 -->
             <div class="detail-header-bar">
                 <button id="btn-back-to-ledger" class="btn-gov-secondary" onclick="window.location.href='/index.html';" style="position:relative; z-index:99; cursor:pointer;">← 返回总览看板</button>
-                <div class="detail-title-group">
-                    <h2 id="detail-project-title">加载项目中...</h2>
-                    <span class="detail-stage-badge" id="detail-project-stage">阶段</span>
+                <div class="detail-title-group" style="display:flex; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <h2 id="detail-project-title" style="margin:0;">加载项目中...</h2>
+                    <div class="stage-badge-wrapper" style="position:relative; display:inline-flex; align-items:center;">
+                        <select id="detail-project-stage-select" onchange="handleStageSelectChange(this.value)" title="点击手动切换项目阶段，或选择【自动】根据归档文件完备度实时推演" style="appearance:none; -webkit-appearance:none; background:#eff6ff; color:#1e40af; border:1px solid #93c5fd; padding:5px 28px 5px 14px; border-radius:20px; font-size:13.5px; font-weight:700; cursor:pointer; outline:none; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(37,99,235,0.12);">
+                            <option value="auto">🔄 自动 (根据文档完备度推演)</option>
+                            <option value="立项">📌 立项阶段</option>
+                            <option value="设计">📐 设计阶段</option>
+                            <option value="实施">💻 实施阶段</option>
+                            <option value="监理">🔍 监理阶段</option>
+                            <option value="设备">📦 设备阶段</option>
+                            <option value="财务">💰 财务阶段</option>
+                            <option value="验收">🏆 验收阶段</option>
+                            <option value="运维">🛠️ 运维阶段</option>
+                        </select>
+                        <span style="position:absolute; right:10px; pointer-events:none; font-size:10px; color:#2563eb;">▼</span>
+                    </div>
                 </div>
             </div>
 
@@ -66,7 +79,7 @@
                 <section class="detail-column-left">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <h3 style="font-size:15px; margin:0;">📁 阶段资料智能归档</h3>
-                        <button class="btn-gov-secondary" onclick="openFileCompareModal()" style="font-size:12px; padding:4px 10px;">⚖️ AI 版本对比校验</button>
+                        <button class="btn-gov-secondary" onclick="openFileCompareModal()" style="font-size:12px; padding:4px 10px;">⚖️ 版本对比校验</button>
                     </div>
                     
                     <!-- 文件拖拽/点击上传区 -->
@@ -75,125 +88,158 @@
                         <input type="file" id="input-file-uploader" multiple class="hidden">
                     </div>
                     <div class="upload-options-row">
-                        <label for="upload-stage-select">智能自动分流至指定阶段文件夹：</label>
+                        <label for="upload-stage-select">智能依据国家标准归档至大类：</label>
                         <select id="upload-stage-select">
-                            <option value="auto">🌟 自动识别分流归档</option>
-                            <option value="立项">1. 立项阶段</option>
-                            <option value="招标">2. 招标阶段</option>
-                            <option value="合同">3. 合同阶段</option>
-                            <option value="实施">4. 实施阶段</option>
-                            <option value="监理">5. 监理阶段</option>
-                            <option value="过程">6. 过程阶段</option>
-                            <option value="验收">7. 验收阶段</option>
-                            <option value="运维">8. 运维阶段</option>
+                            <option value="auto">🌟 自动按国家标准智能分类归档</option>
+                            <option value="立项阶段文件">1. 立项阶段文件</option>
+                            <option value="项目管理文件">2. 项目管理文件</option>
+                            <option value="设计阶段文件">3. 设计阶段文件</option>
+                            <option value="实施阶段文件">4. 实施阶段文件</option>
+                            <option value="监理文件">5. 监理文件</option>
+                            <option value="设备文件及系统软件">6. 设备文件及系统软件</option>
+                            <option value="财务管理文件">7. 财务管理文件</option>
+                            <option value="验收文件">8. 验收文件</option>
                         </select>
                     </div>
 
-                    <!-- 8大阶段文件目录列表 -->
-                    <div class="folder-directory-tree">
-                        <div class="folder-node">
-                            <div class="folder-title">1. 立项阶段文件</div>
-                            <div class="folder-content" id="files-立项"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">2. 招标阶段文件</div>
-                            <div class="folder-content" id="files-招标"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">3. 合同阶段文件</div>
-                            <div class="folder-content" id="files-合同"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">4. 实施阶段文件</div>
-                            <div class="folder-content" id="files-实施"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">5. 监理阶段文件</div>
-                            <div class="folder-content" id="files-监理"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">6. 过程资料</div>
-                            <div class="folder-content" id="files-过程"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">7. 验收阶段文件</div>
-                            <div class="folder-content" id="files-验收"></div>
-                        </div>
-                        <div class="folder-node">
-                            <div class="folder-title">8. 质保与运维资料</div>
-                            <div class="folder-content" id="files-运维"></div>
-                        </div>
+                    <!-- 依据国家标准《国家电子政务工程建设项目文件归档范围和保管期限表》8大类及小类目录树 -->
+                    <div class="standard-archiving-header" style="font-size:11.5px; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; padding:6px 10px; border-radius:6px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                        <span>📜</span>
+                        <span>标准规范：严格遵循《国家电子政务工程建设项目文件归档范围和保管期限表》划分大小类归档目录</span>
+                    </div>
+                    <div class="folder-directory-tree" id="national-archiving-tree">
+                        <!-- 动态渲染8大类及其小类分支 -->
                     </div>
                 </section>
 
-                <!-- 右侧区域：AI 智能分析与研判 -->
+                <!-- 右侧区域：智能分析与研判 -->
                 <section class="detail-column-right">
                     
                     <!-- 顶层主选项卡 -->
                     <div class="pane-tab-header">
                         <button class="pane-tab-btn active" id="tab-btn-compliance" data-pane="compliance" onclick="switchDetailRightTab('compliance')" style="cursor:pointer; position:relative; z-index:99;">🏛️ 项目合规研判与预警</button>
+                        <button class="pane-tab-btn" id="tab-btn-yn-eval" data-pane="yn-eval" onclick="switchDetailRightTab('yn-eval')" style="cursor:pointer; position:relative; z-index:99;">📑 文档填报评测</button>
                         <button class="pane-tab-btn" id="tab-btn-rag-chat" data-pane="rag-chat" onclick="switchDetailRightTab('rag-chat')" style="cursor:pointer; position:relative; z-index:99;">💬 智能助手与公文定稿</button>
                         <button class="pane-tab-btn" id="tab-btn-todos" data-pane="todos" onclick="switchDetailRightTab('todos')" style="cursor:pointer; position:relative; z-index:99;">📌 待办事项清单</button>
                     </div>
 
-                    <!-- 选项卡一：合规研判与预警 -->
+                    <!-- 选项卡一：合规研判与预警 (全新图文/表格矩阵大屏) -->
                     <div id="pane-tab-compliance" class="pane-tab-content active">
-                        <div class="ai-analysis-card" style="margin-top: 15px;">
-                            <div class="card-header-flex">
-                                <h3>🤖 大模型项目合规研判报告</h3>
-                                <button id="btn-reanalyze-ai" class="btn-gov-primary" style="padding: 4px 10px; font-size:12.5px;">重新AI研判</button>
+                        <div class="analysis-card" style="margin-top: 15px;">
+                            <div class="card-header-flex" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:14px;">
+                                <h3 style="margin:0; font-size:15px; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
+                                    <span>🏛️</span>
+                                    <span>项目合规健康度多维研判大屏</span>
+                                </h3>
+                                <button id="btn-reanalyze" class="btn-gov-primary" style="padding: 4px 12px; font-size:12px;">🔄 重新研判</button>
                             </div>
 
-                            <div class="score-summary-bar">
-                                <div class="score-circle-box">
-                                    <div class="score-circle" id="ai-health-circle">
-                                        <span class="score-number" id="ai-health-score">--</span>
-                                        <span class="score-label">合规健康度</span>
+                            <!-- 顶部分数与核心指标图文大卡 -->
+                            <div class="score-summary-bar" style="background:linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:16px; display:flex; align-items:center; gap:20px;">
+                                <div class="score-circle-box" style="flex-shrink:0;">
+                                    <div class="score-circle" id="health-circle" style="width:90px; height:90px; border-radius:50%; background:#ffffff; border:4px solid #1d4ed8; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(29,78,216,0.15);">
+                                        <span class="score-number" id="health-score" style="font-size:26px; font-weight:800; color:#1d4ed8;">88</span>
+                                        <span class="score-label" style="font-size:11px; color:#64748b; margin-top:2px;">合规健康度</span>
                                     </div>
                                 </div>
-                                <div class="score-text-box">
-                                    <h4 id="ai-health-status">系统正在多维分析项目合规度...</h4>
-                                    <p id="ai-health-desc">根据大模型规则比对，自动侦测财务超支、阶段停滞与归档资料缺失风险。</p>
+                                <div class="score-text-box" style="flex:1;">
+                                    <h4 id="health-status" style="margin:0 0 6px 0; font-size:16px; font-weight:700; color:#1e293b;">🟢 研判运行良好·未发现重大越权违规</h4>
+                                    <p id="health-desc" style="margin:0; font-size:12.5px; color:#475569; line-height:1.5;">系统已完成财务概算、建设工期节点、工程质量验收与变更条款的交叉比对，全流程符合国家政务信息化管理规范。</p>
                                 </div>
                             </div>
 
-                            <div class="analysis-dimension-grid">
-                                <div class="dim-card" id="dim-progress">
-                                    <div class="dim-header">
-                                        <span>📅 进度延期预警</span>
-                                        <span class="dim-badge badge-green" id="badge-progress">正常</span>
-                                    </div>
-                                    <p class="dim-detail" id="detail-progress">进度符合预期目标。</p>
-                                </div>
-                                <div class="dim-card" id="dim-finance">
-                                    <div class="dim-header">
-                                        <span>💰 资金拨付合规</span>
-                                        <span class="dim-badge badge-green" id="badge-finance">正常</span>
-                                    </div>
-                                    <p class="dim-detail" id="detail-finance">拨款节点符合合同规定。</p>
-                                </div>
-                                <div class="dim-card" id="dim-quality">
-                                    <div class="dim-header">
-                                        <span>🔍 质量问题与初验</span>
-                                        <span class="dim-badge badge-green" id="badge-quality">正常</span>
-                                    </div>
-                                    <p class="dim-detail" id="detail-quality">暂无未解决的质量缺陷。</p>
-                                </div>
-                                <div class="dim-card" id="dim-change">
-                                    <div class="dim-header">
-                                        <span>⚖️ 变更越权红线</span>
-                                        <span class="dim-badge badge-green" id="badge-change">无变更</span>
-                                    </div>
-                                    <p class="dim-detail" id="detail-change">未触发10%强审核红线。</p>
-                                </div>
+                            <!-- 四维研判结构化矩阵表格 -->
+                            <div style="margin-bottom:10px;">
+                                <h4 style="margin:0 0 10px 0; font-size:13.5px; color:#334155; font-weight:700; display:flex; align-items:center; gap:6px;">
+                                    <span>📊</span>
+                                    <span>四维核心合规指标矩阵表</span>
+                                </h4>
+                                <table class="gov-official-table" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12.5px; color:#1e293b; background:#ffffff;">
+                                    <thead>
+                                        <tr style="background:#f1f5f9; text-align:left; font-weight:700; color:#334155;">
+                                            <th style="border:1px solid #cbd5e1; padding:8px 12px; width:20%;">研判维度</th>
+                                            <th style="border:1px solid #cbd5e1; padding:8px 12px; width:12%;">合规状态</th>
+                                            <th style="border:1px solid #cbd5e1; padding:8px 12px;">自动检测结论</th>
+                                            <th style="border:1px solid #cbd5e1; padding:8px 12px; width:30%;">风险防范与建议</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; font-weight:bold; background:#fafafa;">📅 进度延期预警</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;"><span class="dim-badge badge-green" id="badge-progress" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11.5px;">正常</span></td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;" id="detail-progress">计划完工时间按期推进，关键里程碑按计划完成 100%。</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; color:#475569;">保持当前施工进度，及时组织到货初验与阶段移交。</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; font-weight:bold; background:#fafafa;">💰 资金拨付合规</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;"><span class="dim-badge badge-green" id="badge-finance" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11.5px;">正常</span></td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;" id="detail-finance">付款节点符合合同约定，无超期欠款或提前越权支付。</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; color:#475569;">核对发票及资金申请单据，依规办理阶段结转。</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; font-weight:bold; background:#fafafa;">🔍 质量问题与初验</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;"><span class="dim-badge badge-green" id="badge-quality" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11.5px;">正常</span></td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;" id="detail-quality">暂无未解决的质量缺陷，到货初验合格率 100%。</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; color:#475569;">完善第三方软件测评及系统安全检测报告归档。</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; font-weight:bold; background:#fafafa;">⚖️ 变更越权红线</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;"><span class="dim-badge badge-green" id="badge-change" style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11.5px;">无变更</span></td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px;" id="detail-change">变更金额未触及 10% 概算强审核红线。</td>
+                                            <td style="border:1px solid #cbd5e1; padding:8px 12px; color:#475569;">严格管理补充协议，确保双盖章全流程留痕。</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <!-- 智能预警列表 -->
-                        <div class="ai-analysis-card" style="margin-top: 16px;">
-                            <h3>⚠️ 关联预警提醒项</h3>
+                        <!-- 智能预警列表表单 -->
+                        <div class="analysis-card" style="margin-top: 16px;">
+                            <h3 style="font-size:14px; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                                <span>⚠️</span>
+                                <span>关联预警提醒项表单</span>
+                            </h3>
                             <div class="project-alerts-box" id="project-alerts-list">
                                 <!-- 动态加载 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 选项卡二：文档填报评测 (依据《云南省重点建设项目档案验收实施办法》) -->
+                    <div id="pane-tab-yn-eval" class="pane-tab-content hidden" style="margin-top: 15px;">
+                        <div class="analysis-card">
+                            <div class="card-header-flex" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
+                                <h3 style="margin:0; font-size:15px; color:#1e40af; display:flex; align-items:center; gap:6px;">
+                                    <span>📜</span>
+                                    <span>《云南省重点建设项目档案验收实施办法》大模型测评与表格填报</span>
+                                </h3>
+                                <button id="btn-yn-eval-trigger" onclick="triggerYunnanEval(true)" class="btn-gov-primary" style="padding:4px 12px; font-size:12px;">🚀 评测打分</button>
+                            </div>
+
+                            <!-- 测评结果概览 -->
+                            <div id="yn-eval-overview-bar" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-size:12px; color:#64748b;">档案验收测评综合得分（满分 100 分，≥75分合格）</div>
+                                    <div style="font-size:24px; font-weight:700; color:#1d4ed8;" id="yn-eval-score-num">-- 分</div>
+                                </div>
+                                <div>
+                                    <span class="badge" id="yn-eval-result-badge" style="font-size:14px; padding:6px 14px; border-radius:20px; background:#dcfce7; color:#15803d; font-weight:700;">评估中...</span>
+                                </div>
+                            </div>
+
+                            <!-- 附件 1、2、3 选项卡切换按钮与右侧导出下载按钮 -->
+                            <div class="yn-annex-tabs" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:2px solid #e2e8f0; padding-bottom:8px;">
+                                <div style="display:flex; gap:8px;">
+                                    <button class="yn-tab-btn active" id="btn-annex-2" onclick="switchYunnanAnnexTab('annex-2')" style="padding:6px 14px; font-size:12.5px; border:none; background:#dbeafe; color:#1e40af; border-radius:4px; cursor:pointer; font-weight:600;">⚖️ 附件 2：档案验收测评表 (打分卡)</button>
+                                    <button class="yn-tab-btn" id="btn-annex-1" onclick="switchYunnanAnnexTab('annex-1')" style="padding:6px 14px; font-size:12.5px; border:none; background:#f1f5f9; color:#475569; border-radius:4px; cursor:pointer; font-weight:600;">📋 附件 1：档案管理登记表</button>
+                                    <button class="yn-tab-btn" id="btn-annex-3" onclick="switchYunnanAnnexTab('annex-3')" style="padding:6px 14px; font-size:12.5px; border:none; background:#f1f5f9; color:#475569; border-radius:4px; cursor:pointer; font-weight:600;">📝 附件 3：档案验收申请表</button>
+                                </div>
+                                <button onclick="downloadYunnanAnnexDoc()" class="btn-gov-secondary" style="padding:5px 14px; font-size:12.5px; display:inline-flex; align-items:center; gap:4px; font-weight:600; white-space:nowrap;">📥 下载/导出 Word 官方文件</button>
+                            </div>
+
+                            <!-- 附件内容渲染容器 -->
+                            <div id="yn-annex-content-box" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:12px; max-height:650px; overflow-y:auto;">
+                                <div style="text-align:center; padding:30px; color:#94a3b8;">正在加载大模型填报测评数据...</div>
                             </div>
                         </div>
                     </div>
@@ -203,8 +249,8 @@
                         <div class="rag-chat-container" style="margin-top: 15px;">
                             <div class="chat-header">
                                 <div>
-                                    <span class="chat-title">💬 项目知识库 AI 助理</span>
-                                    <span class="chat-subtitle" id="chat-rag-status">内置离线政务大模型 (DeepSeek-R1) · 强物理隔离</span>
+                                    <span class="chat-title">💬 项目知识库助理</span>
+                                    <span class="chat-subtitle" id="chat-rag-status">内置离线政务引擎 (DeepSeek-R1) · 强物理隔离</span>
                                 </div>
                                 <div class="chat-mode-selector">
                                     <button class="btn-chat-mode active" data-mode="fast" onclick="setChatMode('fast')">⚡ 快速查询</button>
@@ -244,7 +290,7 @@
                                 <span class="editor-status" id="editor-status-text">未选择公文草稿</span>
                                 <input type="text" id="rag-doc-filename" placeholder="输入拟定文档文件名 (例: 验收评审意见-定稿.docx)" style="font-size:12.5px; width:260px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:4px;">
                             </div>
-                            <textarea id="rag-editor-content" rows="8" placeholder="AI 研判建议与公文草稿将自动生成于此处，您可以直接在线编辑定稿..."></textarea>
+                            <textarea id="rag-editor-content" rows="8" placeholder="研判建议与公文草稿将自动生成于此处，您可以直接在线编辑定稿..."></textarea>
                         </div>
                     </div>
 
@@ -270,11 +316,11 @@
         </main>
     </div>
 
-    <!-- AI 文件差异对比 Modal -->
+    <!-- 文件差异对比 Modal -->
     <div class="admin-modal-overlay hidden" id="modal-file-compare" onclick="if(event.target===this) closeFileCompareModal();">
         <div class="admin-modal" style="max-width:720px;">
             <div class="admin-modal-header">
-                <h3>⚖️ AI 文件版本差异对比与合规校验</h3>
+                <h3>⚖️ 文件版本差异对比与合规校验</h3>
                 <button class="admin-modal-close" onclick="closeFileCompareModal()">✕</button>
             </div>
             <div class="admin-modal-body">
@@ -289,7 +335,7 @@
                     </div>
                 </div>
                 <div style="text-align:center; margin:12px 0;">
-                    <button class="btn-gov-primary" onclick="submitFileCompare()">🔍 启动大模型条款差异对比</button>
+                    <button class="btn-gov-primary" onclick="submitFileCompare()">🔍 启动条款差异对比</button>
                 </div>
                 <div id="compare-results-box" style="margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px;"></div>
             </div>
