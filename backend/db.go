@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
@@ -822,6 +823,12 @@ func (db *Database) ListProjects() []Project {
 	for _, p := range db.Projects {
 		list = append(list, p)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].CreatedAt != list[j].CreatedAt {
+			return list[i].CreatedAt > list[j].CreatedAt
+		}
+		return list[i].ID < list[j].ID
+	})
 	return list
 }
 
@@ -833,25 +840,41 @@ func (db *Database) SaveProject(p Project) error {
 	return db.Save()
 }
 
-// DeleteProject 删除项目及其关联文件
+// DeleteProject 删除项目及其关联物理文件、元数据、预警与测评缓存
 func (db *Database) DeleteProject(projectID string) {
 	db.mu.Lock()
 	delete(db.Projects, projectID)
-	// 删除关联文件
+
+	// 1. 删除关联文件（包含物理磁盘删除）
 	for fid, f := range db.Files {
 		if f.ProjectID == projectID {
+			// 删除物理磁盘上传文件
+			if f.SavedName != "" {
+				_ = os.Remove(filepath.Join("data/uploads", f.SavedName))
+			}
+			if f.ID != "" {
+				_ = os.Remove(filepath.Join("data/uploads", f.ID))
+			}
 			delete(db.Files, fid)
 		}
 	}
-	// 删除关联预警
+
+	// 2. 删除关联预警
 	for aid, a := range db.Alerts {
 		if a.ProjectID == projectID {
 			delete(db.Alerts, aid)
 		}
 	}
+
+	// 3. 删除云南省测评缓存数据
+	if db.YunnanEvaluations != nil {
+		delete(db.YunnanEvaluations, projectID)
+	}
+
 	db.mu.Unlock()
 	_ = db.Save()
 }
+
 
 // SaveFile 保存文件元数据
 func (db *Database) SaveFile(f FileMetadata) error {

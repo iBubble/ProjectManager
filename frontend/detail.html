@@ -73,8 +73,8 @@
                 </div>
             </div>
 
-            <!-- 核心两大区域网格布局 -->
-            <div class="gov-two-column-layout">
+            <!-- 核心三大区域网格布局 (左侧树 + 中间研判/助手 + 右侧独立代办) -->
+            <div class="gov-three-column-layout">
                 
                 <!-- 左侧区域：文件归档目录 (8个阶段文件夹树) -->
                 <section class="detail-column-left">
@@ -88,44 +88,49 @@
                         <span style="font-size:18px; font-weight:bold;">+</span> 上传项目文件/资料
                     </button>
 
+                    <!-- 智能重新分类按钮 -->
+                    <button class="btn-ai-reclassify-all" onclick="triggerAIReclassifyAllFiles()" style="width:100%; padding:9px 14px; font-size:12.5px; font-weight:600; color:#1e40af; background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border:1px solid #93c5fd; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; box-shadow:0 1px 3px rgba(37,99,235,0.1); transition:all 0.2s ease;">
+                        <span style="font-size:15px;">✨</span>
+                        <span>智能重新分类</span>
+                    </button>
+
                     <!-- 批量选择与批量删除顶部操作工具栏 -->
                     <div class="batch-file-action-bar" style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 12px; margin-bottom:10px; font-size:12px;">
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600; color:#334155; user-select:none;">
                             <input type="checkbox" id="checkbox-select-all-files" onchange="toggleSelectAllProjectFiles(this.checked)" style="cursor:pointer; width:14px; height:14px;">
                             <span>全选所有文件</span>
                         </label>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span id="selected-file-count-badge" style="color:#64748b; font-size:11.5px; font-weight:600;">已选 0 份文件</span>
-                            <button class="btn-gov-secondary" id="btn-batch-delete-files" onclick="batchDeleteSelectedFiles()" style="font-size:11.5px; padding:3px 10px; color:#94a3b8; border-color:#cbd5e1; background:#f8fafc; font-weight:600; cursor:not-allowed; display:flex; align-items:center; gap:4px; opacity:0.5;">
+                        <div style="display:flex; gap:8px;">
+                            <button id="btn-batch-delete-files" onclick="batchDeleteProjectFiles()" class="btn-gov-secondary" style="color:#ef4444; border-color:#fca5a5; background:#fff5f5; font-size:11.5px; padding:3px 8px; font-weight:600; display:none;" title="删除勾选的文件">
                                 🗑️ 批量删除
                             </button>
                         </div>
                     </div>
 
-                    <!-- 大模型 AI 智能重新分类按钮 (替换原文字提示) -->
-                    <button class="btn-ai-reclassify-all" onclick="triggerAIReclassifyAllFiles()" style="width:100%; padding:9px 14px; font-size:12.5px; font-weight:600; color:#1e40af; background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border:1px solid #93c5fd; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; box-shadow:0 1px 3px rgba(37,99,235,0.1); transition:all 0.2s ease;">
-                        <span style="font-size:15px;">✨</span>
-                        <span>大模型 AI 智能重新分类 (读取全量文档标题与内容重新归档)</span>
-                    </button>
+                    <!-- 文档过滤检索输入框 (类似图二) -->
+                    <div class="file-search-box" style="position:relative; margin-bottom:10px;">
+                        <input type="text" id="filter-detail-file-input" oninput="filterProjectFiles(this.value)" placeholder="🔍 检索项目或跨文件全文检索..." style="width:100%; padding:8px 30px 8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:12.5px; outline:none; background:#ffffff; box-shadow:0 1px 2px rgba(0,0,0,0.03); transition:all 0.2s ease; box-sizing:border-box;">
+                        <span id="clear-detail-file-search" onclick="clearDetailFileSearch()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; color:#94a3b8; font-size:13px; display:none; user-select:none;" title="清空检索">✕</span>
+                    </div>
                     <div class="folder-directory-tree" id="national-archiving-tree">
                         <!-- 动态渲染8大类及其小类分支 -->
                     </div>
                 </section>
 
-                <!-- 右侧区域：智能分析与研判 -->
+                <!-- 中间区域：智能分析与研判主卡区 -->
                 <section class="detail-column-right">
                     
                     <!-- 顶层主选项卡 -->
                     <div class="pane-tab-header">
-                        <button class="pane-tab-btn active" id="tab-btn-compliance" data-pane="compliance" onclick="switchDetailRightTab('compliance')" style="cursor:pointer; position:relative; z-index:99;">🏛️ 项目合规研判与预警</button>
-                        <button class="pane-tab-btn" id="tab-btn-yn-eval" data-pane="yn-eval" onclick="switchDetailRightTab('yn-eval')" style="cursor:pointer; position:relative; z-index:99;">📑 文档填报评测</button>
-                        <button class="pane-tab-btn" id="tab-btn-rag-chat" data-pane="rag-chat" onclick="switchDetailRightTab('rag-chat')" style="cursor:pointer; position:relative; z-index:99;">💬 智能助手与公文定稿</button>
-                        <button class="pane-tab-btn" id="tab-btn-todos" data-pane="todos" onclick="switchDetailRightTab('todos')" style="cursor:pointer; position:relative; z-index:99;">📌 待办事项清单</button>
+                        <button class="pane-tab-btn active" id="tab-btn-rag-chat" data-pane="rag-chat" onclick="switchDetailRightTab('rag-chat')" style="cursor:pointer; position:relative; z-index:99;">💬 智能助手</button>
+                        <button class="pane-tab-btn" id="tab-btn-compliance" data-pane="compliance" onclick="switchDetailRightTab('compliance')" style="cursor:pointer; position:relative; z-index:99;">🏛️ 合规研判</button>
+                        <button class="pane-tab-btn" id="tab-btn-yn-eval" data-pane="yn-eval" onclick="switchDetailRightTab('yn-eval')" style="cursor:pointer; position:relative; z-index:99;">📑 填报评测</button>
+                        <button class="pane-tab-btn" id="tab-btn-doc-editor" data-pane="doc-editor" onclick="switchDetailRightTab('doc-editor')" style="cursor:pointer; position:relative; z-index:99;">📝 文稿编辑</button>
                     </div>
 
                     <!-- 选项卡一：合规研判与预警 (全新图文/表格矩阵大屏) -->
-                    <div id="pane-tab-compliance" class="pane-tab-content active">
-                        <div class="analysis-card" style="margin-top: 15px;">
+                    <div id="pane-tab-compliance" class="pane-tab-content hidden">
+                        <div class="analysis-card">
                             <div class="card-header-flex" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:14px;">
                                 <h3 style="margin:0; font-size:15px; color:#1e3a8a; display:flex; align-items:center; gap:6px;">
                                     <span>🏛️</span>
@@ -206,7 +211,7 @@
                     </div>
 
                     <!-- 选项卡二：文档填报评测 (依据《云南省重点建设项目档案验收实施办法》) -->
-                    <div id="pane-tab-yn-eval" class="pane-tab-content hidden" style="margin-top: 15px;">
+                    <div id="pane-tab-yn-eval" class="pane-tab-content hidden">
                         <div class="analysis-card">
                             <div class="card-header-flex" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
                                 <h3 style="margin:0; font-size:15px; color:#1e40af; display:flex; align-items:center; gap:6px;">
@@ -244,13 +249,12 @@
                         </div>
                     </div>
 
-                    <!-- 选项卡二：智能助手与公文定稿助手 (RAG) -->
-                    <div id="pane-tab-rag-chat" class="pane-tab-content hidden">
-                        <div class="rag-chat-container" style="margin-top: 15px;">
+                    <!-- 选项卡：智能助手 (默认打开 Top Tab 1) -->
+                    <div id="pane-tab-rag-chat" class="pane-tab-content active">
+                        <div class="rag-chat-container">
                             <div class="chat-header">
                                 <div>
                                     <span class="chat-title">💬 项目知识库助理</span>
-                                    <span class="chat-subtitle" id="chat-rag-status">内置离线政务引擎 (DeepSeek-R1) · 强物理隔离</span>
                                 </div>
                                 <div class="chat-mode-selector">
                                     <button class="btn-chat-mode active" data-mode="fast" onclick="setChatMode('fast')">⚡ 快速查询</button>
@@ -279,38 +283,53 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- 交互式拟稿定稿在线编辑器 -->
-                        <div class="rag-doc-editor-card" style="margin-top: 16px;">
-                            <div class="card-header-flex">
-                                <h3>📝 拟稿定稿在线文档编辑器</h3>
-                                <button class="btn-gov-primary" id="btn-rag-save-doc" style="font-size:12px; padding:4px 10px;">💾 存为项目归档公文</button>
+                    <!-- 选项卡：拟稿定稿在线文档编辑器 (独立 Top Tab) -->
+                    <div id="pane-tab-doc-editor" class="pane-tab-content hidden">
+                        <div class="rag-doc-editor-card" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                            <div class="card-header-flex" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
+                                <h3 style="margin:0; font-size:15px; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                                    <span>📝</span>
+                                    <span>拟稿定稿在线文档编辑器</span>
+                                </h3>
+                                <button class="btn-gov-primary" id="btn-rag-save-doc" style="font-size:12px; padding:6px 14px; font-weight:600;">💾 存为项目归档公文</button>
                             </div>
-                            <div class="editor-toolbar">
-                                <span class="editor-status" id="editor-status-text">未选择公文草稿</span>
-                                <input type="text" id="rag-doc-filename" placeholder="输入拟定文档文件名 (例: 验收评审意见-定稿.docx)" style="font-size:12.5px; width:260px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+                            <div class="editor-toolbar" style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:12px;">
+                                <span class="editor-status" id="editor-status-text" style="font-size:12px; color:#64748b;">未选择公文草稿</span>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <label style="font-size:12px; color:#475569; font-weight:600;">文档文件名：</label>
+                                    <input type="text" id="rag-doc-filename" placeholder="输入拟定文档文件名 (例: 验收评审意见-定稿.docx)" style="font-size:12.5px; width:300px; padding:5px 10px; border:1px solid #cbd5e1; border-radius:4px;">
+                                </div>
                             </div>
-                            <textarea id="rag-editor-content" rows="8" placeholder="研判建议与公文草稿将自动生成于此处，您可以直接在线编辑定稿..."></textarea>
+                            <textarea id="rag-editor-content" rows="18" style="width:100%; padding:14px; font-family:Consolas, Monaco, 'Courier New', monospace; font-size:13px; line-height:1.65; border:1px solid #cbd5e1; border-radius:6px; background:#fafafa; color:#1e293b; box-sizing:border-box; resize:vertical;" placeholder="研判建议与公文草稿将自动生成于此处，您可以直接在线编辑定稿..."></textarea>
                         </div>
                     </div>
 
-                    <!-- 选项卡三：待办事项清单 -->
-                    <div id="pane-tab-todos" class="pane-tab-content hidden">
-                        <div class="todo-list-card" style="margin-top: 15px;">
-                            <div class="card-header-flex">
-                                <h3>📌 项目生命周期待办清单</h3>
-                                <span style="font-size:12px; color:var(--text-muted);">自动跟进验收与付款节点</span>
-                            </div>
-                            <div class="todo-input-row" style="display:flex; gap:10px; margin: 12px 0;">
-                                <input type="text" id="new-todo-text" placeholder="添加新待办事项..." style="flex:1; padding:6px 12px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px;">
-                                <button class="btn-gov-primary" onclick="addProjectTodo()" style="font-size:12.5px; padding:6px 14px;">添加待办</button>
-                            </div>
-                            <ul class="todo-item-list" id="project-todo-list">
-                                <!-- 动态填充待办项 -->
-                            </ul>
-                        </div>
-                    </div>
+                </section>
 
+                <!-- 最右侧第3列：项目待办事项 (常驻独立侧栏) -->
+                <section class="detail-column-rightmost">
+                    <div class="todo-list-card" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; height:100%; box-sizing:border-box; box-shadow:0 1px 3px rgba(0,0,0,0.04); display:flex; flex-direction:column;">
+                        <div class="card-header-flex" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
+                            <div>
+                                <h3 style="margin:0; font-size:15px; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                                    <span>📌</span>
+                                    <span>项目代办事项</span>
+                                </h3>
+                                <span style="font-size:11.5px; color:var(--text-muted); margin-top:2px; display:block;">归档公文缺失与合同节点智能分析</span>
+                            </div>
+                        </div>
+                        <button class="btn-gov-secondary" onclick="autoGenerateProjectTodos()" style="width:100%; font-size:12px; padding:6px 10px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:4px;">🤖 智能一键重新梳理代办</button>
+                        
+                        <div class="todo-input-row" style="display:flex; gap:6px; margin-bottom: 12px;">
+                            <input type="text" id="new-todo-text" placeholder="添加新待办事项..." style="flex:1; padding:6px 10px; border:1px solid #cbd5e1; border-radius:4px; font-size:12.5px;">
+                            <button class="btn-gov-primary" onclick="addProjectTodo()" style="font-size:12px; padding:6px 10px; white-space:nowrap;">添加</button>
+                        </div>
+                        <ul class="todo-item-list" id="project-todo-list" style="list-style:none; padding:0; margin:0; flex:1; overflow-y:auto; box-sizing:border-box;">
+                            <!-- 动态填充待办项 -->
+                        </ul>
+                    </div>
                 </section>
             </div>
         </main>
@@ -495,10 +514,10 @@
         }
     </style>
 
-    <script src="js/utils.js?v=20260720N"></script>
-    <script src="js/auth.js?v=20260720N"></script>
-    <script src="js/app.js?v=20260720N"></script>
-    <script src="js/detail.js?v=20260720N"></script>
+    <script src="js/utils.js?v=20260727_V11"></script>
+    <script src="js/auth.js?v=20260727_V11"></script>
+    <script src="js/app.js?v=20260727_V11"></script>
+    <script src="js/detail.js?v=20260727_V11"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             checkAuthAndInitHeader();

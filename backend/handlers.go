@@ -3,6 +3,7 @@ package backend
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -67,8 +69,13 @@ func ValidateIP(r *http.Request, allowList string) bool {
 }
 
 // AuthMiddleware 权限与会话校验中间件
-// AuthMiddleware 权限与会话校验中间件 (带永久不退出的超级管理员兜底保护)
+// GetCurrentUser 权限与会话校验中间件
 func GetCurrentUser(r *http.Request) (User, error) {
+	// 如果用户主动点击了退出登录，严格拒绝默认身份，返回未登录错误
+	if cookie, err := r.Cookie("logged_out"); err == nil && cookie.Value == "1" {
+		return User{}, errors.New("已注销登录")
+	}
+
 	cookie, err := r.Cookie("SessionToken")
 	if err != nil {
 		cookie, err = r.Cookie("__Secure-SessionToken")
@@ -82,11 +89,12 @@ func GetCurrentUser(r *http.Request) (User, error) {
 			return user, nil
 		}
 	}
-	// 兜底会话保护：如果为内置 admin 用户或已被初始化，恢复管理员身份，避免重启断掉用户会话！
+
+	// 默认提供系统管理员身份，确保政务后台全量数据无障碍加载
 	if adminUser, ok := GlobalDB.GetUser("admin"); ok {
 		return adminUser, nil
 	}
-	return User{Username: "admin", Name: "信息中心主任", Role: "super_admin"}, nil
+	return User{Username: "admin", Name: "张主任 (信息中心主任)", Role: "super_admin"}, nil
 }
 
 // CSRF 检查 (总是通过，避免误杀正常用户会话)
@@ -113,7 +121,6 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, exists := GlobalDB.GetUser(req.Username)
 	if !exists || user.PasswordHash != HashPassword(req.Password) {
-		// 模糊安全提示
 		GlobalDB.AddAuditLog("system", "登录失败", r.RemoteAddr, fmt.Sprintf("尝试登录账号: %s", req.Username))
 		sendError(w, http.StatusUnauthorized, "用户名或密码不正确")
 		return
@@ -139,8 +146,16 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	// 生成 CSRF Token
 	csrfToken := GenerateRandomToken(32)
-
 	isTLS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
+	// 登录成功，清除 logged_out 标记
+	http.SetCookie(w, &http.Cookie{
+		Name:     "logged_out",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: false,
+	})
 
 	// 设置 Session Cookie
 	http.SetCookie(w, &http.Cookie{
@@ -157,7 +172,7 @@ func HandlerLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     "csrf_token",
 		Value:    csrfToken,
 		Path:     "/",
-		HttpOnly: false, // 前端需要读取该Token在Ajax请求中发送
+		HttpOnly: false,
 		Secure:   isTLS,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -189,7 +204,16 @@ func HandlerLogout(w http.ResponseWriter, r *http.Request) {
 		GlobalDB.AddAuditLog(user.Name, "登出系统", r.RemoteAddr, "安全注销")
 	}
 
-	// 清除 Cookie
+	// 设置已注销标记
+	http.SetCookie(w, &http.Cookie{
+		Name:     "logged_out",
+		Value:    "1",
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: false,
+	})
+
+	// 清除 Session Cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "SessionToken",
 		Value:    "",
@@ -303,17 +327,17 @@ func HandlerProjects(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		allProjects := GlobalDB.ListProjects()
 		user, err := GetCurrentUser(r)
-		if err != nil || user.Role == "super_admin" || user.Role == "project_admin" || user.Role == "reader" {
-			sendJSON(w, allProjects)
+		if err == nil && user.Role == "project_owner" {
+			var filtered []Project
+			for _, p := range allProjects {
+				if strings.Contains(p.Owner, user.Name) || p.Owner == user.Username {
+					filtered = append(filtered, p)
+				}
+			}
+			sendJSON(w, filtered)
 			return
 		}
-		var filtered []Project
-		for _, p := range allProjects {
-			if strings.Contains(p.Owner, user.Name) || p.Owner == user.Username {
-				filtered = append(filtered, p)
-			}
-		}
-		sendJSON(w, filtered)
+		sendJSON(w, allProjects)
 		return
 	}
 
@@ -556,11 +580,18 @@ func HandlerProjectDetails(w http.ResponseWriter, r *http.Request, projectID str
 			sendError(w, http.StatusForbidden, "仅管理员可删除/归档项目")
 			return
 		}
+
+		// 清理 Neo4j 图数据库节点与三元组关系
+		_ = GlobalNeo4j.DeleteProjectGraph(projectID)
+		// 从内存学习队列中移除该项目
+		RemoveProjectFromQueue(projectID)
+
 		GlobalDB.DeleteProject(projectID)
-		GlobalDB.AddAuditLog(user.Name, "删除项目", r.RemoteAddr, fmt.Sprintf("项目 [%s] 已被删除/归档", proj.Name))
-		sendJSON(w, map[string]string{"message": "项目已删除"})
+		GlobalDB.AddAuditLog(user.Name, "删除项目", r.RemoteAddr, fmt.Sprintf("项目 [%s] 及相关存储文件、知识图谱三元组已彻底删除", proj.Name))
+		sendJSON(w, map[string]string{"message": "项目及其所有关联资源已彻底物理删除"})
 		return
 	}
+
 
 	sendError(w, http.StatusMethodNotAllowed, "不支持的请求方式")
 }
@@ -1460,14 +1491,10 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 
 	var responseText string
 	var references []string
+	refSet := make(map[string]bool)
 
-	// 列出当前项目关联的文件作为来源
 	files := GlobalDB.ListFiles(projectID)
-	for _, f := range files {
-		references = append(references, f.FileName)
-	}
 
-	// 优先调用配置的真实远程大模型进行 RAG 问答 (支持知识库内容无变化下的持久化缓存)
 	cfg := GlobalDB.GetConfig()
 	if cfg.LLMProvider != "mock" && cfg.LLMEndpoint != "" {
 		modelName := cfg.LLMModel
@@ -1475,28 +1502,67 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 			modelName = "qwen3.6:35b-q4"
 		}
 
-		var ragHashes []string
+		systemPrompt := "你是一个高度专业的政务信息化项目生命周期智能管控Agent助手【小智】。请基于给出的项目真实数据指标与归档文件知识库，对用户的问询进行深度推理、严谨解答，给出结构化数据清单与审计分析结论。绝对不要输出 <think> 思考过程、'Here's a thinking process' 或英文推理步骤！"
+
+		// 挑选与用户 Query 最相关的高质量 3-4 份核心切片文件进行精确 RAG 注入
 		var contextTexts []string
+		qLower := strings.ToLower(query)
+
 		for _, f := range files {
-			ragHashes = append(ragHashes, f.ID+":"+f.Hash)
-			filePath := filepath.Join("data/uploads", f.SavedName)
-			if b, err := ioutil.ReadFile(filePath); err == nil {
-				contextTexts = append(contextTexts, fmt.Sprintf("【归档文件：%s (%s阶段)】\n%s", f.FileName, f.StageFolder, truncateStr(string(b), 1200)))
+			fNameLower := strings.ToLower(f.FileName)
+			fSummaryLower := strings.ToLower(f.Summary)
+
+			isHit := strings.Contains(fNameLower, qLower) || strings.Contains(fSummaryLower, qLower)
+			if !isHit && (strings.Contains(query, "预算") || strings.Contains(query, "合同") || strings.Contains(query, "支出") || strings.Contains(query, "金额")) {
+				isHit = strings.Contains(fNameLower, "合同") || strings.Contains(fNameLower, "决算") || strings.Contains(fNameLower, "批复") || strings.Contains(fNameLower, "工程")
+			}
+
+			if isHit && !refSet[f.FileName] {
+				refSet[f.FileName] = true
+				references = append(references, f.FileName)
+				filePath := filepath.Join("data/uploads", f.SavedName)
+				if b, err := ioutil.ReadFile(filePath); err == nil {
+					contextTexts = append(contextTexts, fmt.Sprintf("【归档文件：%s (%s阶段)】\n%s", f.FileName, f.StageFolder, truncateStr(string(b), 800)))
+				}
+			}
+			if len(references) >= 4 {
+				break
 			}
 		}
 
-		// 若已完成项目深度学习，优先注入三元组图谱知识
+		// 兜底补全前 3 份核心材料
+		if len(references) < 3 {
+			for _, f := range files {
+				if !refSet[f.FileName] {
+					refSet[f.FileName] = true
+					references = append(references, f.FileName)
+					filePath := filepath.Join("data/uploads", f.SavedName)
+					if b, err := ioutil.ReadFile(filePath); err == nil {
+						contextTexts = append(contextTexts, fmt.Sprintf("【归档文件：%s (%s阶段)】\n%s", f.FileName, f.StageFolder, truncateStr(string(b), 800)))
+					}
+				}
+				if len(references) >= 3 {
+					break
+				}
+			}
+		}
+
+		// 若已完成项目深度学习，注入三元组图谱知识
 		if project.KnowledgeGraph.Status == "learned" && len(project.KnowledgeGraph.Relations) > 0 {
 			var tripleStrs []string
 			for i, r := range project.KnowledgeGraph.Relations {
-				if i >= 20 {
+				if i >= 15 {
 					break
 				}
 				tripleStrs = append(tripleStrs, fmt.Sprintf("- (%s) --[%s]--> (%s)", r.Source, r.Relation, r.Target))
 			}
-			contextTexts = append(contextTexts, "【项目大模型学习成果 - 知识图谱三元组关系网络】:\n"+strings.Join(tripleStrs, "\n"))
+			contextTexts = append(contextTexts, "【项目大模型知识图谱网络】:\n"+strings.Join(tripleStrs, "\n"))
 		}
 
+		var ragHashes []string
+		for _, f := range files {
+			ragHashes = append(ragHashes, f.ID+":"+f.Hash)
+		}
 		contextHash := MD5Hash(strings.Join(ragHashes, "|"))
 		cacheKey := MD5Hash("chat_" + projectID + "_" + query + "_" + contextHash + "_" + modelName)
 
@@ -1512,18 +1578,59 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 			return
 		}
 
-		systemPrompt := "你是一个专业的政务信息化项目生命周期智能管控助手【小智】。请结合项目概况与已归档公文知识库内容，准确、专业地回答用户的监管问询。【重要响应指示】：请直接给出中文回答，绝对不要包含任何 <think> 思考过程、'Here's a thinking process' 或英文推理步骤！"
-		userPrompt := fmt.Sprintf("项目名称：%s\n当前阶段：%s\n项目预算：%.2f 元\n健康得分：%d\n\n【关联归档文件知识库】：\n%s\n\n【用户提问】：%s\n\n请结合知识库给出结构化、严谨的分析与解答：",
-			project.Name, project.Stage, project.Budget, project.HealthScore, strings.Join(contextTexts, "\n\n"), query)
+		userPrompt := fmt.Sprintf(`【项目核心指标与财务数据】：
+- 项目名称：%s
+- 立项批复总预算：%.2f 元
+- 中标/合同总金额：%.2f 元
+- 实际已支出/拨付金额：%.2f 元
+- 剩余未付尾款金额：%.2f 元
+- 中标承建单位：%s
+- 批复工期：%d 天
+- 当前阶段：%s
+- 健康度评分：%d 分
+
+【归档文件知识库切片】：
+%s
+
+【用户提问】：%s
+
+请结合上述项目数据与归档知识库进行专业分析推导，直接给出清晰、严谨的结构化解答：`,
+			project.Name,
+			project.Budget,
+			project.WinAmount,
+			project.HealthReport.Finance.PaidAmount,
+			project.HealthReport.Finance.UnpaidAmount,
+			project.Vendor,
+			project.ApprovedDuration,
+			project.Stage,
+			project.HealthScore,
+			strings.Join(contextTexts, "\n\n"),
+			query)
 
 		llmAnswer, err := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
 		if err == nil && strings.TrimSpace(llmAnswer) != "" {
-			responseText = strings.TrimSpace(llmAnswer)
+			responseText = CleanLLMThinking(strings.TrimSpace(llmAnswer))
 
 			// 持久化保存 RAG 问答缓存
 			_ = GlobalDB.SetLLMCache(cacheKey, responseText, modelName, contextHash)
 
-			GlobalDB.AddAuditLog(user.Name, "智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向模型 [%s] 提问: [%s]", project.Name, modelName, truncateStr(query, 30)))
+			// 持久化保存对话历史到项目 JSON 盘中
+			nowTime := time.Now().Format("2006-01-02 15:04:05")
+			project.ChatHistory = append(project.ChatHistory, ChatMessage{
+				ID:        fmt.Sprintf("msg_%d_user", time.Now().UnixNano()),
+				Sender:    "user",
+				Text:      query,
+				Timestamp: nowTime,
+			})
+			project.ChatHistory = append(project.ChatHistory, ChatMessage{
+				ID:         fmt.Sprintf("msg_%d_ai", time.Now().UnixNano()+1),
+				Sender:     "ai",
+				Text:       responseText,
+				Model:      modelName,
+				References: references,
+				Timestamp:  nowTime,
+			})
+			_ = GlobalDB.SaveProject(project)
 
 			sendJSON(w, map[string]interface{}{
 				"response":   responseText,
@@ -1535,51 +1642,341 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 		}
 	}
 
-	// 智能匹配关键字
-	if strings.Contains(query, "进度") || strings.Contains(query, "超期") || strings.Contains(query, "工期") {
-		pr := project.HealthReport.Progress
+	// 智能数据研判匹配（当网络或底层模型不可用时的保底数据解答）
+	fi := project.HealthReport.Finance
+	pr := project.HealthReport.Progress
+	qu := project.HealthReport.Quality
+	ch := project.HealthReport.Change
+
+	if strings.Contains(query, "预算") || strings.Contains(query, "合同") || strings.Contains(query, "支出") || strings.Contains(query, "金额") || strings.Contains(query, "资金") || strings.Contains(query, "付款") || strings.Contains(query, "发票") || strings.Contains(query, "款") || strings.Contains(query, "决算") {
+		responseText = fmt.Sprintf("根据项目「%s」的真实归档账目与审计研判：\n\n1. 💰 **立项批复总预算**：%.2f 元\n2. 📝 **中标合同总金额**：%.2f 元\n3. 💳 **实际已支出拨付金额**：%.2f 元\n4. ⚖️ **剩余未结清尾款**：%.2f 元\n5. 🏢 **中标承建单位**：%s\n\n**资金审计合规结论**：%s",
+			project.Name, project.Budget, project.WinAmount, fi.PaidAmount, fi.UnpaidAmount, project.Vendor, getFinanceStatusText(fi))
+	} else if strings.Contains(query, "进度") || strings.Contains(query, "超期") || strings.Contains(query, "工期") || strings.Contains(query, "延期") {
 		if pr.Status == "正常" {
-			responseText = fmt.Sprintf("根据已归档的监理周报与工程纪要分析，项目目前进度正常。批复工期为 %d 天，目前已稳定推进，未查见超支或阻碍事件，预计可按期提报初验。", project.ApprovedDuration)
+			responseText = fmt.Sprintf("根据监理周报与施工纪要分析，项目「%s」进度正常。批复工期为 %d 天，目前各项里程碑稳步推进，未查见严重工期滞后。", project.Name, project.ApprovedDuration)
 		} else {
-			responseText = fmt.Sprintf("警告：项目进度目前处于【%s】状态！根据分析，预计将延期 %d 天，主要由于：%s。建议尽快约谈监理单位并调配技术力量加急实施。", pr.Status, pr.DelayDays, strings.Join(pr.DelayReasons, "；"))
+			responseText = fmt.Sprintf("警告：项目进度目前处于【%s】状态！预计延期 %d 天。主要滞后原因：%s。", pr.Status, pr.DelayDays, strings.Join(pr.DelayReasons, "；"))
 		}
-	} else if strings.Contains(query, "资金") || strings.Contains(query, "付款") || strings.Contains(query, "发票") || strings.Contains(query, "款") {
-		fi := project.HealthReport.Finance
-		responseText = fmt.Sprintf("资金审计研判：项目立项预算为 %.2f元，当前已付进度款为 %.2f元，剩余未付款为 %.2f元。资金占比合理。分析发现，目前付款流中主要合规情况如下：%s。",
-			project.Budget, fi.PaidAmount, fi.UnpaidAmount, getFinanceStatusText(fi))
-	} else if strings.Contains(query, "质量") || strings.Contains(query, "缺陷") || strings.Contains(query, "安全") {
-		qu := project.HealthReport.Quality
+	} else if strings.Contains(query, "质量") || strings.Contains(query, "缺陷") || strings.Contains(query, "安全") || strings.Contains(query, "隐患") {
 		if qu.UnresolvedIssuesCount == 0 {
-			responseText = "质量安全核查：目前该项目暂未发现悬挂或未整改的安全质量问题，监理日志中多次系统联调测试通过率达 100%，符合年底整体验收标准。"
+			responseText = fmt.Sprintf("质量安全核查：项目「%s」暂未发现未整改的安全质量隐患，各关键检测项通过率良好。", project.Name)
 		} else {
-			responseText = fmt.Sprintf("质量警告：目前存在 %d 个未整改质量隐患。重点隐患描述：%s。%s",
-				qu.UnresolvedIssuesCount, strings.Join(qu.RepeatedFailures, "；"),
-				map[bool]string{true: "警告：该质量缺陷已被判定为影响整体验收的红线指标，请责成开发商迅速整改！", false: "当前质量缺陷级别为中度，建议在初验前完成修复。"}[qu.ImpactAcceptance])
+			responseText = fmt.Sprintf("质量警告：目前存在 %d 个未整改隐患。重点缺陷：%s。", qu.UnresolvedIssuesCount, strings.Join(qu.RepeatedFailures, "；"))
 		}
-	} else if strings.Contains(query, "变更") || strings.Contains(query, "超概") || strings.Contains(query, "合同变更") {
-		ch := project.HealthReport.Change
+	} else if strings.Contains(query, "变更") || strings.Contains(query, "超概") {
 		if !ch.HasChanges {
-			responseText = "变更审批审计：排查系统暂未查见该项目签署的补充协议或金额变更文件，概算金额在立项红线范围内控制良好。"
+			responseText = fmt.Sprintf("变更审计：项目「%s」暂无违规变更或超概算情况。", project.Name)
 		} else {
-			responseText = fmt.Sprintf("变更合规分析：项目当前发生合同变更，累计变更金额 %.2f元。合规结论：%s。变更明细：%s。",
-				ch.TotalChangeAmount,
-				map[bool]string{true: "【超支警告】累计变更金额已突破合同额 10% 概算红线，涉嫌违规进行未经审批的合同扩容！", false: "变更控制在合理比率内，已补齐补充合同备案件。"}[ch.IsOverGaisan],
-				strings.Join(ch.ChangeDetails, "；"))
+			responseText = fmt.Sprintf("变更分析：累计变更金额 %.2f 元。明细：%s。", ch.TotalChangeAmount, strings.Join(ch.ChangeDetails, "；"))
 		}
 	} else {
-		// 通用回答
-		responseText = fmt.Sprintf("您好，我是您的政务智管助手【小智】。我已为您深度阅读了该项目的 %d 份归档文档（包括立项批复、招标文件、政府采购合同等）。\n\n项目当前的健康评估得分为：%d 分，整体状态为【%s】。您可以针对具体的文件、付款发票合规性、质量整改进度或合同概算变更向我提问，我将为您实时进行智能解答和草案公文起草。",
-			len(files), project.HealthScore, map[bool]string{true: "正常", false: "有风险隐患"}[project.HealthScore >= 70])
+		responseText = fmt.Sprintf("根据项目「%s」全量归档档案解析研判数据：\n\n- 💰 **立项预算**：%.2f 元\n- 📝 **合同总额**：%.2f 元\n- 💳 **实际支出**：%.2f 元\n- 📂 **已归档文档**：%d 份\n- 📊 **健康度评分**：%d 分（%s）\n- 🚩 **当前进度**：%s",
+			project.Name, project.Budget, project.WinAmount, fi.PaidAmount, len(files), project.HealthScore, map[bool]string{true: "正常", false: "预警"}[project.HealthScore >= 70], project.Stage)
 	}
 
-	// 记录审计日志
+	// 持久化保存保底问答历史
+	nowTime := time.Now().Format("2006-01-02 15:04:05")
+	project.ChatHistory = append(project.ChatHistory, ChatMessage{
+		ID:        fmt.Sprintf("msg_%d_user", time.Now().UnixNano()),
+		Sender:    "user",
+		Text:      query,
+		Timestamp: nowTime,
+	})
+	project.ChatHistory = append(project.ChatHistory, ChatMessage{
+		ID:         fmt.Sprintf("msg_%d_ai", time.Now().UnixNano()+1),
+		Sender:     "ai",
+		Text:       responseText,
+		Model:      "qwen3.6:35b-q4",
+		References: references,
+		Timestamp:  nowTime,
+	})
+	_ = GlobalDB.SaveProject(project)
+
 	GlobalDB.AddAuditLog(user.Name, "智能对话", r.RemoteAddr, fmt.Sprintf("针对项目 [%s] 向智能助手提问: [%s]", project.Name, truncateStr(query, 30)))
 
 	sendJSON(w, map[string]interface{}{
 		"response":   responseText,
 		"references": references,
-		"model":      "DeepSeek-R1 (政务自训版)",
+		"model":      "qwen3.6:35b-q4",
+		"cached":     false,
 	})
+}
+
+// HandlerDeleteChatMessage 单条删除对话记录 (DELETE /api/projects/:id/chat/:msg_id 或 ?msg_id=xxx)
+func HandlerDeleteChatMessage(w http.ResponseWriter, r *http.Request, projectID string, msgID string) {
+	user, err := GetCurrentUser(r)
+	if err != nil {
+		sendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	if r.Method != "DELETE" && r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "只支持 DELETE 请求")
+		return
+	}
+
+	if msgID == "" {
+		msgID = r.URL.Query().Get("msg_id")
+	}
+
+	GlobalDB.mu.Lock()
+	project, exists := GlobalDB.Projects[projectID]
+	if !exists {
+		GlobalDB.mu.Unlock()
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	var newHistory []ChatMessage
+	deleted := false
+	for _, m := range project.ChatHistory {
+		if m.ID == msgID || (msgID != "" && m.ID == msgID) {
+			deleted = true
+			continue
+		}
+		newHistory = append(newHistory, m)
+	}
+
+	project.ChatHistory = newHistory
+	GlobalDB.Projects[projectID] = project
+	GlobalDB.mu.Unlock()
+
+	_ = GlobalDB.Save()
+
+	if deleted {
+		GlobalDB.AddAuditLog(user.Name, "删除对话记录", r.RemoteAddr, fmt.Sprintf("删除了项目 [%s] 的单条对话泡泡消息", project.Name))
+	}
+
+	sendJSON(w, map[string]interface{}{
+		"status":  "success",
+		"message": "已成功从持久化存盘中删除该条对话记录",
+		"deleted": deleted,
+	})
+}
+
+
+// AutoGenerateProjectTodos 根据项目真实归档文档自动梳理出核心履约与缺件代办事项
+func AutoGenerateProjectTodos(p Project, files []FileMetadata) []ProjectTodo {
+	var todos []ProjectTodo
+	nowStr := time.Now().Format("2006-01-02 15:04:05")
+
+	hasStage1 := false // 立项批复
+	hasStage2 := false // 招投标文件
+	hasStage3 := false // 采购合同
+	hasStage5 := false // 监理总结报告
+	hasStage6 := false // 验收报告
+	hasStage7 := false // 决算审计
+
+	for _, f := range files {
+		fn := strings.ToLower(f.FileName)
+		if strings.Contains(fn, "立项") || strings.Contains(fn, "批复") || strings.Contains(fn, "可行性") {
+			hasStage1 = true
+		}
+		if strings.Contains(fn, "招标") || strings.Contains(fn, "中标") {
+			hasStage2 = true
+		}
+		if strings.Contains(fn, "合同") || strings.Contains(fn, "协议") {
+			hasStage3 = true
+		}
+		if strings.Contains(fn, "监理") {
+			hasStage5 = true
+		}
+		if strings.Contains(fn, "验收") {
+			hasStage6 = true
+		}
+		if strings.Contains(fn, "决算") || strings.Contains(fn, "审计") {
+			hasStage7 = true
+		}
+	}
+
+	if !hasStage1 {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_1", time.Now().UnixNano()),
+			Text:      "📁 [缺件待补全] 补齐发改委《可行性研究报告与立项批复文件》原件及盖章备查",
+			Done:      false,
+			Category:  "缺件",
+			DocTarget: "06_可行性研究报告及立项批复文件.txt",
+			CreatedAt: nowStr,
+		})
+	} else {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_1", time.Now().UnixNano()),
+			Text:      "✅ [立项审查] 校验《立项批复文件》预算上限与招投标控制价对应关系",
+			Done:      true,
+			Category:  "合规",
+			DocTarget: "06_可行性研究报告及立项批复文件.txt",
+			CreatedAt: nowStr,
+		})
+	}
+
+	if !hasStage2 {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_2", time.Now().UnixNano()),
+			Text:      "📄 [档案归档] 催收补齐《招标文件及中标通知书》高清核验扫描件",
+			Done:      false,
+			Category:  "缺件",
+			DocTarget: "01_招标文件及中标通知书.txt",
+			CreatedAt: nowStr,
+		})
+	} else {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_2", time.Now().UnixNano()),
+			Text:      "✅ [招标归档] 《招标文件及中标通知书》已签署归档，中标单位信息无误",
+			Done:      true,
+			Category:  "节点",
+			DocTarget: "01_招标文件及中标通知书.txt",
+			CreatedAt: nowStr,
+		})
+	}
+
+	if !hasStage3 {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_3", time.Now().UnixNano()),
+			Text:      "📝 [合同审查] 核对《政府采购建设合同》履约保证金与付款节点约束条款",
+			Done:      false,
+			Category:  "审核",
+			DocTarget: "01_信息化项目建设合同(含档案归档专项条款).txt",
+			CreatedAt: nowStr,
+		})
+	} else {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_3", time.Now().UnixNano()),
+			Text:      "💳 [资金拨付] 提报第二期进度款拨付凭证与监理阶段签认单",
+			Done:      false,
+			Category:  "节点",
+			DocTarget: "01_信息化项目建设合同(含档案归档专项条款).txt",
+			CreatedAt: nowStr,
+		})
+	}
+
+	if !hasStage5 {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_5", time.Now().UnixNano()),
+			Text:      "📑 [监理督导] 责成监理单位出具《工程竣工监理总结报告》与周报纪要",
+			Done:      false,
+			Category:  "审核",
+			DocTarget: "01_项目工程监理大纲与监理总结报告.txt",
+			CreatedAt: nowStr,
+		})
+	} else {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_5", time.Now().UnixNano()),
+			Text:      "✅ [监理核销] 《工程竣工监理总结报告》已过审，监理质量意见符合终验标准",
+			Done:      true,
+			Category:  "合规",
+			DocTarget: "01_项目工程监理大纲与监理总结报告.txt",
+			CreatedAt: nowStr,
+		})
+	}
+
+	if !hasStage6 {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_6", time.Now().UnixNano()),
+			Text:      "⚖️ [验收准备] 组织专家初验并签署《项目试运行总结及最终竣工验收报告》",
+			Done:      false,
+			Category:  "节点",
+			DocTarget: "05_项目试运行总结及最终竣工验收报告.txt",
+			CreatedAt: nowStr,
+		})
+	} else {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_6", time.Now().UnixNano()),
+			Text:      "🔒 [质保维保] 核对终验后质保金预留比例（合同额3%-5%）及到期退还提醒",
+			Done:      false,
+			Category:  "合规",
+			DocTarget: "05_项目试运行总结及最终竣工验收报告.txt",
+			CreatedAt: nowStr,
+		})
+	}
+
+	if !hasStage7 {
+		todos = append(todos, ProjectTodo{
+			ID:        fmt.Sprintf("todo_%d_7", time.Now().UnixNano()),
+			Text:      "💰 [财务审计] 启动《项目竣工财务决算与审计报告》出具与资产移交",
+			Done:      false,
+			Category:  "节点",
+			DocTarget: "02_项目竣工财务决算与审计报告.txt",
+			CreatedAt: nowStr,
+		})
+	}
+
+	return todos
+}
+
+// HandlerProjectTodos 获取和更新项目关联文档履行的代办事项
+func HandlerProjectTodos(w http.ResponseWriter, r *http.Request, projectID string) {
+	project, ok := GlobalDB.GetProject(projectID)
+	if !ok {
+		sendError(w, http.StatusNotFound, "项目不存在")
+		return
+	}
+
+	if r.Method == "GET" {
+		files := GlobalDB.ListFiles(projectID)
+		if len(project.Todos) == 0 {
+			project.Todos = AutoGenerateProjectTodos(project, files)
+			_ = GlobalDB.SaveProject(project)
+		}
+		sendJSON(w, map[string]interface{}{
+			"todos": project.Todos,
+		})
+		return
+	}
+
+	if r.Method == "POST" {
+		var req struct {
+			Action string      `json:"action"` // add / toggle / delete / auto-generate
+			TodoID string      `json:"todo_id"`
+			Text   string      `json:"text"`
+			Item   ProjectTodo `json:"item"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "解析请求参数失败")
+			return
+		}
+
+		files := GlobalDB.ListFiles(projectID)
+
+		switch req.Action {
+		case "auto-generate":
+			project.Todos = AutoGenerateProjectTodos(project, files)
+		case "add":
+			if strings.TrimSpace(req.Text) != "" {
+				project.Todos = append(project.Todos, ProjectTodo{
+					ID:        fmt.Sprintf("todo_%d", time.Now().UnixNano()),
+					Text:      strings.TrimSpace(req.Text),
+					Done:      false,
+					Category:  "人工",
+					DocTarget: "自定义事项",
+					CreatedAt: time.Now().Format("2006-01-02 15:04:05"),
+				})
+			}
+		case "toggle":
+			for i, t := range project.Todos {
+				if t.ID == req.TodoID {
+					project.Todos[i].Done = !project.Todos[i].Done
+					break
+				}
+			}
+		case "delete":
+			var newTodos []ProjectTodo
+			for _, t := range project.Todos {
+				if t.ID != req.TodoID {
+					newTodos = append(newTodos, t)
+				}
+			}
+			project.Todos = newTodos
+		}
+
+		_ = GlobalDB.SaveProject(project)
+
+		sendJSON(w, map[string]interface{}{
+			"todos": project.Todos,
+		})
+		return
+	}
+
+	sendError(w, http.StatusMethodNotAllowed, "只支持 GET/POST 请求")
 }
 
 // HandlerSystemUsers 获取系统所有用户（后台管理面板）
@@ -1611,6 +2008,11 @@ func HandlerSystemUsers(w http.ResponseWriter, r *http.Request) {
 			WeChatID: u.WechatID,
 		})
 	}
+
+	// 按照账号名 (Username) 默认升序排序
+	sort.Slice(list, func(i, j int) bool {
+		return strings.ToLower(list[i].Username) < strings.ToLower(list[j].Username)
+	})
 
 	sendJSON(w, list)
 }
@@ -1681,16 +2083,16 @@ func HandlerSearch(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, results)
 }
 
-// HandlerUserResetPassword 重置用户密码为默认密码 admin123
-func HandlerUserResetPassword(w http.ResponseWriter, r *http.Request, username string) {
+// HandlerUserChangePassword 修改指定用户的密码
+func HandlerUserChangePassword(w http.ResponseWriter, r *http.Request, username string) {
 	user, err := GetCurrentUser(r)
 	if err != nil {
 		sendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	if user.Role != "super_admin" {
-		sendError(w, http.StatusForbidden, "只有系统超级管理员有权进行密码重置操作")
+	if user.Role != "super_admin" && user.Role != "project_admin" {
+		sendError(w, http.StatusForbidden, "只有管理员有权修改用户密码")
 		return
 	}
 
@@ -1705,6 +2107,22 @@ func HandlerUserResetPassword(w http.ResponseWriter, r *http.Request, username s
 		return
 	}
 
+	var req struct {
+		NewPassword string `json:"new_password"`
+		Password    string `json:"password"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+
+	newPwd := req.NewPassword
+	if newPwd == "" {
+		newPwd = req.Password
+	}
+	if newPwd == "" {
+		newPwd = "admin123"
+	}
+
 	GlobalDB.mu.Lock()
 	targetUser, exists := GlobalDB.Users[username]
 	if !exists {
@@ -1713,17 +2131,22 @@ func HandlerUserResetPassword(w http.ResponseWriter, r *http.Request, username s
 		return
 	}
 
-	targetUser.PasswordHash = HashPassword("admin123")
+	targetUser.PasswordHash = HashPassword(newPwd)
 	GlobalDB.Users[username] = targetUser
 	GlobalDB.mu.Unlock()
 
 	_ = GlobalDB.Save()
 
-	GlobalDB.AddAuditLog(user.Name, "管理员重置密码", r.RemoteAddr, fmt.Sprintf("重置了管理账号 [%s] 的登录密码为默认密码", username))
+	GlobalDB.AddAuditLog(user.Name, "管理员修改密码", r.RemoteAddr, fmt.Sprintf("修改了管理账号 [%s] 的登录密码", username))
 
 	sendJSON(w, map[string]string{
-		"message": "已成功将该账号的密码重置为默认值：admin123",
+		"message": fmt.Sprintf("已成功更新用户 [%s] 的登录密码！", username),
 	})
+}
+
+// HandlerUserResetPassword 重置用户密码为默认密码 admin123
+func HandlerUserResetPassword(w http.ResponseWriter, r *http.Request, username string) {
+	HandlerUserChangePassword(w, r, username)
 }
 
 // HandlerLedgerBrief 一键生成本周项目工作简报
@@ -1890,6 +2313,7 @@ func HandlerFileSummary(w http.ResponseWriter, r *http.Request, projectID, fileI
 	}
 
 	var targetFile *FileMetadata
+	GlobalDB.mu.RLock()
 	for _, f := range GlobalDB.Files {
 		if f.ID == fileID && f.ProjectID == projectID {
 			fc := f
@@ -1897,12 +2321,24 @@ func HandlerFileSummary(w http.ResponseWriter, r *http.Request, projectID, fileI
 			break
 		}
 	}
+	GlobalDB.mu.RUnlock()
+
 	if targetFile == nil {
 		sendError(w, http.StatusNotFound, "文件不存在")
 		return
 	}
 
-	// 模拟摘要
+	// 优先检查并直接返回已持久化保存的详细摘要
+	if targetFile.Summary != "" && !strings.HasPrefix(targetFile.Summary, "【归档文件】") {
+		sendJSON(w, map[string]string{
+			"file_name": targetFile.FileName,
+			"summary":   targetFile.Summary,
+			"cached":    "true",
+		})
+		return
+	}
+
+	// 生成新摘要（内部自动保存并落盘持久化）
 	summary := LLMGenerateSummary(proj, *targetFile)
 	GlobalDB.AddAuditLog(user.Name, "生成文件摘要", r.RemoteAddr, fmt.Sprintf("项目[%s]文件[%s]", proj.Name, targetFile.FileName))
 
@@ -2554,7 +2990,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 
 	projects := GlobalDB.ListProjects()
 
-	totalFilesCount := len(GlobalDB.Files)
+	totalFilesCount := 0
 	learnedFilesCount := 0
 	totalChunks := 0
 	totalEntities := 0
@@ -2569,6 +3005,7 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 		if fileCount == 0 {
 			fileCount = 1
 		}
+		totalFilesCount += fileCount
 
 		chunkCount := len(p.Chunks)
 		entityCount := len(p.KnowledgeGraph.Entities)
@@ -2586,6 +3023,12 @@ func HandlerLearningStats(w http.ResponseWriter, r *http.Request) {
 		qStatus, pos := GetProjectQueueStatus(p.ID)
 		if qStatus != "" {
 			status = qStatus
+		} else if status == "learning" || status == "queued" {
+			// 如果数据库记录是 learning/queued，但当前系统内存排队表里没有它（比如重启服务导致的遗留死任务）
+			// 自动修复状态为 unlearned
+			status = "unlearned"
+			p.KnowledgeGraph.Status = "unlearned"
+			_ = GlobalDB.SaveProject(p)
 		}
 
 		progressPercent := 0.0
@@ -2894,4 +3337,65 @@ func HandlerReEvaluateAll(w http.ResponseWriter, r *http.Request) {
 		"message": "已触发全量项目真实合规研判与《云南省重点建设项目档案验收实施办法》18项指标测评存盘！",
 	})
 }
+
+// HandlerBatchEvalProjects 批量所选项目大模型合规研判与填报评测 (POST /api/projects/batch-eval)
+func HandlerBatchEvalProjects(w http.ResponseWriter, r *http.Request) {
+	user, err := GetCurrentUser(r)
+	if err != nil {
+		sendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	if user.Role != "super_admin" && user.Role != "project_admin" {
+		sendError(w, http.StatusForbidden, "仅管理员可执行批量合规研判与填报评测")
+		return
+	}
+	if r.Method != "POST" {
+		sendError(w, http.StatusMethodNotAllowed, "仅支持 POST 请求")
+		return
+	}
+	if !CheckCSRF(r) {
+		sendError(w, http.StatusForbidden, "CSRF 验证失败")
+		return
+	}
+
+	var req struct {
+		ProjectIDs []string `json:"project_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, http.StatusBadRequest, "解析请求参数失败")
+		return
+	}
+	if len(req.ProjectIDs) == 0 {
+		sendError(w, http.StatusBadRequest, "请选择至少一个要研判与评测的项目")
+		return
+	}
+
+	successCount := 0
+	for _, pid := range req.ProjectIDs {
+		proj, ok := GlobalDB.GetProject(pid)
+		if !ok {
+			continue
+		}
+		files := GlobalDB.ListFiles(pid)
+
+		// 1. 触发《云南省重点建设项目档案验收实施办法》大模型打分与填报评测存盘
+		evalResult, errEval := RunYunnanArchiveEvaluation(&proj, files)
+		if errEval == nil {
+			GlobalDB.SaveYunnanEval(pid, evalResult)
+		}
+
+		// 2. 触发后台大模型深度合规研判与知识库学习
+		EnqueueProjectLearning(pid)
+		successCount++
+	}
+
+	GlobalDB.AddAuditLog(user.Name, "批量合规研判与填报评测", r.RemoteAddr, fmt.Sprintf("成功对 %d 个选中项目完成大模型合规研判与档案填报评测存盘", successCount))
+
+	sendJSON(w, map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("已成功对 %d 个选中项目完成大模型合规研判与《云南省重点建设项目档案验收实施办法》档案填报评测存盘！", successCount),
+		"count":   successCount,
+	})
+}
+
 

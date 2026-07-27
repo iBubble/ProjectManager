@@ -126,13 +126,33 @@
                             <th onclick="sortLedgerBy('health')" style="cursor:pointer;" title="点击按预警风险级别排序">风险警报提示 <span id="sort-icon-health" class="sort-icon">↕</span></th>
                             <th onclick="sortLedgerBy('owner')" style="cursor:pointer;" title="点击按项目负责人排序">项目负责人 <span id="sort-icon-owner" class="sort-icon">↕</span></th>
                             <th onclick="sortLedgerBy('budget')" style="cursor:pointer;" title="点击按立项预算额度排序">立项预算额度 <span id="sort-icon-budget" class="sort-icon">↕</span></th>
-                            <th>操作</th>
+                            <th onclick="sortLedgerBy('created_at')" style="cursor:pointer;" title="点击按创建时间排序">创建时间 <span id="sort-icon-created_at" class="sort-icon">↓</span></th>
                         </tr>
                     </thead>
                     <tbody id="project-ledger-table-body">
                         <!-- JS动态填充 -->
                     </tbody>
                 </table>
+                <!-- 首页分页控制工具栏 -->
+                <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 10px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #475569;">
+                    <div class="pagination-info">
+                        共 <strong id="ledger-total-count">0</strong> 条记录，当前第 <span id="ledger-current-page">1</span> / <span id="ledger-total-pages">1</span> 页
+                    </div>
+                    <div class="pagination-controls" style="display: flex; align-items: center; gap: 16px;">
+                        <div class="page-size-selector" style="display: flex; align-items: center; gap: 6px;">
+                            <span>每页显示：</span>
+                            <select id="ledger-page-size" onchange="changeLedgerPageSize(this.value)" style="padding: 3px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12.5px; background: #fff; cursor: pointer;">
+                                <option value="20">20 条/页</option>
+                                <option value="50">50 条/页</option>
+                                <option value="100">100 条/页</option>
+                            </select>
+                        </div>
+                        <div class="page-buttons" style="display: flex; gap: 6px;">
+                            <button class="btn-gov-secondary" id="ledger-btn-prev" onclick="changeLedgerPage(-1)" style="padding: 3px 12px; font-size: 12px;" disabled>上一页</button>
+                            <button class="btn-gov-secondary" id="ledger-btn-next" onclick="changeLedgerPage(1)" style="padding: 3px 12px; font-size: 12px;" disabled>下一页</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

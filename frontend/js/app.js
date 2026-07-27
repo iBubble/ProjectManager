@@ -576,8 +576,8 @@ function updateMetrics(projects) {
 }
 
 var currentCardFilter = "all";
-var currentSortField = "";
-var currentSortOrder = "asc";
+var currentSortField = "created_at";
+var currentSortOrder = "desc";
 
 function setCardFilter(type) {
     currentCardFilter = type || "all";
@@ -609,10 +609,10 @@ function sortLedgerBy(field) {
         currentSortOrder = (currentSortOrder === "asc" ? "desc" : "asc");
     } else {
         currentSortField = field;
-        currentSortOrder = "asc";
+        currentSortOrder = field === "created_at" ? "desc" : "asc";
     }
 
-    ["name", "stage", "days", "health", "owner", "budget"].forEach(f => {
+    ["name", "stage", "start_date", "planned_completion_date", "days", "health", "owner", "budget", "created_at"].forEach(f => {
         const iconEl = document.getElementById("sort-icon-" + f);
         if (iconEl) {
             if (f === currentSortField) {
@@ -629,6 +629,7 @@ function sortLedgerBy(field) {
 
     renderLedgerTable();
 }
+
 
 function renderLedgerTable() {
     const tbody = document.getElementById("project-ledger-table-body");
@@ -1959,14 +1960,14 @@ function loadAdminUsersTable() {
                 <td style="color:var(--text-muted); font-family:monospace;">${escapeHTML(u.wechat_id || "-")}</td>
                 <td>
                     <div class="row-actions">
-                        <button class="btn-gov-secondary btn-reset-user-pwd" data-uname="${u.username}" style="padding:4px 8px; font-size:12px;">重置密码</button>
+                        <button class="btn-gov-secondary btn-reset-user-pwd" data-uname="${u.username}" style="padding:4px 8px; font-size:12px;">修改密码</button>
                         <button class="btn-delete" onclick="deleteAdminUser('${u.username}')" style="padding:4px 8px; font-size:12px;">注销</button>
                     </div>
                 </td>
             `;
             tr.querySelector(".btn-reset-user-pwd").addEventListener("click", (e) => {
                 const username = e.target.getAttribute("data-uname");
-                resetUserPassword(username);
+                changeUserPasswordApp(username);
             });
             tbody.appendChild(tr);
         });
@@ -1976,22 +1977,30 @@ function loadAdminUsersTable() {
     });
 }
 
-// 后台管理员重置指定用户密码为默认密码
-function resetUserPassword(username) {
-    if (confirm(`🔒 您确定要将管理账号【${username}】的登录密码重置为系统默认初始密码【admin123】吗？`)) {
-        fetch(`/api/system/users/${username}/reset-password`, {
-            method: "POST",
-            headers: { "X-CSRF-Token": csrfToken }
-        })
-        .then(res => {
-            if (!res.ok) throw new Error("密码重置失败，可能是权限不足或会话过期");
-            return res.json();
-        })
-        .then(data => {
-            alert(data.message || "账号密码已成功重置！");
-        })
-        .catch(err => alert(err.message));
+// 后台管理员修改指定用户密码
+function changeUserPasswordApp(username) {
+    const newPwd = prompt(`🔑 请输入管理账号【${username}】的新密码（至少6位）：`);
+    if (!newPwd) return;
+    if (newPwd.trim().length < 6) {
+        alert("新密码长度不能少于 6 位");
+        return;
     }
+    fetch(`/api/system/users/${username}/change-password`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken
+        },
+        body: JSON.stringify({ new_password: newPwd.trim() })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("密码修改失败，可能是权限不足或会话过期");
+        return res.json();
+    })
+    .then(data => {
+        alert(data.message || "账号密码已成功修改！");
+    })
+    .catch(err => alert(err.message));
 }
 
 // ==========================================================================

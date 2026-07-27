@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>后台管理中心 - 政务智管</title>
-    <link rel="stylesheet" href="css/main.css?v=20260720M">
-    <link rel="stylesheet" href="css/admin.css?v=20260720M">
+    <link rel="stylesheet" href="css/main.css?v=20260727_V10">
+    <link rel="stylesheet" href="css/admin.css?v=20260727_V10">
 </head>
 <body class="gov-classic-theme">
     <!-- 全局防伪防泄水印叠加层 -->
@@ -149,27 +149,50 @@
                                 <button class="btn-gov-secondary" onclick="executeBatchUpdateStage()" style="font-size:12px; padding:4px 10px;">执行批量变更</button>
                                 <input type="text" id="batch-label-input" placeholder="输入批量标签 (如: 硬件采购)" style="font-size:12.5px; width:180px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px;">
                                 <button class="btn-gov-secondary" onclick="executeBatchAddLabel()" style="font-size:12px; padding:4px 10px;">批量添加标签</button>
+                                <button class="btn-gov-secondary" onclick="executeBatchEvalProjects()" style="font-size:12px; padding:4px 10px; background-color:#0f2b5c; color:#ffffff; border:1px solid #1d4ed8; border-radius:4px; font-weight:600; cursor:pointer;">🧠 批量合规研判与填报评测</button>
+                                <button class="btn-gov-secondary btn-danger-action" onclick="executeBatchDeleteProjects()" style="font-size:12px; padding:4px 10px; background-color: #ef4444; color: #ffffff; border: 1px solid #dc2626; border-radius: 4px; font-weight: bold; cursor: pointer;">批量删除</button>
                             </div>
                             <div class="admin-form-card" style="padding:0; max-width:none;">
                                 <table class="gov-table admin-projects-table" style="margin:0;">
                                     <thead>
                                         <tr>
                                             <th style="width:30px;"><input type="checkbox" id="admin-select-all-projects"></th>
-                                            <th>项目名称</th>
-                                            <th>立项文号</th>
-                                            <th>负责人</th>
-                                            <th>预算(万)</th>
-                                            <th>当前阶段</th>
-                                            <th>健康度</th>
+                                            <th class="sortable-th" onclick="handleProjectSort('name')" style="cursor:pointer; user-select:none;" title="点击按项目名称排序">项目名称 <span class="sort-icon" id="sort-icon-name">↕</span></th>
+                                            <th class="sortable-th" onclick="handleProjectSort('doc_number')" style="cursor:pointer; user-select:none;" title="点击按立项文号排序">立项文号 <span class="sort-icon" id="sort-icon-doc_number">↕</span></th>
+                                            <th class="sortable-th" onclick="handleProjectSort('owner')" style="cursor:pointer; user-select:none;" title="点击按负责人排序">负责人 <span class="sort-icon" id="sort-icon-owner">↕</span></th>
+                                            <th class="sortable-th" onclick="handleProjectSort('budget')" style="cursor:pointer; user-select:none;" title="点击按预算排序">预算(万) <span class="sort-icon" id="sort-icon-budget">↕</span></th>
+                                            <th class="sortable-th" onclick="handleProjectSort('stage')" style="cursor:pointer; user-select:none;" title="点击按当前阶段排序">当前阶段 <span class="sort-icon" id="sort-icon-stage">↕</span></th>
+                                            <th class="sortable-th" onclick="handleProjectSort('health')" style="cursor:pointer; user-select:none;" title="点击按健康度排序">健康度 <span class="sort-icon" id="sort-icon-health">↕</span></th>
                                             <th>标签</th>
-                                            <th>创建时间</th>
+                                            <th class="sortable-th" onclick="handleProjectSort('created_at')" style="cursor:pointer; user-select:none;" title="点击按创建时间排序">创建时间 <span class="sort-icon" id="sort-icon-created_at">▼</span></th>
                                             <th>操作</th>
                                         </tr>
                                     </thead>
+
                                     <tbody id="admin-projects-table-body">
                                         <!-- 动态载入 -->
                                     </tbody>
                                 </table>
+                            </div>
+                            <!-- 后台项目管理分页控制工具栏 -->
+                            <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 10px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #475569;">
+                                <div class="pagination-info">
+                                    共 <strong id="admin-total-count">0</strong> 条记录，当前第 <span id="admin-current-page">1</span> / <span id="admin-total-pages">1</span> 页
+                                </div>
+                                <div class="pagination-controls" style="display: flex; align-items: center; gap: 16px;">
+                                    <div class="page-size-selector" style="display: flex; align-items: center; gap: 6px;">
+                                        <span>每页显示：</span>
+                                        <select id="admin-page-size" onchange="changeAdminPageSize(this.value)" style="padding: 3px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12.5px; background: #fff; cursor: pointer;">
+                                            <option value="20">20 条/页</option>
+                                            <option value="50">50 条/页</option>
+                                            <option value="100">100 条/页</option>
+                                        </select>
+                                    </div>
+                                    <div class="page-buttons" style="display: flex; gap: 6px;">
+                                        <button class="btn-gov-secondary" id="admin-btn-prev" onclick="changeAdminPage(-1)" style="padding: 3px 12px; font-size: 12px;" disabled>上一页</button>
+                                        <button class="btn-gov-secondary" id="admin-btn-next" onclick="changeAdminPage(1)" style="padding: 3px 12px; font-size: 12px;" disabled>下一页</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -280,34 +303,34 @@
                                         <div class="step-progress-item">
                                             <div class="step-head">
                                                 <span>🗄️ 1. 向量化入库</span>
-                                                <span class="step-num" id="step-vector-count">1454 / 1454 文件</span>
+                                                <span class="step-num" id="step-vector-count">0 / 0 文件</span>
                                             </div>
                                             <div class="progress-bar-thick">
-                                                <div class="progress-bar-fill grad-purple-blue" style="width: 100%;"></div>
+                                                <div class="progress-bar-fill grad-purple-blue" id="step-vector-bar" style="width: 0%;"></div>
                                             </div>
-                                            <div class="step-percent">100.00%</div>
+                                            <div class="step-percent" id="step-vector-percent">0.00%</div>
                                         </div>
 
                                         <div class="step-progress-item">
                                             <div class="step-head">
                                                 <span>🔗 2. 知识图谱提取</span>
-                                                <span class="step-num" id="step-kg-count">1454 / 1454 文件</span>
+                                                <span class="step-num" id="step-kg-count">0 / 0 文件</span>
                                             </div>
                                             <div class="progress-bar-thick">
-                                                <div class="progress-bar-fill grad-cyan" style="width: 100%;"></div>
+                                                <div class="progress-bar-fill grad-cyan" id="step-kg-bar" style="width: 0%;"></div>
                                             </div>
-                                            <div class="step-percent">100.00%</div>
+                                            <div class="step-percent" id="step-kg-percent">0.00%</div>
                                         </div>
 
                                         <div class="step-progress-item">
                                             <div class="step-head">
                                                 <span>🌺 3. 图谱社区摘要</span>
-                                                <span class="step-num" id="step-summary-count">2311 / 2311 段</span>
+                                                <span class="step-num" id="step-summary-count">0 / 0 段</span>
                                             </div>
                                             <div class="progress-bar-thick">
-                                                <div class="progress-bar-fill grad-pink" style="width: 100%;"></div>
+                                                <div class="progress-bar-fill grad-pink" id="step-summary-bar" style="width: 0%;"></div>
                                             </div>
-                                            <div class="step-percent">100.00%</div>
+                                            <div class="step-percent" id="step-summary-percent">0.00%</div>
                                         </div>
 
                                         <div class="step-progress-item">
@@ -316,12 +339,10 @@
                                                  <span class="step-num" id="step-eval-count">0 / 0 项目</span>
                                              </div>
                                              <div class="progress-bar-thick">
-                                                 <div class="progress-bar-fill grad-light-purple" id="step-eval-bar" style="width: 100%;"></div>
+                                                 <div class="progress-bar-fill grad-light-purple" id="step-eval-bar" style="width: 0%;"></div>
                                              </div>
-                                             <div class="step-percent" id="step-eval-percent">100.00%</div>
+                                             <div class="step-percent" id="step-eval-percent">0.00%</div>
                                          </div>
-                                            <div class="step-percent text-muted">0.00%</div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -336,45 +357,17 @@
 
                     <!-- 子面板：用户与权限管理 -->
                     <div class="admin-panel" id="admin-panel-users">
-                        <div class="admin-panel-header">
-                            <h2>👥 系统用户账号与权限管理</h2>
-                            <span class="admin-panel-desc">管理平台登录账号、政务角色分配与企业微信绑定</span>
+                        <div class="admin-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h2>👥 系统用户账号与权限管理</h2>
+                                <span class="admin-panel-desc">管理平台登录账号、政务角色分配与企业微信绑定</span>
+                            </div>
+                            <button class="btn-gov-primary" onclick="openCreateUserModal()" style="font-size:13px; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">➕ 新增系统用户</button>
                         </div>
                         <div class="admin-panel-body">
                             <div class="role-desc-bar">
                                 <span class="role-desc-title">政务标准四级权限体系：</span>
                                 <span>超级管理员（信息中心主任）→ 项目管理员（科长）→ 项目负责人（仅看自己项目）→ 只读领导（仅查看总览）</span>
-                            </div>
-                            <div class="admin-form-card" style="margin-bottom: 24px;">
-                                <h3>➕ 新增系统用户</h3>
-                                <form id="form-create-user" onsubmit="event.preventDefault(); createAdminUser();">
-                                    <div class="form-row-2">
-                                        <div class="form-group">
-                                            <label>登录账号</label>
-                                            <input type="text" id="new-user-name" placeholder="英文账号名" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>姓名与职级</label>
-                                            <input type="text" id="new-user-fullname" placeholder="例: 刘科员 (项目科)" required>
-                                        </div>
-                                    </div>
-                                    <div class="form-row-2">
-                                        <div class="form-group">
-                                            <label>权限角色</label>
-                                            <select id="new-user-role">
-                                                <option value="project_owner">项目负责人</option>
-                                                <option value="project_admin">项目管理员 (科长)</option>
-                                                <option value="reader">只读领导</option>
-                                                <option value="super_admin">超级管理员 (信息中心主任)</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>企业微信ID</label>
-                                            <input type="text" id="new-user-wechat" placeholder="例: wx_liu_staff">
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn-gov-primary" style="margin-top: 8px;">创建用户（默认密码 admin123）</button>
-                                </form>
                             </div>
                             <div class="admin-form-card" style="padding:0; max-width:none;">
                                 <table class="gov-table">
@@ -609,13 +602,137 @@
         </div>
     </div>
 
-    <script src="js/utils.js?v=20260720N"></script>
-    <script src="js/auth.js?v=20260720N"></script>
-    <script src="js/admin.js?v=20260720N"></script>
+    <!-- 新增系统用户模态框 -->
+    <div class="admin-modal-overlay hidden" id="modal-create-user" onclick="if(event.target===this) closeCreateUserModal();">
+        <div class="admin-modal" style="max-width:540px;">
+            <div class="admin-modal-header">
+                <h3>➕ 新增系统用户</h3>
+                <button class="admin-modal-close" onclick="closeCreateUserModal()">✕</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="form-create-user-modal" onsubmit="event.preventDefault(); submitCreateUserForm();">
+                    <div style="display:flex; gap:16px; margin-bottom:14px;">
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">登录账号</label>
+                            <input type="text" id="modal-new-user-name" placeholder="英文账号名" required style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">姓名与职级</label>
+                            <input type="text" id="modal-new-user-fullname" placeholder="例: 刘科员 (项目科)" required style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:16px; margin-bottom:14px;">
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">权限角色</label>
+                            <select id="modal-new-user-role" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#fff;">
+                                <option value="project_owner">项目负责人</option>
+                                <option value="project_admin">项目管理员 (科长)</option>
+                                <option value="reader">只读领导</option>
+                                <option value="super_admin">超级管理员 (信息中心主任)</option>
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">企业微信ID</label>
+                            <input type="text" id="modal-new-user-wechat" placeholder="例: wx_liu_staff" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">初始密码</label>
+                        <input type="password" id="modal-new-user-password" placeholder="留空则默认设为 admin123" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                    </div>
+                </form>
+            </div>
+            <div class="admin-modal-footer">
+                <button class="btn-gov-secondary" onclick="closeCreateUserModal()">取消</button>
+                <button class="btn-gov-primary" onclick="submitCreateUserForm()">确认创建用户</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改用户信息模态框 -->
+    <div class="admin-modal-overlay hidden" id="modal-edit-user" onclick="if(event.target===this) closeEditUserModal();">
+        <div class="admin-modal" style="max-width:540px;">
+            <div class="admin-modal-header">
+                <h3>✏️ 修改系统用户信息</h3>
+                <button class="admin-modal-close" onclick="closeEditUserModal()">✕</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="form-edit-user-modal" onsubmit="event.preventDefault(); submitEditUserForm();">
+                    <input type="hidden" id="modal-edit-user-original-username">
+                    <div style="display:flex; gap:16px; margin-bottom:14px;">
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">登录账号</label>
+                            <input type="text" id="modal-edit-user-name" placeholder="账号名" required style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">姓名与职级</label>
+                            <input type="text" id="modal-edit-user-fullname" placeholder="例: 张主任 (信息中心)" required style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:16px; margin-bottom:14px;">
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">权限角色</label>
+                            <select id="modal-edit-user-role" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#fff;">
+                                <option value="project_owner">项目负责人</option>
+                                <option value="project_admin">项目管理员 (科长)</option>
+                                <option value="super_admin">超级管理员 (主任)</option>
+                                <option value="reader">只读领导</option>
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">关联微信 ID</label>
+                            <input type="text" id="modal-edit-user-wechat" placeholder="企业微信 / 政务微信 ID" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:14px;">
+                        <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">修改密码 (选填)</label>
+                        <input type="password" id="modal-edit-user-password" placeholder="若无需修改密码请留空" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                    </div>
+                </form>
+            </div>
+            <div class="admin-modal-footer">
+                <button class="btn-gov-secondary" onclick="closeEditUserModal()">取消</button>
+                <button class="btn-gov-primary" onclick="submitEditUserForm()" style="width:auto !important; padding:8px 16px;">保存更新</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div class="admin-modal-overlay hidden" id="modal-change-password" onclick="if(event.target===this) closeChangePasswordModal();">
+        <div class="admin-modal" style="max-width:440px;">
+            <div class="admin-modal-header">
+                <h3>🔑 修改用户密码</h3>
+                <button class="admin-modal-close" onclick="closeChangePasswordModal()">✕</button>
+            </div>
+            <div class="admin-modal-body">
+                <input type="hidden" id="change-pwd-target-username">
+                <div style="margin-bottom:14px; font-size:13.5px; color:#475569;">
+                    正在为账号 <strong id="change-pwd-user-display" style="color:#1e3a8a; font-size:14px;">-</strong> 设置新登录密码
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">输入新密码</label>
+                    <input type="password" id="new-password-input" placeholder="请输入新密码 (至少6位)" required style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="font-weight:600; font-size:13px; color:#334155; margin-bottom:4px; display:block;">确认新密码</label>
+                    <input type="password" id="confirm-password-input" placeholder="请再次输入新密码" required style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">
+                </div>
+            </div>
+            <div class="admin-modal-footer">
+                <button class="btn-gov-secondary" onclick="closeChangePasswordModal()">取消</button>
+                <button class="btn-gov-primary" onclick="submitChangePasswordForm()" style="width:auto !important; padding:8px 16px;">保存新密码</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js?v=20260727_V11"></script>
+    <script src="js/auth.js?v=20260727_V11"></script>
+    <script src="js/admin.js?v=20260727_V11"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            checkAuthAndInitHeader();
-            switchAdminTab("project-mgmt");
+            if (typeof checkAuthAndInitHeader === "function") checkAuthAndInitHeader();
+            if (typeof switchAdminTab === "function") switchAdminTab("project-mgmt");
+            if (typeof loadAdminProjectsTable === "function") loadAdminProjectsTable();
         });
     </script>
 </body>

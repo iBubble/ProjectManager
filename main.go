@@ -100,6 +100,9 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 	case "/api/projects/batch-update":
 		backend.HandlerBatchUpdateProjects(w, r)
 		return
+	case "/api/projects/batch-eval":
+		backend.HandlerBatchEvalProjects(w, r)
+		return
 	case "/api/projects/learn-all":
 		backend.HandlerLearnAllProjects(w, r)
 		return
@@ -159,9 +162,26 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// /api/projects/:id/chat/:msg_id
+			if len(parts) == 5 && parts[3] == "chat" {
+				msgID := parts[4]
+				backend.HandlerDeleteChatMessage(w, r, projectID, msgID)
+				return
+			}
+
 			// /api/projects/:id/chat
 			if len(parts) == 4 && parts[3] == "chat" {
+				if r.Method == "DELETE" {
+					backend.HandlerDeleteChatMessage(w, r, projectID, "")
+					return
+				}
 				backend.HandlerProjectChat(w, r, projectID)
+				return
+			}
+
+			// /api/projects/:id/todos
+			if len(parts) == 4 && parts[3] == "todos" {
+				backend.HandlerProjectTodos(w, r, projectID)
 				return
 			}
 
@@ -245,9 +265,9 @@ func DispatcherRequest(w http.ResponseWriter, r *http.Request) {
 	// 5. 动态系统管理路由
 	if strings.HasPrefix(path, "/api/system/users/") {
 		parts := strings.Split(strings.Trim(path, "/"), "/")
-		if len(parts) == 5 && parts[4] == "reset-password" {
+		if len(parts) == 5 && (parts[4] == "reset-password" || parts[4] == "change-password") {
 			username := parts[3]
-			backend.HandlerUserResetPassword(w, r, username)
+			backend.HandlerUserChangePassword(w, r, username)
 			return
 		}
 		if len(parts) == 4 {

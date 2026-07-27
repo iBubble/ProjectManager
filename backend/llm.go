@@ -134,7 +134,7 @@ func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (stri
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
-	client := &http.Client{Timeout: 25 * time.Second}
+	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("请求大模型接口失败: %v", err)
@@ -418,7 +418,6 @@ func getMockProgressDesc(p *Project) string {
 	}
 	return "项目进度执行正常，工期符合规划。"
 }
-
 func getMockFinanceDesc(p *Project) string {
 	if len(p.HealthReport.Finance.MissingDocs) > 0 {
 		return fmt.Sprintf("资金支付拨付存在合规风险。当前已拨付款项累计 %.2f 元。", p.HealthReport.Finance.PaidAmount)
@@ -442,6 +441,7 @@ func CleanLLMThinking(text string) string {
 		return ""
 	}
 
+	// 1. 过滤 <think>...</think> 闭合或非闭合标签
 	for {
 		lower := strings.ToLower(text)
 		startIdx := strings.Index(lower, "<think>")
@@ -461,6 +461,24 @@ func CleanLLMThinking(text string) string {
 		text = text[endIdx+8:]
 	}
 
+	// 2. 过滤 "Here's a thinking process:" 以及后续前导思考步骤
+	lower := strings.ToLower(text)
+	thinkingHeadIdx := strings.Index(lower, "here's a thinking process")
+	if thinkingHeadIdx != -1 {
+		// 寻找思考过程之后第一个出现的 Markdown 标题 (如 ### 核心财务指标清单 / ## / #) 或正文段落
+		sliced := text[thinkingHeadIdx:]
+		if headerIdx := strings.Index(sliced, "\n#"); headerIdx != -1 {
+			text = text[:thinkingHeadIdx] + sliced[headerIdx+1:]
+		} else if headerIdx := strings.Index(sliced, "\n【"); headerIdx != -1 {
+			text = text[:thinkingHeadIdx] + sliced[headerIdx+1:]
+		} else {
+			// 若找不到 Markdown 标题，截取连续两个换行后的正文内容
+			if doubleNL := strings.Index(sliced, "\n\n"); doubleNL != -1 {
+				text = text[:thinkingHeadIdx] + sliced[doubleNL+2:]
+			}
+		}
+	}
+
 	text = strings.TrimSpace(text)
 	return text
 }
@@ -474,7 +492,7 @@ func LLMGenerateSummary(proj Project, file FileMetadata) string {
 		modelName = "qwen2:1.5b"
 	}
 
-	if file.Summary != "" && file.SummaryHash == file.Hash {
+	if file.Summary != "" && !strings.HasPrefix(file.Summary, "【归档文件】") {
 		return file.Summary
 	}
 
@@ -488,7 +506,7 @@ func LLMGenerateSummary(proj Project, file FileMetadata) string {
 		fileText = fmt.Sprintf("项目名称：%s，文件名：%s，归档阶段：%s", proj.Name, file.FileName, file.StageFolder)
 	}
 
-	systemPrompt := "你是一个专业的政务信息化项目管理与公文审计专家。请对给出的归档公文输出精炼摘要说明。【重要规则】：直接输出最终摘要文字，绝对禁止输出 <think> 思考过程、推理步骤或英文分析！全篇摘要字数必须严格控制在 300 字以内！"
+	systemPrompt := "你是一个专业的政务信息化项目管理与公文审计专家。请对给出的归档公文输出精炼摘要说明。【重要规则】：直接输出最终摘要文字，绝对禁止输出 <think> 思考过程、推理步骤或英文分析！全篇摘要字数严格控制在 300 字以内！"
 	userPrompt := fmt.Sprintf("项目名称：%s\n归档文件名：%s\n归档阶段：%s\n\n【文件原文片段】:\n%s\n\n请直接输出 300 字以内的精炼摘要：",
 		proj.Name, file.FileName, file.StageFolder, truncateText(fileText, 3000))
 
@@ -509,95 +527,170 @@ func LLMGenerateSummary(proj Project, file FileMetadata) string {
 	}
 
 	summary := fmt.Sprintf("【%s - 大模型摘要】\n\n📁 归属项目：%s\n📂 归档阶段：%s\n📄 文件类型：%s\n\n本文档经大模型深度解析，包含项目「%s」在该阶段的关键要件和文件记录。", file.FileName, proj.Name, file.StageFolder, file.FileType, proj.Name)
+	file.Summary = summary
+	file.SummaryModel = "政务智管大模型"
+	file.SummaryHash = file.Hash
+	_ = GlobalDB.SaveFile(file)
 	return summary
 }
 
-func contains(s string, subs ...string) bool {
-	for _, sub := range subs {
-		if strings.Contains(s, sub) {
-			return true
-		}
-	}
-	return false
-}
-
-// FastClassifyFileStageByContent 基于文件名与文本内容的毫秒级归档分类器
+// FastClassifyFileStageByContent 基于【文件名优先，内容核查为辅】的毫秒级归档分类器
 func FastClassifyFileStageByContent(fileName string, fileBytes []byte) string {
 	fname := strings.ToLower(fileName)
-	content := strings.ToLower(truncateText(string(fileBytes), 3000))
-	text := fname + " " + content
+
+	// =========================================================================
+	// 阶段一：【文件名优先】 (Filename Priority Classification)
+	// 优先依据文件名核心标志词直接匹配 8 大阶段目录
+	// =========================================================================
 
 	// 1. 立项管理
-	if strings.Contains(text, "建议书") || strings.Contains(text, "可研") || strings.Contains(text, "可行性") || strings.Contains(text, "立项批复") || strings.Contains(text, "立项研讨") {
+	if strings.Contains(fname, "建议书") || strings.Contains(fname, "可研") || strings.Contains(fname, "可行性") || strings.Contains(fname, "立项批复") || strings.Contains(fname, "立项研讨") || strings.Contains(fname, "立项") {
 		return "1.3 可行性研究与立项批复"
 	}
-	if strings.Contains(text, "登记表") || strings.Contains(text, "领导小组") || strings.Contains(text, "岗位") || strings.Contains(text, "培训") || strings.Contains(text, "考核") {
+	if strings.Contains(fname, "登记表") || strings.Contains(fname, "领导小组") || strings.Contains(fname, "岗位") || strings.Contains(fname, "培训") || strings.Contains(fname, "考核") {
 		return "1.2 登记表与岗位责任"
 	}
-	if strings.Contains(text, "管理制度") || strings.Contains(text, "立卷") || strings.Contains(text, "规范") {
+	if strings.Contains(fname, "管理制度") || strings.Contains(fname, "立卷") || strings.Contains(fname, "规范") {
 		return "1.1 管理制度及立卷规范"
 	}
 
+	// 2. 招投标管理
+	if strings.Contains(fname, "招标") || strings.Contains(fname, "中标") || strings.Contains(fname, "控制价") {
+		return "2.1 招标文件与中标通知"
+	}
+	if strings.Contains(fname, "投标") || strings.Contains(fname, "评标") {
+		return "2.2 投标文件与评标报告"
+	}
+
+	// 3. 合同与财务
+	if strings.Contains(fname, "决算") || strings.Contains(fname, "审计") || strings.Contains(fname, "发票") || strings.Contains(fname, "付款") || strings.Contains(fname, "凭证") {
+		return "3.2 竣工财务决算与审计"
+	}
+	if strings.Contains(fname, "合同") || strings.Contains(fname, "协议") {
+		return "3.1 项目建设合同"
+	}
+
 	// 5. 工程监理
-	if strings.Contains(text, "监理") {
-		if strings.Contains(text, "大纲") || strings.Contains(text, "规划") || strings.Contains(text, "细则") {
+	if strings.Contains(fname, "监理") {
+		if strings.Contains(fname, "大纲") || strings.Contains(fname, "规划") || strings.Contains(fname, "细则") {
 			return "5.1 监理大纲与规划"
 		}
 		return "5.2 监理记录与报告"
 	}
 
-	// 6. 过程管理与会议纪要
-	if strings.Contains(text, "纪要") || strings.Contains(text, "会议") || strings.Contains(text, "协调") || strings.Contains(text, "总结") {
-		return "6.2 会议纪要与协调记录"
-	}
-	if strings.Contains(text, "整改") || strings.Contains(text, "进度汇报") || strings.Contains(text, "问题核查") || strings.Contains(text, "明细目录") || strings.Contains(text, "分类方案") || strings.Contains(text, "归档") {
-		return "6.1 核验记录与分类方案"
-	}
-
 	// 7. 竣工验收与竣工图
-	if strings.Contains(text, "竣工图") || strings.Contains(text, "图章") || strings.Contains(text, "拓扑图") {
+	if strings.Contains(fname, "竣工图") || strings.Contains(fname, "拓扑图") {
 		return "7.2 竣工图与核查记录"
 	}
-	if strings.Contains(text, "竣工验收") || strings.Contains(text, "终验") || strings.Contains(text, "鉴定书") {
+	if strings.Contains(fname, "竣工验收") || strings.Contains(fname, "终验") || strings.Contains(fname, "验收报告") || strings.Contains(fname, "鉴定书") {
 		return "7.1 验收报告与移交记录"
 	}
 
 	// 8. 安全管理与运维档案
-	if strings.Contains(text, "库房") || strings.Contains(text, "装具") || strings.Contains(text, "三分开") || strings.Contains(text, "八防") {
+	if strings.Contains(fname, "库房") || strings.Contains(fname, "装具") || strings.Contains(fname, "三分开") || strings.Contains(fname, "八防") {
 		return "8.2 库房设施与装具档案"
 	}
-	if strings.Contains(text, "运维") || strings.Contains(text, "保密") || strings.Contains(text, "备份") || strings.Contains(text, "预案") || strings.Contains(text, "巡检") || strings.Contains(text, "保障") || strings.Contains(text, "检索") {
+	if strings.Contains(fname, "运维") || strings.Contains(fname, "保密") || strings.Contains(fname, "备份") || strings.Contains(fname, "预案") || strings.Contains(fname, "巡检") || strings.Contains(fname, "保障") {
 		return "8.1 安全保密与备份预案"
 	}
 
-	// 3. 合同与财务
-	if strings.Contains(text, "决算") || strings.Contains(text, "审计") || strings.Contains(text, "发票") || strings.Contains(text, "付款") || strings.Contains(text, "凭证") {
-		return "3.2 竣工财务决算与审计"
-	}
-	if strings.Contains(text, "合同") || strings.Contains(text, "协议") {
-		return "3.1 项目建设合同"
-	}
-
-	// 2. 招投标管理
-	if strings.Contains(text, "招标") || strings.Contains(text, "中标") || strings.Contains(text, "控制价") {
-		return "2.1 招标文件与中标通知"
-	}
-	if strings.Contains(text, "投标") || strings.Contains(text, "评标") {
-		return "2.2 投标文件与评标报告"
-	}
-
 	// 4. 工程设计与实施
-	if strings.Contains(text, "开箱") || strings.Contains(text, "测试") || strings.Contains(text, "设备验收") {
+	if strings.Contains(fname, "开箱") || strings.Contains(fname, "测试") || strings.Contains(fname, "设备验收") {
 		return "4.3 设备开箱验收与测试"
 	}
-	if strings.Contains(text, "安装部署") || strings.Contains(text, "集成施工") || strings.Contains(text, "施工记录") || strings.Contains(text, "实施") {
+	if strings.Contains(fname, "安装部署") || strings.Contains(fname, "集成施工") || strings.Contains(fname, "施工记录") || strings.Contains(fname, "实施") {
 		return "4.2 安装部署与集成施工"
 	}
-	if strings.Contains(text, "设计") || strings.Contains(text, "需求") || strings.Contains(text, "架构") || strings.Contains(text, "方案") || strings.Contains(text, "深化") {
+	if strings.Contains(fname, "设计") || strings.Contains(fname, "需求") || strings.Contains(fname, "架构") || strings.Contains(fname, "方案") || strings.Contains(fname, "深化") {
 		return "4.1 总体设计与需求规格"
 	}
 
-	return "6.1 核验记录与分类方案"
+	// 6. 过程管理与会议纪要
+	if strings.Contains(fname, "纪要") || strings.Contains(fname, "会议") || strings.Contains(fname, "协调") || strings.Contains(fname, "总结") {
+		return "6.2 会议纪要与协调记录"
+	}
+	if strings.Contains(fname, "核验") || strings.Contains(fname, "明细目录") || strings.Contains(fname, "分类方案") {
+		return "6.1 核验记录与分类方案"
+	}
+
+	// =========================================================================
+	// 阶段二：【内容核查】 (Content Verification)
+	// 当文件名无明确特征词时，读取文本内容进行二次核查匹配
+	// =========================================================================
+
+	content := strings.ToLower(truncateText(string(fileBytes), 3000))
+
+	// 1. 立项管理
+	if strings.Contains(content, "建议书") || strings.Contains(content, "可研") || strings.Contains(content, "可行性") || strings.Contains(content, "立项批复") || strings.Contains(content, "立项研讨") || strings.Contains(content, "立项") {
+		return "1.3 可行性研究与立项批复"
+	}
+	if strings.Contains(content, "登记表") || strings.Contains(content, "领导小组") || strings.Contains(content, "岗位") || strings.Contains(content, "培训") || strings.Contains(content, "考核") {
+		return "1.2 登记表与岗位责任"
+	}
+	if strings.Contains(content, "管理制度") || strings.Contains(content, "立卷") || strings.Contains(content, "规范") {
+		return "1.1 管理制度及立卷规范"
+	}
+
+	// 2. 招投标管理
+	if strings.Contains(content, "招标") || strings.Contains(content, "中标") || strings.Contains(content, "控制价") {
+		return "2.1 招标文件与中标通知"
+	}
+	if strings.Contains(content, "投标") || strings.Contains(content, "评标") {
+		return "2.2 投标文件与评标报告"
+	}
+
+	// 3. 合同与财务
+	if strings.Contains(content, "决算") || strings.Contains(content, "审计") || strings.Contains(content, "发票") || strings.Contains(content, "付款") || strings.Contains(content, "凭证") {
+		return "3.2 竣工财务决算与审计"
+	}
+	if strings.Contains(content, "合同") || strings.Contains(content, "协议") {
+		return "3.1 项目建设合同"
+	}
+
+	// 5. 工程监理
+	if strings.Contains(content, "监理") {
+		if strings.Contains(content, "大纲") || strings.Contains(content, "规划") || strings.Contains(content, "细则") {
+			return "5.1 监理大纲与规划"
+		}
+		return "5.2 监理记录与报告"
+	}
+
+	// 7. 竣工验收与竣工图
+	if strings.Contains(content, "竣工图") || strings.Contains(content, "拓扑图") {
+		return "7.2 竣工图与核查记录"
+	}
+	if strings.Contains(content, "竣工验收") || strings.Contains(content, "终验") || strings.Contains(content, "鉴定书") {
+		return "7.1 验收报告与移交记录"
+	}
+
+	// 8. 安全管理与运维档案
+	if strings.Contains(content, "库房") || strings.Contains(content, "装具") || strings.Contains(content, "三分开") || strings.Contains(content, "八防") {
+		return "8.2 库房设施与装具档案"
+	}
+	if strings.Contains(content, "运维") || strings.Contains(content, "保密") || strings.Contains(content, "备份") || strings.Contains(content, "预案") || strings.Contains(content, "巡检") || strings.Contains(content, "保障") {
+		return "8.1 安全保密与备份预案"
+	}
+
+	// 4. 工程设计与实施
+	if strings.Contains(content, "开箱") || strings.Contains(content, "测试") || strings.Contains(content, "设备验收") {
+		return "4.3 设备开箱验收与测试"
+	}
+	if strings.Contains(content, "安装部署") || strings.Contains(content, "集成施工") || strings.Contains(content, "施工记录") || strings.Contains(content, "实施") {
+		return "4.2 安装部署与集成施工"
+	}
+	if strings.Contains(content, "设计") || strings.Contains(content, "需求") || strings.Contains(content, "架构") || strings.Contains(content, "方案") || strings.Contains(content, "深化") {
+		return "4.1 总体设计与需求规格"
+	}
+
+	// 6. 过程管理与会议纪要
+	if strings.Contains(content, "纪要") || strings.Contains(content, "会议") || strings.Contains(content, "协调") || strings.Contains(content, "总结") {
+		return "6.2 会议纪要与协调记录"
+	}
+	if strings.Contains(content, "核验") || strings.Contains(content, "明细目录") || strings.Contains(content, "分类方案") {
+		return "6.1 核验记录与分类方案"
+	}
+
+	return "1.3 可行性研究与立项批复"
 }
 
 // AutoClassifyFileStage 自动识别文件归档阶段

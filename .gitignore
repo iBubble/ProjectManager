@@ -7,3 +7,5 @@ jar.txt
 .DS_Store
 *.exe
 *.log
+data/uploads/*
+!data/uploads/.gitkeep

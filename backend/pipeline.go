@@ -442,3 +442,20 @@ func GetProjectQueueStatus(projectID string) (string, int) {
 
 	return "", 0
 }
+
+// RemoveProjectFromQueue 从全局内存学习队列及活跃队列中彻底移除项目
+func RemoveProjectFromQueue(projectID string) {
+	queueMu.Lock()
+	defer queueMu.Unlock()
+
+	delete(activeJobsMap, projectID)
+
+	newList := make([]string, 0, len(queuedList))
+	for _, id := range queuedList {
+		if id != projectID {
+			newList = append(newList, id)
+		}
+	}
+	queuedList = newList
+}
+

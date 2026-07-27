@@ -20,6 +20,7 @@ function initProjectDetailPage(projectId) {
             loadProjectFiles(currentDetailProjectId);
             loadProjectAnalysis(currentDetailProjectId);
             renderProjectTodos();
+            renderPersistentChatHistory(project);
             loadYunnanEval(currentDetailProjectId);
 
             const reanalyzeBtn = document.getElementById("btn-reanalyze");
@@ -186,99 +187,244 @@ function classifyFileToNationalStandard(file) {
     const fname = (file.file_name || "").toLowerCase();
     const summary = (file.summary || "").toLowerCase();
     const content = (file.content || "").toLowerCase();
+    const stage = (file.stage_folder || "").toLowerCase();
 
-    // 核心判定文本：切勿拼接旧的 file.stage_folder，避免自锁定循环
-    const textToMatch = fname + " " + summary + " " + content;
+    // =========================================================================
+    // 阶段一：【文件名优先】(Filename Priority Classification)
+    // 优先依据文件名中的核心标志词直接比对确定 8 大阶段归档分类
+    // =========================================================================
 
-    // 优先尝试精确匹配已有有效阶段标题
-    if (file.stage_folder) {
-        for (let cat of NATIONAL_ARCHIVE_CATALOG) {
-            for (let sub of cat.subcategories) {
-                if (sub.title === file.stage_folder || file.stage_folder === cat.name) {
-                    return { catId: cat.id, subId: sub.id };
-                }
-            }
-        }
+    // 1. 立项管理
+    if (fname.includes("建议书") || fname.includes("可研") || fname.includes("可行性") || fname.includes("立项批复") || fname.includes("立项")) {
+        return { catId: "cat-1", subId: "sub-1-3" };
+    }
+    if (fname.includes("登记表") || fname.includes("领导小组") || fname.includes("岗位") || fname.includes("培训") || fname.includes("考核")) {
+        return { catId: "cat-1", subId: "sub-1-2" };
+    }
+    if (fname.includes("管理制度") || fname.includes("立卷") || fname.includes("规范")) {
+        return { catId: "cat-1", subId: "sub-1-1" };
+    }
+
+    // 2. 招投标管理
+    if (fname.includes("招标") || fname.includes("中标") || fname.includes("控制价")) {
+        return { catId: "cat-2", subId: "sub-2-1" };
+    }
+    if (fname.includes("投标") || fname.includes("评标")) {
+        return { catId: "cat-2", subId: "sub-2-2" };
+    }
+
+    // 3. 合同与财务
+    if (fname.includes("决算") || fname.includes("审计") || fname.includes("发票") || fname.includes("付款") || fname.includes("凭证")) {
+        return { catId: "cat-3", subId: "sub-3-2" };
+    }
+    if (fname.includes("合同") || fname.includes("协议")) {
+        return { catId: "cat-3", subId: "sub-3-1" };
     }
 
     // 5. 工程监理
-    if (textToMatch.includes("监理")) {
-        if (textToMatch.includes("大纲") || textToMatch.includes("规划") || textToMatch.includes("细则")) {
+    if (fname.includes("监理")) {
+        if (fname.includes("大纲") || fname.includes("规划") || fname.includes("细则")) {
             return { catId: "cat-5", subId: "sub-5-1" };
         }
         return { catId: "cat-5", subId: "sub-5-2" };
     }
 
     // 7. 竣工验收与竣工图
-    if (textToMatch.includes("竣工图") || textToMatch.includes("核查") || textToMatch.includes("图章") || textToMatch.includes("拓扑")) {
+    if (fname.includes("竣工图") || fname.includes("拓扑图")) {
         return { catId: "cat-7", subId: "sub-7-2" };
     }
-    if (textToMatch.includes("竣工验收") || textToMatch.includes("初验") || textToMatch.includes("终验") || textToMatch.includes("验收报告") || textToMatch.includes("移交") || textToMatch.includes("测评")) {
+    if (fname.includes("竣工验收") || fname.includes("终验") || fname.includes("验收报告") || fname.includes("鉴定书")) {
         return { catId: "cat-7", subId: "sub-7-1" };
     }
 
     // 8. 安全管理与运维档案
-    if (textToMatch.includes("库房") || textToMatch.includes("装具") || textToMatch.includes("三分开") || textToMatch.includes("八防")) {
+    if (fname.includes("库房") || fname.includes("装具") || fname.includes("三分开") || fname.includes("八防")) {
         return { catId: "cat-8", subId: "sub-8-2" };
     }
-    if (textToMatch.includes("运维") || textToMatch.includes("保密") || textToMatch.includes("备份") || textToMatch.includes("预案") || textToMatch.includes("巡检") || textToMatch.includes("保障") || textToMatch.includes("检索")) {
+    if (fname.includes("运维") || fname.includes("保密") || fname.includes("备份") || fname.includes("预案") || fname.includes("巡检") || fname.includes("保障")) {
         return { catId: "cat-8", subId: "sub-8-1" };
     }
 
-    // 3. 合同与财务
-    if (textToMatch.includes("决算") || textToMatch.includes("审计") || textToMatch.includes("发票") || textToMatch.includes("付款") || textToMatch.includes("凭证")) {
-        return { catId: "cat-3", subId: "sub-3-2" };
-    }
-    if (textToMatch.includes("合同") || textToMatch.includes("协议")) {
-        return { catId: "cat-3", subId: "sub-3-1" };
-    }
-
-    // 2. 招投标管理
-    if (textToMatch.includes("招标") || textToMatch.includes("中标") || textToMatch.includes("控制价")) {
-        return { catId: "cat-2", subId: "sub-2-1" };
-    }
-    if (textToMatch.includes("投标") || textToMatch.includes("评标")) {
-        return { catId: "cat-2", subId: "sub-2-2" };
-    }
-
     // 4. 工程设计与实施
-    if (textToMatch.includes("开箱") || textToMatch.includes("测试") || textToMatch.includes("设备验收")) {
+    if (fname.includes("开箱") || fname.includes("测试") || fname.includes("设备验收")) {
         return { catId: "cat-4", subId: "sub-4-3" };
     }
-    if (textToMatch.includes("安装部署") || textToMatch.includes("集成施工") || textToMatch.includes("施工记录") || textToMatch.includes("实施")) {
+    if (fname.includes("安装部署") || fname.includes("集成施工") || fname.includes("施工记录") || fname.includes("实施")) {
         return { catId: "cat-4", subId: "sub-4-2" };
     }
-    if (textToMatch.includes("设计") || textToMatch.includes("需求") || textToMatch.includes("架构") || textToMatch.includes("方案") || textToMatch.includes("进度") || textToMatch.includes("深化")) {
+    if (fname.includes("设计") || fname.includes("需求") || fname.includes("架构") || fname.includes("方案") || fname.includes("深化")) {
         return { catId: "cat-4", subId: "sub-4-1" };
     }
 
     // 6. 过程管理与会议纪要
-    if (textToMatch.includes("纪要") || textToMatch.includes("会议") || textToMatch.includes("协调") || textToMatch.includes("总结")) {
+    if (fname.includes("纪要") || fname.includes("会议") || fname.includes("协调") || fname.includes("总结")) {
         return { catId: "cat-6", subId: "sub-6-2" };
     }
-    if (textToMatch.includes("核验") || textToMatch.includes("明细目录") || textToMatch.includes("分类方案") || textToMatch.includes("归档")) {
+    if (fname.includes("核验") || fname.includes("明细目录") || fname.includes("分类方案")) {
         return { catId: "cat-6", subId: "sub-6-1" };
     }
 
+    // =========================================================================
+    // 阶段二：【内容核查与补充比对】 (Content Verification)
+    // 当文件名缺乏明确阶段关键词时，读取文件摘要与正文内容核查分类
+    // =========================================================================
+
+    const contentText = summary + " " + content;
+
     // 1. 立项管理
-    if (textToMatch.includes("可研") || textToMatch.includes("可行性") || textToMatch.includes("立项批复") || textToMatch.includes("立项")) {
+    if (contentText.includes("建议书") || contentText.includes("可研") || contentText.includes("可行性") || contentText.includes("立项批复") || contentText.includes("立项")) {
         return { catId: "cat-1", subId: "sub-1-3" };
     }
-    if (textToMatch.includes("登记表") || textToMatch.includes("领导小组") || textToMatch.includes("岗位") || textToMatch.includes("培训") || textToMatch.includes("考核")) {
+    if (contentText.includes("登记表") || contentText.includes("领导小组") || contentText.includes("岗位") || contentText.includes("培训") || contentText.includes("考核")) {
         return { catId: "cat-1", subId: "sub-1-2" };
     }
-    if (textToMatch.includes("管理制度") || textToMatch.includes("立卷") || textToMatch.includes("规范")) {
+    if (contentText.includes("管理制度") || contentText.includes("立卷") || contentText.includes("规范")) {
         return { catId: "cat-1", subId: "sub-1-1" };
     }
 
-    return { catId: "cat-6", subId: "sub-6-1" };
+    // 2. 招投标管理
+    if (contentText.includes("招标") || contentText.includes("中标") || contentText.includes("控制价")) {
+        return { catId: "cat-2", subId: "sub-2-1" };
+    }
+    if (contentText.includes("投标") || contentText.includes("评标")) {
+        return { catId: "cat-2", subId: "sub-2-2" };
+    }
+
+    // 3. 合同与财务
+    if (contentText.includes("决算") || contentText.includes("审计") || contentText.includes("发票") || contentText.includes("付款") || contentText.includes("凭证")) {
+        return { catId: "cat-3", subId: "sub-3-2" };
+    }
+    if (contentText.includes("合同") || contentText.includes("协议")) {
+        return { catId: "cat-3", subId: "sub-3-1" };
+    }
+
+    // 5. 工程监理
+    if (contentText.includes("监理")) {
+        if (contentText.includes("大纲") || contentText.includes("规划") || contentText.includes("细则")) {
+            return { catId: "cat-5", subId: "sub-5-1" };
+        }
+        return { catId: "cat-5", subId: "sub-5-2" };
+    }
+
+    // 7. 竣工验收与竣工图
+    if (contentText.includes("竣工图") || contentText.includes("拓扑")) {
+        return { catId: "cat-7", subId: "sub-7-2" };
+    }
+    if (contentText.includes("竣工验收") || contentText.includes("终验") || contentText.includes("验收报告") || contentText.includes("移交") || contentText.includes("测评")) {
+        return { catId: "cat-7", subId: "sub-7-1" };
+    }
+
+    // 8. 安全管理与运维档案
+    if (contentText.includes("库房") || contentText.includes("装具") || contentText.includes("三分开") || contentText.includes("八防")) {
+        return { catId: "cat-8", subId: "sub-8-2" };
+    }
+    if (contentText.includes("运维") || contentText.includes("保密") || contentText.includes("备份") || contentText.includes("预案") || contentText.includes("巡检") || contentText.includes("保障")) {
+        return { catId: "cat-8", subId: "sub-8-1" };
+    }
+
+    // 4. 工程设计与实施
+    if (contentText.includes("开箱") || contentText.includes("测试") || contentText.includes("设备验收")) {
+        return { catId: "cat-4", subId: "sub-4-3" };
+    }
+    if (contentText.includes("安装部署") || contentText.includes("集成施工") || contentText.includes("施工记录") || contentText.includes("实施")) {
+        return { catId: "cat-4", subId: "sub-4-2" };
+    }
+    if (contentText.includes("设计") || contentText.includes("需求") || contentText.includes("架构") || contentText.includes("方案") || contentText.includes("深化")) {
+        return { catId: "cat-4", subId: "sub-4-1" };
+    }
+
+    // 6. 过程管理与会议纪要
+    if (contentText.includes("纪要") || contentText.includes("会议") || contentText.includes("协调") || contentText.includes("总结")) {
+        return { catId: "cat-6", subId: "sub-6-2" };
+    }
+    if (contentText.includes("核验") || contentText.includes("明细目录") || contentText.includes("分类方案")) {
+        return { catId: "cat-6", subId: "sub-6-1" };
+    }
+
+    // 阶段三：若包含 stage_folder，进行合法阶段名称二次兜底匹配
+    if (file.stage_folder) {
+        for (let cat of NATIONAL_ARCHIVE_CATALOG) {
+            for (let sub of cat.subcategories) {
+                if (sub.title === file.stage_folder || file.stage_folder === cat.name || stage.includes(sub.title.toLowerCase()) || stage.includes(cat.name.toLowerCase())) {
+                    return { catId: cat.id, subId: sub.id };
+                }
+            }
+        }
+        if (stage.includes("立项") || stage.includes("可行性")) return { catId: "cat-1", subId: "sub-1-3" };
+        if (stage.includes("招标") || stage.includes("中标")) return { catId: "cat-2", subId: "sub-2-1" };
+        if (stage.includes("合同")) return { catId: "cat-3", subId: "sub-3-1" };
+        if (stage.includes("设计") || stage.includes("实施")) return { catId: "cat-4", subId: "sub-4-1" };
+        if (stage.includes("监理")) return { catId: "cat-5", subId: "sub-5-1" };
+        if (stage.includes("过程") || stage.includes("会议")) return { catId: "cat-6", subId: "sub-6-2" };
+        if (stage.includes("验收") || stage.includes("竣工")) return { catId: "cat-7", subId: "sub-7-1" };
+        if (stage.includes("运维") || stage.includes("安全")) return { catId: "cat-8", subId: "sub-8-1" };
+    }
+
+    return { catId: "cat-1", subId: "sub-1-3" };
 }
 
-function renderProjectFilesDirectory(files) {
+function highlightMatchText(text, keyword) {
+    const safeText = escapeHtml(text || "");
+    if (!keyword) return safeText;
+    const escapedKw = escapeHtml(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedKw})`, 'gi');
+    return safeText.replace(regex, '<mark style="background:#fef08a; color:#1e293b; padding:0 2px; border-radius:2px; font-weight:bold;">$1</mark>');
+}
+
+function filterProjectFiles(query) {
+    const val = (query || "").trim().toLowerCase();
+    const clearBtn = document.getElementById("clear-detail-file-search");
+    if (clearBtn) {
+        clearBtn.style.display = val ? "block" : "none";
+    }
+
+    if (!val) {
+        renderProjectFilesDirectory(currentProjectFiles, false, "");
+        return;
+    }
+
+    const filtered = (currentProjectFiles || []).filter(f => {
+        const nameMatch = (f.file_name || "").toLowerCase().includes(val);
+        const stageMatch = (f.stage_folder || "").toLowerCase().includes(val);
+        const summaryMatch = (f.file_summary || "").toLowerCase().includes(val);
+        const contentMatch = (f.content || "").toLowerCase().includes(val);
+        const uploaderMatch = (f.uploaded_by || "").toLowerCase().includes(val);
+        return nameMatch || stageMatch || summaryMatch || contentMatch || uploaderMatch;
+    });
+
+    renderProjectFilesDirectory(filtered, true, val);
+}
+
+function clearDetailFileSearch() {
+    const input = document.getElementById("filter-detail-file-input");
+    if (input) {
+        input.value = "";
+        filterProjectFiles("");
+    }
+}
+
+window.filterProjectFiles = filterProjectFiles;
+window.clearDetailFileSearch = clearDetailFileSearch;
+
+function renderProjectFilesDirectory(files, isFiltering = false, filterKeyword = "") {
     const treeContainer = document.getElementById("national-archiving-tree");
     if (!treeContainer) return;
 
     treeContainer.innerHTML = "";
+
+    if (isFiltering && (!files || files.length === 0)) {
+        treeContainer.innerHTML = `
+            <div style="text-align:center; padding:28px 12px; color:#64748b; font-size:12.5px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; margin-top:5px;">
+                <span style="font-size:24px; display:block; margin-bottom:6px;">🔍</span>
+                <div>未检索到匹配的文档 "<strong style="color:#1d4ed8;">${escapeHtml(filterKeyword)}</strong>"</div>
+                <div style="font-size:11.5px; color:#94a3b8; margin-top:4px;">请尝试输入其他关键词（如文件名、阶段目录或文档内容）</div>
+            </div>
+        `;
+        if (typeof window.updateBatchDeleteUIState === "function") {
+            window.updateBatchDeleteUIState();
+        }
+        return;
+    }
 
     const fileBuckets = {};
     NATIONAL_ARCHIVE_CATALOG.forEach(cat => {
@@ -319,7 +465,7 @@ function renderProjectFilesDirectory(files) {
                     <div class="file-item" style="margin: 3px 0; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; display:flex; align-items:center; position:relative; gap:6px;">
                         <input type="checkbox" class="file-item-checkbox" data-file-id="${f.id}" data-file-name="${escapeHtml(f.file_name)}" onchange="onFileCheckboxChange()" style="cursor:pointer; width:14px; height:14px; flex-shrink:0;">
                         <span style="flex-shrink:0;">📄</span>
-                        <a href="/api/projects/${currentDetailProjectId}/files/${f.id}/download" target="_blank" class="file-item-name" title="${escapeHtml(f.file_name)}" style="font-size:12.5px; color:#1e293b; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; font-weight:500;">${escapeHtml(f.file_name)}</a>
+                        <a href="javascript:void(0)" onclick="openFileContentModal('${f.id}')" class="file-item-name" title="点击预览文件原文内容: ${escapeHtml(f.file_name)}" style="font-size:12.5px; color:#1d4ed8; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; font-weight:600; cursor:pointer;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${isFiltering ? highlightMatchText(f.file_name, filterKeyword) : escapeHtml(f.file_name)}</a>
                         <span style="font-size:11px; color:#64748b; flex-shrink:0; white-space:nowrap;">(${formatBytes(f.file_size)})</span>
                         <div class="file-item-actions" style="align-items:center; gap:6px; flex-shrink:0; margin-left:4px;">
                             <button class="btn-summary" onclick="generateSummary('${f.id}')" style="font-size:11px; padding:2px 8px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer;">摘要</button>
@@ -341,15 +487,19 @@ function renderProjectFilesDirectory(files) {
             `;
         }).join("");
 
+        const shouldExpand = isFiltering && catTotalFiles > 0;
+        const displayStyle = shouldExpand ? "block" : "none";
+        const iconChar = shouldExpand ? "▼" : "▶";
+
         catNode.innerHTML = `
             <div class="folder-title" onclick="toggleFolderCategory(this)" style="background:#f1f5f9; padding:8px 12px; font-weight:700; font-size:13px; color:var(--gov-blue); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none;">
                 <span style="display:flex; align-items:center; gap:6px;">
-                    <span class="folder-toggle-icon" style="font-size:11px; color:#64748b; transition:transform 0.2s;">▶</span>
+                    <span class="folder-toggle-icon" style="font-size:11px; color:#64748b; transition:transform 0.2s;">${iconChar}</span>
                     <span>📁 ${escapeHtml(cat.name)}</span>
                 </span>
                 <span class="badge" style="background:#dbeafe; color:#1e40af; font-size:11px; padding:2px 8px; border-radius:10px;">${catTotalFiles} 份归档文件</span>
             </div>
-            <div class="folder-content" style="padding:8px; background:#ffffff; display:none;">
+            <div class="folder-content" style="padding:8px; background:#ffffff; display:${displayStyle};">
                 ${subCategoriesHtml}
             </div>
         `;
@@ -375,6 +525,77 @@ function toggleFolderCategory(headerEl) {
         if (icon) icon.textContent = '▶';
     }
 }
+function openFileContentModal(fileId) {
+    const file = (currentProjectFiles || []).find(f => f.id === fileId);
+    const fileName = file ? file.file_name : "归档文件";
+    const projId = currentDetailProjectId || window.currentProjectId || "p1";
+
+    const overlayId = "file-content-modal-overlay";
+    const oldOverlay = document.getElementById(overlayId);
+    if (oldOverlay) oldOverlay.remove();
+
+    const modalHtml = `
+        <div class="admin-modal-overlay" id="${overlayId}" onclick="if(event.target===this) this.remove();" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+            <div class="admin-modal" style="background:#ffffff; border-radius:10px; width:92%; max-width:850px; padding:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); max-height:88vh; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
+                    <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                        <span style="font-size:20px;">📄</span>
+                        <h3 style="margin:0; font-size:15px; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(fileName)}">
+                            ${escapeHtml(fileName)} <span style="font-size:12px; font-weight:normal; color:#64748b;">(原文查看)</span>
+                        </h3>
+                    </div>
+                    <button onclick="document.getElementById('${overlayId}').remove()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#64748b; padding:2px 8px; line-height:1;" title="关闭">✕</button>
+                </div>
+
+                <div id="file-content-box" style="flex:1; overflow:hidden; display:flex; flex-direction:column; background:#0f172a; border-radius:8px; border:1px solid #334155; position:relative; min-height:300px;">
+                    <div id="file-content-loading" style="padding:50px; text-align:center; color:#94a3b8; font-size:13px;">
+                        <span style="display:inline-block; font-size:22px; margin-bottom:10px;">⌛</span>
+                        <div>正在读取并解析原文内容，请稍候...</div>
+                    </div>
+                    <pre id="file-content-body" style="display:none; margin:0; padding:16px; font-family:Consolas, Monaco, 'Courier New', monospace; font-size:13px; line-height:1.65; color:#f1f5f9; white-space:pre-wrap; word-break:break-all; overflow-y:auto; flex:1; max-height:550px;"></pre>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px;">
+                    <div style="font-size:12px; color:#64748b;">
+                        <span>大小: ${file ? formatBytes(file.file_size) : '-'}</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <a href="/api/projects/${projId}/files/${fileId}/download" target="_blank" class="btn-gov-secondary" style="padding:6px 14px; text-decoration:none; font-size:12.5px; display:inline-flex; align-items:center; gap:4px; border:1px solid #cbd5e1; border-radius:6px; color:#334155; font-weight:600;">
+                            📥 下载原文件
+                        </a>
+                        <button class="btn-gov-primary" onclick="document.getElementById('${overlayId}').remove()" style="padding:6px 16px; font-size:12.5px;">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    fetch(`/api/projects/${projId}/files/${fileId}/download`)
+        .then(res => {
+            if (!res.ok) throw new Error("无法读取文件原文");
+            return res.text();
+        })
+        .then(text => {
+            const loadingEl = document.getElementById("file-content-loading");
+            const bodyEl = document.getElementById("file-content-body");
+            if (loadingEl) loadingEl.style.display = "none";
+            if (bodyEl) {
+                bodyEl.style.display = "block";
+                bodyEl.textContent = text || "(此文件无可显示的明文内容)";
+            }
+        })
+        .catch(err => {
+            const loadingEl = document.getElementById("file-content-loading");
+            if (loadingEl) {
+                loadingEl.innerHTML = `<span style="color:#f87171;">❌ 无法加载文件原文: ${escapeHtml(err.message)}</span>`;
+            }
+        });
+}
+
+window.openFileContentModal = openFileContentModal;
 window.toggleFolderCategory = toggleFolderCategory;
 
 function loadProjectAnalysis(projectId) {
@@ -498,7 +719,7 @@ function switchDetailRightTab(paneName) {
         }
     });
 
-    const panes = ["compliance", "yn-eval", "rag-chat", "todos"];
+    const panes = ["compliance", "yn-eval", "rag-chat", "doc-editor"];
     panes.forEach(name => {
         const el = document.getElementById("pane-tab-" + name);
         if (el) {
@@ -519,52 +740,240 @@ function renderProjectTodos() {
     const container = document.getElementById("project-todo-list");
     if (!container) return;
 
-    if (!currentProject || !currentProject.todos) {
-        currentProject = currentProject || {};
-        currentProject.todos = [
-            { id: "t1", text: "【节点】核对质保维保清单与到期日", done: false },
-            { id: "t2", text: "【合规】催收第二期进度款拨付凭证", done: true }
-        ];
-    }
+    if (!currentProjectId) return;
 
-    container.innerHTML = currentProject.todos.map(t => `
-        <li class="todo-item ${t.done ? 'completed' : ''}" style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;">
-            <div>
-                <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleProjectTodo('${t.id}')">
-                <span class="todo-text" style="font-size:13px; margin-left:8px; ${t.done ? 'text-decoration:line-through; color:#94a3b8;' : ''}">${escapeHtml(t.text)}</span>
+    fetch(`/api/projects/${currentProjectId}/todos`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.todos) {
+                currentProject.todos = data.todos;
+            }
+            drawProjectTodosUI(container);
+        })
+        .catch(err => {
+            console.error("加载项目代办失败:", err);
+            drawProjectTodosUI(container);
+        });
+}
+
+function drawProjectTodosUI(container) {
+    const todos = (currentProject && currentProject.todos) ? currentProject.todos : [];
+    if (todos.length === 0) {
+        container.innerHTML = `<li style="padding:20px; text-align:center; color:#94a3b8; font-size:12.5px;">暂无代办事项，请点击上方“🤖 智能一键重新梳理代办”按钮基于归档公文自动生成...</li>`;
+        return;
+    }
+    container.innerHTML = todos.map(t => {
+        let catColor = "#1d4ed8";
+        let catBg = "#eff6ff";
+        let catBorder = "#bfdbfe";
+        if (t.category === "缺件") {
+            catColor = "#dc2626";
+            catBg = "#fef2f2";
+            catBorder = "#fca5a5";
+        } else if (t.category === "节点") {
+            catColor = "#d97706";
+            catBg = "#fffbe0";
+            catBorder = "#fde68a";
+        } else if (t.category === "合规") {
+            catColor = "#059669";
+            catBg = "#ecfdf5";
+            catBorder = "#a7f3d0";
+        }
+
+        return `
+        <li class="todo-item ${t.done ? 'completed' : ''}" style="display:block !important; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.03); box-sizing:border-box; width:100%;">
+            <!-- 1. 顶部操作工具栏：复选框 + 分类 + 删除按钮 -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
+                    <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleProjectTodo('${t.id}')" style="cursor:pointer; width:16px; height:16px;">
+                    <span style="font-size:11px; font-weight:700; color:${catColor}; background:${catBg}; border:1px solid ${catBorder}; padding:1px 8px; border-radius:4px;">${escapeHtml(t.category || "事项")}</span>
+                </label>
+                <button class="todo-delete" onclick="deleteProjectTodo('${t.id}')" title="删除事项" style="border:none; background:none; color:#94a3b8; font-weight:bold; cursor:pointer; font-size:14px; padding:2px 4px; transition:color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">✕</button>
             </div>
-            <button class="todo-delete" onclick="deleteProjectTodo('${t.id}')" style="border:none; background:none; color:#ef4444; cursor:pointer;">✕</button>
+            
+            <!-- 2. 中间代办事项主体文本（全宽展示，自然换行，杜绝竖排变形） -->
+            <div style="font-size:13px; font-weight:600; line-height:1.5; color:${t.done ? '#94a3b8' : '#1e293b'}; ${t.done ? 'text-decoration:line-through;' : ''}; word-break:break-word; margin-bottom:8px; width:100%;">
+                ${escapeHtml(t.text)}
+            </div>
+
+            <!-- 3. 底部关联公文目标浅灰栏 -->
+            <div style="background:#f8fafc; border:1px solid #f1f5f9; border-radius:4px; padding:4px 8px; font-size:11.5px; color:#64748b; font-family:sans-serif; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; box-sizing:border-box;">
+                ${t.doc_target ? `<span title="${escapeHtml(t.doc_target)}">📁 关联公文: ${escapeHtml(t.doc_target)}</span>` : '<span style="color:#94a3b8;">未指定公文</span>'}
+            </div>
         </li>
-    `).join("");
+    `}).join("");
+}
+
+function autoGenerateProjectTodos() {
+    if (!currentProjectId) return;
+    if (typeof showToast === "function") showToast("正在基于全量归档公文梳理代办事项...", "info");
+    fetch(`/api/projects/${currentProjectId}/todos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auto-generate" })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.todos) {
+            currentProject.todos = data.todos;
+            const container = document.getElementById("project-todo-list");
+            drawProjectTodosUI(container);
+            if (typeof showToast === "function") showToast("已成功梳理全生命周期归档代办", "success");
+        }
+    });
 }
 
 function addProjectTodo() {
     const input = document.getElementById("new-todo-text");
-    if (!input || !input.value.trim()) return;
-    if (!currentProject.todos) currentProject.todos = [];
-    currentProject.todos.push({
-        id: "t_" + Date.now(),
-        text: input.value.trim(),
-        done: false
-    });
+    if (!input || !input.value.trim() || !currentProjectId) return;
+    const text = input.value.trim();
     input.value = "";
-    renderProjectTodos();
+
+    fetch(`/api/projects/${currentProjectId}/todos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add", text: text })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.todos) {
+            currentProject.todos = data.todos;
+            const container = document.getElementById("project-todo-list");
+            drawProjectTodosUI(container);
+        }
+    });
 }
 
 function toggleProjectTodo(id) {
-    if (!currentProject || !currentProject.todos) return;
-    const item = currentProject.todos.find(t => t.id === id);
-    if (item) {
-        item.done = !item.done;
-        renderProjectTodos();
-    }
+    if (!currentProjectId) return;
+    fetch(`/api/projects/${currentProjectId}/todos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggle", todo_id: id })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.todos) {
+            currentProject.todos = data.todos;
+            const container = document.getElementById("project-todo-list");
+            drawProjectTodosUI(container);
+        }
+    });
 }
 
 function deleteProjectTodo(id) {
-    if (!currentProject || !currentProject.todos) return;
-    currentProject.todos = currentProject.todos.filter(t => t.id !== id);
-    renderProjectTodos();
+    if (!currentProjectId) return;
+    fetch(`/api/projects/${currentProjectId}/todos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", todo_id: id })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.todos) {
+            currentProject.todos = data.todos;
+            const container = document.getElementById("project-todo-list");
+            drawProjectTodosUI(container);
+        }
+    });
 }
+
+function renderPersistentChatHistory(p) {
+    const historyEl = document.getElementById("chat-messages-history");
+    if (!historyEl) return;
+
+    if (!p || !p.chat_history || p.chat_history.length === 0) {
+        historyEl.innerHTML = `
+            <div class="chat-msg system">
+                <div class="msg-avatar">🤖</div>
+                <div class="msg-bubble">
+                    您好！我是您的项目合规助手。已调取当前项目全部归档文件。您可以向我询问项目预算、变更协议或初验结果。
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    historyEl.innerHTML = p.chat_history.map((msg, idx) => {
+        const msgId = msg.id || (`msg_${idx}`);
+        if (msg.sender === "user") {
+            return `
+                <div class="chat-msg user" data-msg-id="${msgId}">
+                    <div class="msg-avatar">👤</div>
+                    <div class="msg-bubble">
+                        <button class="chat-msg-delete-btn" onclick="deleteChatMessage('${p.id}', '${msgId}', this)" title="删除此条对话记录">🗑️</button>
+                        ${escapeHtml(msg.text)}
+                    </div>
+                </div>
+            `;
+        } else {
+            let refHtml = "";
+            if (msg.references && msg.references.length > 0) {
+                refHtml = `
+                    <div style="margin-top:6px; font-size:11px; color:#64748b;">
+                        📁 已检索参考源（RAG）：
+                        ${msg.references.map(r => `<span style="background:#cbd5e1; padding:2px 6px; border-radius:3px; margin-right:4px;">${escapeHtml(r)}</span>`).join("")}
+                    </div>
+                `;
+            }
+            let cleanResp = msg.text || "";
+            if (cleanResp.toLowerCase().includes("here's a thinking process")) {
+                const low = cleanResp.toLowerCase();
+                const idx = low.indexOf("here's a thinking process");
+                const sliced = cleanResp.substring(idx);
+                const headerIdx = sliced.search(/\n[#【]/);
+                if (headerIdx !== -1) {
+                    cleanResp = cleanResp.substring(0, idx) + sliced.substring(headerIdx + 1);
+                } else {
+                    const doubleNL = sliced.indexOf("\n\n");
+                    if (doubleNL !== -1) {
+                        cleanResp = cleanResp.substring(0, idx) + sliced.substring(doubleNL + 2);
+                    }
+                }
+            }
+            cleanResp = cleanResp.trim();
+
+            return `
+                <div class="chat-msg ai" data-msg-id="${msgId}">
+                    <div class="msg-avatar">🤖</div>
+                    <div class="msg-bubble">
+                        <button class="chat-msg-delete-btn" onclick="deleteChatMessage('${p.id}', '${msgId}', this)" title="删除此条对话记录">🗑️</button>
+                        <p style="font-weight:700; color:var(--text-muted); font-size:11px; margin:0 0 4px 0;">小智 • ${msg.model || "默认模型"}</p>
+                        <div style="white-space: pre-wrap; font-size:13px; line-height:1.6;">${escapeHtml(cleanResp)}</div>
+                        ${refHtml}
+                    </div>
+                </div>
+            `;
+        }
+    }).join("");
+
+    historyEl.scrollTop = historyEl.scrollHeight;
+}
+
+function deleteChatMessage(projectId, msgId, btnEl) {
+    if (!confirm("确定要删除该条对话记录吗？\n删除后该记录将同步从系统持久化数据中永久删除。")) {
+        return;
+    }
+    const msgCard = btnEl ? btnEl.closest(".chat-msg") : null;
+    if (msgCard) {
+        msgCard.style.transition = "all 0.2s ease";
+        msgCard.style.opacity = "0";
+        msgCard.style.transform = "scale(0.95)";
+        setTimeout(() => msgCard.remove(), 200);
+    }
+    apiFetch(`/api/projects/${projectId}/chat/${msgId}`, { method: "DELETE" })
+        .then(res => res.json())
+        .then(data => {
+            if (typeof showToast === "function") showToast("已成功从持久化数据中删除该条对话记录", "success");
+        })
+        .catch(err => {
+            console.error("删除对话记录失败:", err);
+            if (typeof showToast === "function") showToast("删除对话记录失败", "error");
+        });
+}
+
+window.deleteChatMessage = deleteChatMessage;
+
 
 function generateSummary(fileId) {
     const file = (currentProjectFiles || []).find(f => f.id === fileId);
@@ -574,6 +983,12 @@ function generateSummary(fileId) {
     const oldOverlay = document.getElementById(overlayId);
     if (oldOverlay) oldOverlay.remove();
 
+    const existingSummary = file ? (file.summary || file.file_summary || "") : "";
+    const isCached = existingSummary && !existingSummary.startsWith("【归档文件】");
+    const initialContentHtml = isCached
+        ? `<div style="white-space: pre-wrap;">${escapeHtml(existingSummary)}</div>`
+        : `<span style="color:var(--text-muted);">正在生成摘要...</span>`;
+
     const modalHtml = `
         <div class="admin-modal-overlay" id="${overlayId}" onclick="if(event.target===this) this.remove();" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center;">
             <div class="admin-modal" style="background:#fff; border-radius:8px; width:90%; max-width:600px; padding:20px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
@@ -582,7 +997,7 @@ function generateSummary(fileId) {
                     <button onclick="document.getElementById('${overlayId}').remove()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#64748b;">✕</button>
                 </div>
                 <div id="summary-text-box" style="font-size:13.5px; line-height:1.7; color:#334155; background:#f8fafc; padding:14px; border-radius:6px; border:1px solid #e2e8f0; min-height:80px; display:flex; align-items:center; justify-content:center;">
-                    <span style="color:var(--text-muted);">正在调用离线政务引擎生成摘要，请稍候...</span>
+                    ${initialContentHtml}
                 </div>
                 <div style="text-align:right; margin-top:16px;">
                     <button class="btn-gov-primary" onclick="document.getElementById('${overlayId}').remove()" style="padding:6px 16px;">关闭提炼摘要</button>
@@ -605,10 +1020,13 @@ function generateSummary(fileId) {
             box.style.display = "block";
             box.innerHTML = `<div style="white-space: pre-wrap;">${escapeHtml(data.summary || "未返回摘要")}</div>`;
         }
+        if (file && data.summary) {
+            file.summary = data.summary;
+        }
     })
     .catch(err => {
         const box = document.getElementById("summary-text-box");
-        if (box) {
+        if (box && !isCached) {
             box.style.display = "block";
             box.innerHTML = `<span style="color:#ef4444;">❌ 生成摘要失败: ${escapeHtml(err.message)}</span>`;
         }
@@ -657,9 +1075,14 @@ function sendChatMessage() {
     // 1. 追加用户气泡
     const userMsg = document.createElement("div");
     userMsg.className = "chat-msg user";
+    const userMsgId = `msg_${Date.now()}_user`;
+    userMsg.setAttribute("data-msg-id", userMsgId);
     userMsg.innerHTML = `
         <div class="msg-avatar">👤</div>
-        <div class="msg-bubble">${escapeHtml(text)}</div>
+        <div class="msg-bubble">
+            <button class="chat-msg-delete-btn" onclick="deleteChatMessage('${currentDetailProjectId}', '${userMsgId}', this)" title="删除此条对话记录">🗑️</button>
+            ${escapeHtml(text)}
+        </div>
     `;
     historyEl.appendChild(userMsg);
     historyEl.scrollTop = historyEl.scrollHeight;
@@ -691,7 +1114,9 @@ function sendChatMessage() {
         if (placeholder) placeholder.remove();
 
         const aiMsg = document.createElement("div");
-        aiMsg.className = "chat-msg system";
+        aiMsg.className = "chat-msg ai";
+        const aiMsgId = `msg_${Date.now()}_ai`;
+        aiMsg.setAttribute("data-msg-id", aiMsgId);
         
         let referencesHtml = "";
         if (data.references && data.references.length > 0) {
@@ -708,23 +1133,41 @@ function sendChatMessage() {
             thinkingMsg = `<div style="font-style:italic; font-size:12px; color:#0284c7; margin-bottom:6px;">💡 深度思考过程：已针对该项目共 ${currentProjectFiles.length} 份归档文档进行交叉校验，校验其支付单据、监理周报及进度时限，进行智能综合推导...</div>`;
         }
 
+        let cleanResp = data.response || "";
+        if (cleanResp.toLowerCase().includes("here's a thinking process")) {
+            const low = cleanResp.toLowerCase();
+            const idx = low.indexOf("here's a thinking process");
+            const sliced = cleanResp.substring(idx);
+            const headerIdx = sliced.search(/\n[#【]/);
+            if (headerIdx !== -1) {
+                cleanResp = cleanResp.substring(0, idx) + sliced.substring(headerIdx + 1);
+            } else {
+                const doubleNL = sliced.indexOf("\n\n");
+                if (doubleNL !== -1) {
+                    cleanResp = cleanResp.substring(0, idx) + sliced.substring(doubleNL + 2);
+                }
+            }
+        }
+        cleanResp = cleanResp.trim();
+
         aiMsg.innerHTML = `
             <div class="msg-avatar">🤖</div>
             <div class="msg-bubble">
+                <button class="chat-msg-delete-btn" onclick="deleteChatMessage('${currentDetailProjectId}', '${aiMsgId}', this)" title="删除此条对话记录">🗑️</button>
                 <p style="font-weight:700; color:var(--text-muted); font-size:11px; margin:0 0 4px 0;">小智 • ${data.model || "默认"}</p>
                 ${thinkingMsg}
-                <div style="white-space: pre-wrap; font-size:13px; line-height:1.6;">${escapeHtml(data.response)}</div>
+                <div style="white-space: pre-wrap; font-size:13px; line-height:1.6;">${escapeHtml(cleanResp)}</div>
                 ${referencesHtml}
             </div>
         `;
         historyEl.appendChild(aiMsg);
         historyEl.scrollTop = historyEl.scrollHeight;
 
-        // 若对话包含公文内容，自动填充进底部的拟稿定稿编辑器
+        // 若对话包含公文内容，自动填充进拟稿定稿编辑器
         if (data.response && (data.response.includes("【验收评审意见】") || data.response.includes("【合同要点】") || data.response.includes("公文") || data.response.includes("会议纪要"))) {
-            const editorTextarea = document.getElementById("rag-doc-editor");
+            const editorTextarea = document.getElementById("rag-editor-content") || document.getElementById("rag-doc-editor");
             if (editorTextarea) {
-                editorTextarea.value = data.response;
+                editorTextarea.value = cleanResp;
                 const statusEl = document.getElementById("editor-status-text");
                 if (statusEl) statusEl.textContent = "已根据对话自动拟定公文草稿";
             }

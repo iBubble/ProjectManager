@@ -2,13 +2,11 @@
 function switchAdminTab(tabName) {
     tabName = tabName || "project-mgmt";
 
-    // 1. 确保切到设置/后台主面板视图
-    if (typeof switchTab === "function") {
-        switchTab("settings");
+    if (window.location) {
+        window.location.hash = "#" + tabName;
     }
-    window.location.hash = "#admin";
 
-    // 2. 切换左侧侧边栏按钮高亮
+    // 1. 切换左侧侧边栏按钮高亮
     document.querySelectorAll(".admin-nav-item").forEach(btn => {
         if (btn.getAttribute("data-admin-tab") === tabName) {
             btn.classList.add("active");
@@ -17,7 +15,7 @@ function switchAdminTab(tabName) {
         }
     });
 
-    // 3. 彻底覆盖控制 9 个面板的 display 属性
+    // 2. 彻底覆盖控制 9 个子面板的 display 属性
     const allPanels = ["project-mgmt", "learning", "users", "monitor", "security", "llm", "audit", "data", "about"];
     allPanels.forEach(name => {
         const el = document.getElementById("admin-panel-" + name);
@@ -34,12 +32,12 @@ function switchAdminTab(tabName) {
         }
     });
 
-    // 4. 数据装载 (try-catch 安全包裹)
+    // 3. 数据装载 (try-catch 安全包裹)
     try {
-        if (tabName === "project-mgmt") loadAdminProjectsTable();
-        if (tabName === "learning") loadAdminLearningDashboard();
+        if (tabName === "project-mgmt" && typeof loadAdminProjectsTable === "function") loadAdminProjectsTable();
+        if (tabName === "learning" && typeof loadAdminLearningDashboard === "function") loadAdminLearningDashboard();
         if (tabName === "users" && typeof loadAdminUsersTable === "function") loadAdminUsersTable();
-        if (tabName === "monitor") loadAdminSystemMonitor();
+        if (tabName === "monitor" && typeof loadAdminSystemMonitor === "function") loadAdminSystemMonitor();
         if (tabName === "audit" && typeof loadAdminAuditLog === "function") loadAdminAuditLog();
         if ((tabName === "security" || tabName === "llm") && typeof loadSettingsForm === "function") loadSettingsForm();
     } catch(e) {
@@ -57,9 +55,9 @@ function initAdminEvents() {
     const stageFilter = document.getElementById("admin-project-stage-filter");
     const healthFilter = document.getElementById("admin-project-health-filter");
 
-    if (searchInput) searchInput.addEventListener("input", filterAdminProjects);
-    if (stageFilter) stageFilter.addEventListener("change", filterAdminProjects);
-    if (healthFilter) healthFilter.addEventListener("change", filterAdminProjects);
+    if (searchInput) searchInput.addEventListener("input", () => { adminCurrentPage = 1; filterAdminProjects(); });
+    if (stageFilter) stageFilter.addEventListener("change", () => { adminCurrentPage = 1; filterAdminProjects(); });
+    if (healthFilter) healthFilter.addEventListener("change", () => { adminCurrentPage = 1; filterAdminProjects(); });
 
     // 新增用户按钮
     const btnCreateUser = document.getElementById("btn-create-user");
@@ -77,16 +75,60 @@ function initAdminEvents() {
     });
 }
 
+let currentSortColumn = "created_at";
+let currentSortOrder = "desc";
+let adminCurrentPage = 1;
+let adminPageSize = 20;
+
+function changeAdminPage(delta) {
+    adminCurrentPage += delta;
+    filterAdminProjects();
+}
+
+function changeAdminPageSize(newSize) {
+    adminPageSize = parseInt(newSize, 10) || 20;
+    adminCurrentPage = 1;
+    filterAdminProjects();
+}
+
+function handleProjectSort(column) {
+    if (currentSortColumn === column) {
+        currentSortOrder = currentSortOrder === "asc" ? "desc" : "asc";
+    } else {
+        currentSortColumn = column;
+        currentSortOrder = column === "created_at" ? "desc" : "asc";
+    }
+    updateSortIcons();
+    filterAdminProjects();
+}
+
+function updateSortIcons() {
+    const cols = ['name', 'doc_number', 'owner', 'budget', 'stage', 'health', 'created_at'];
+    cols.forEach(c => {
+        const el = document.getElementById(`sort-icon-${c}`);
+        if (!el) return;
+        if (c === currentSortColumn) {
+            el.textContent = currentSortOrder === "asc" ? "▲" : "▼";
+            el.style.color = "#1e3a8a";
+        } else {
+            el.textContent = "↕";
+            el.style.color = "#94a3b8";
+        }
+    });
+}
+
 // 加载后台项目管理表格
 function loadAdminProjectsTable() {
     apiFetch("/api/projects")
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : [])
         .then(projects => {
-            window.adminProjectsCache = projects;
-            renderAdminProjectsTable(projects);
+            const list = Array.isArray(projects) ? projects : [];
+            window.adminProjectsCache = list;
+            filterAdminProjects();
         })
         .catch(err => {
             console.error("加载后台项目列表失败:", err);
+            renderAdminProjectsTable([]);
         });
 }
 
@@ -95,7 +137,7 @@ function renderAdminProjectsTable(projects) {
     const tbody = document.getElementById("admin-projects-table-body");
     if (!tbody) return;
 
-    if (!projects || projects.length === 0) {
+    if (!Array.isArray(projects) || projects.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px; color:var(--text-muted);">暂无项目记录</td></tr>';
         return;
     }
@@ -129,14 +171,14 @@ function renderAdminProjectsTable(projects) {
     }).join("");
 }
 
-// 筛选项目
+// 筛选与排序项目
 function filterAdminProjects() {
     if (!window.adminProjectsCache) return;
     const q = (document.getElementById("admin-project-search").value || "").toLowerCase();
     const stage = document.getElementById("admin-project-stage-filter").value;
     const health = document.getElementById("admin-project-health-filter").value;
 
-    const filtered = window.adminProjectsCache.filter(p => {
+    let filtered = window.adminProjectsCache.filter(p => {
         const matchQ = !q || p.name.toLowerCase().includes(q) || (p.approval_doc_num && p.approval_doc_num.toLowerCase().includes(q)) || (p.owner && p.owner.toLowerCase().includes(q));
         const matchStage = !stage || p.stage === stage;
         let matchHealth = true;
@@ -147,8 +189,57 @@ function filterAdminProjects() {
         return matchQ && matchStage && matchHealth;
     });
 
-    renderAdminProjectsTable(filtered);
+    if (currentSortColumn) {
+        filtered.sort((a, b) => {
+            let valA, valB;
+            switch (currentSortColumn) {
+                case 'name': valA = a.name || ''; valB = b.name || ''; break;
+                case 'doc_number': valA = a.approval_doc_num || ''; valB = b.approval_doc_num || ''; break;
+                case 'owner': valA = a.owner || ''; valB = b.owner || ''; break;
+                case 'budget': valA = Number(a.budget) || 0; valB = Number(b.budget) || 0; break;
+                case 'stage': valA = a.stage || ''; valB = b.stage || ''; break;
+                case 'health': valA = Number(a.health_score) || 0; valB = Number(b.health_score) || 0; break;
+                case 'created_at': valA = a.created_at || ''; valB = b.created_at || ''; break;
+                default: return 0;
+            }
+            if (typeof valA === 'string') {
+                const cmp = valA.localeCompare(valB, 'zh-CN');
+                return currentSortOrder === 'asc' ? cmp : -cmp;
+            }
+            const cmp = valA < valB ? -1 : (valA > valB ? 1 : 0);
+            return currentSortOrder === 'asc' ? cmp : -cmp;
+        });
+    }
+    // 分页计算与 UI 更新
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / adminPageSize) || 1;
+    if (adminCurrentPage > totalPages) adminCurrentPage = totalPages;
+    if (adminCurrentPage < 1) adminCurrentPage = 1;
+
+    const countEl = document.getElementById("admin-total-count");
+    const curPageEl = document.getElementById("admin-current-page");
+    const totalPageEl = document.getElementById("admin-total-pages");
+    const btnPrev = document.getElementById("admin-btn-prev");
+    const btnNext = document.getElementById("admin-btn-next");
+    const pageSizeEl = document.getElementById("admin-page-size");
+
+    if (countEl) countEl.textContent = totalCount;
+    if (curPageEl) curPageEl.textContent = adminCurrentPage;
+    if (totalPageEl) totalPageEl.textContent = totalPages;
+    if (btnPrev) btnPrev.disabled = adminCurrentPage <= 1;
+    if (btnNext) btnNext.disabled = adminCurrentPage >= totalPages;
+    if (pageSizeEl) pageSizeEl.value = String(adminPageSize);
+
+    const startIdx = (adminCurrentPage - 1) * adminPageSize;
+    const pageItems = filtered.slice(startIdx, startIdx + adminPageSize);
+
+    renderAdminProjectsTable(pageItems);
 }
+
+window.changeAdminPage = changeAdminPage;
+window.changeAdminPageSize = changeAdminPageSize;
+
+
 
 // 编辑项目弹窗
 function editAdminProject(projId) {
@@ -550,6 +641,71 @@ function executeBatchAddLabel() {
     });
 }
 
+// 批量对选中的项目执行大模型合规研判与《云南省重点建设项目档案验收实施办法》填报评测
+function executeBatchEvalProjects() {
+    const ids = getSelectedProjectIds();
+    if (ids.length === 0) {
+        showToast("请先在列表中勾选要研判与评测的项目", "warning");
+        return;
+    }
+
+    if (!confirm(`确定要使用大模型对选中的 ${ids.length} 个项目执行批量合规研判与填报评测吗？\n系统将自动研判合规风险并完成《云南省重点建设项目档案验收实施办法》18项指标打分与表格填报存盘。`)) {
+        return;
+    }
+
+    showLoading(`正在对选中的 ${ids.length} 个项目进行大模型合规研判与档案填报评测...`);
+
+    apiFetch("/api/projects/batch-eval", {
+        method: "POST",
+        body: { project_ids: ids }
+    })
+    .then(res => res.json())
+    .then(data => {
+        hideLoading();
+        showToast(data.message || `已成功完成 ${ids.length} 个项目的大模型合规研判与填报评测`, "success");
+        loadAdminProjectsTable();
+        if (typeof loadProjectLedger === "function") loadProjectLedger();
+    })
+    .catch(err => {
+        hideLoading();
+        showToast(err.message || "批量研判评测失败", "error");
+    });
+}
+
+// 批量删除选中的项目及其所有物理资源
+
+function executeBatchDeleteProjects() {
+    const ids = getSelectedProjectIds();
+    if (ids.length === 0) {
+        showToast("请先在列表中勾选要删除的项目", "warning");
+        return;
+    }
+
+    if (!confirm(`⚠️ 严重警告：确定要彻底删除选中的 ${ids.length} 个项目吗？\n删除后关联的项目记录、硬盘物理文件、知识图谱三元组与缓存资源将被彻底清除且不可恢复！`)) {
+        return;
+    }
+
+    showLoading(`正在批量彻底删除选中的 ${ids.length} 个项目...`);
+
+    Promise.all(ids.map(id => apiFetch(`/api/projects/${id}`, { method: "DELETE" })))
+        .then(responses => {
+            hideLoading();
+            showToast(`已成功批量删除 ${ids.length} 个项目及所有关联物理资源`, "success");
+            const selectAll = document.getElementById("admin-select-all-projects");
+            if (selectAll) selectAll.checked = false;
+            loadAdminProjectsTable();
+            if (typeof loadProjectLedger === "function") loadProjectLedger();
+        })
+        .catch(err => {
+            hideLoading();
+            showToast("批量删除发生异常: " + err.message, "error");
+            loadAdminProjectsTable();
+        });
+}
+
+
+let systemUsersList = [];
+
 // 加载系统用户列表
 function loadAdminUsersTable() {
     const tbody = document.getElementById("admin-users-table-body");
@@ -566,6 +722,9 @@ function loadAdminUsersTable() {
                     { username: "刘科员", name: "刘科员 (软件科)", role: "project_owner", wechat_id: "wx_liu_staff", is_disabled: false }
                 ];
             }
+            // 按账号名 (username) 排序
+            users.sort((a, b) => (a.username || "").localeCompare(b.username || "", "zh-CN"));
+            systemUsersList = users;
             tbody.innerHTML = users.map(u => `
                 <tr>
                     <td style="font-weight:700; color:var(--gov-blue);">${escapeHtml(u.username)}</td>
@@ -573,8 +732,8 @@ function loadAdminUsersTable() {
                     <td><span class="stage-tag badge-blue">${formatRole(u.role)}</span></td>
                     <td style="font-family:monospace;">${escapeHtml(u.wechat_id || "未绑定")}</td>
                     <td>
-                        <button class="btn-gov-secondary" onclick="resetUserPassword('${u.username}')" style="font-size:12px; padding:2px 6px;">重置密码</button>
-                        <button class="btn-gov-secondary" onclick="toggleUserStatus('${u.username}', ${!u.is_disabled})" style="font-size:12px; padding:2px 6px; color:${u.is_disabled ? '#16a34a' : '#ef4444'};">${u.is_disabled ? '启用' : '停用'}</button>
+                        <button class="btn-gov-secondary" onclick="openEditUserModal('${escapeHtml(u.username)}')" style="font-size:12px; padding:2px 8px; font-weight:600; margin-right:4px;">修改</button>
+                        <button class="btn-gov-secondary" onclick="deleteSystemUser('${escapeHtml(u.username)}')" style="font-size:12px; padding:2px 8px; font-weight:600; color:#ef4444; border-color:#fca5a5;">删除</button>
                     </td>
                 </tr>
             `).join("");
@@ -585,32 +744,220 @@ function loadAdminUsersTable() {
         });
 }
 
-// 创建新系统用户
-function createAdminUser() {
-    const username = document.getElementById("new-user-name").value.trim();
-    const fullname = document.getElementById("new-user-fullname").value.trim();
-    const role = document.getElementById("new-user-role").value;
-    const wechat = document.getElementById("new-user-wechat").value.trim();
+function openEditUserModal(username) {
+    const modal = document.getElementById("modal-edit-user");
+    const user = systemUsersList.find(u => u.username === username);
+    
+    const origUserEl = document.getElementById("modal-edit-user-original-username");
+    const nameEl = document.getElementById("modal-edit-user-name");
+    const fullnameEl = document.getElementById("modal-edit-user-fullname");
+    const roleEl = document.getElementById("modal-edit-user-role");
+    const wechatEl = document.getElementById("modal-edit-user-wechat");
+    const pwdEl = document.getElementById("modal-edit-user-password");
+
+    if (origUserEl) origUserEl.value = username;
+    if (nameEl) nameEl.value = username;
+    if (fullnameEl) fullnameEl.value = user ? (user.name || "") : "";
+    if (roleEl) roleEl.value = user ? (user.role || "project_owner") : "project_owner";
+    if (wechatEl) wechatEl.value = user ? (user.wechat_id || "") : "";
+    if (pwdEl) pwdEl.value = "";
+
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    }
+}
+
+function closeEditUserModal() {
+    const modal = document.getElementById("modal-edit-user");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function submitEditUserForm() {
+    const origUsername = document.getElementById("modal-edit-user-original-username")?.value || "";
+    const username = document.getElementById("modal-edit-user-name")?.value.trim() || "";
+    const fullname = document.getElementById("modal-edit-user-fullname")?.value.trim() || "";
+    const role = document.getElementById("modal-edit-user-role")?.value || "project_owner";
+    const wechat = document.getElementById("modal-edit-user-wechat")?.value.trim() || "";
+    const password = document.getElementById("modal-edit-user-password")?.value.trim() || "";
 
     if (!username || !fullname) {
         showToast("请填写完整的账号名与姓名", "warning");
         return;
     }
 
-    apiFetch("/api/system/users", {
-        method: "POST",
-        body: { username, name: fullname, role, wechat_id: wechat, password: "admin123" }
+    showLoading(`正在保存用户 [${username}] 的更新信息...`);
+    apiFetch(`/api/system/users/${origUsername}`, {
+        method: "PUT",
+        body: {
+            new_username: username,
+            name: fullname,
+            role: role,
+            wechat_id: wechat,
+            password: password
+        }
     })
     .then(res => res.json())
     .then(data => {
-        showToast("✅ 用户创建成功，默认密码 admin123", "success");
-        document.getElementById("new-user-name").value = "";
-        document.getElementById("new-user-fullname").value = "";
-        document.getElementById("new-user-wechat").value = "";
+        hideLoading();
+        showToast(data.message || `✅ 用户 [${username}] 信息更新成功！`, "success");
+        closeEditUserModal();
         loadAdminUsersTable();
     })
     .catch(err => {
+        hideLoading();
+        showToast("更新用户信息失败: " + err.message, "error");
+    });
+}
+
+function deleteSystemUser(username) {
+    if (!confirm(`确定要彻底删除系统用户账号 [${username}] 吗？\n删除后该账号将无法再登录系统。`)) {
+        return;
+    }
+
+    showLoading(`正在删除用户账号 [${username}]...`);
+    apiFetch(`/api/system/users/${username}`, {
+        method: "DELETE"
+    })
+    .then(res => res.json())
+    .then(data => {
+        hideLoading();
+        showToast(data.message || `✅ 用户 [${username}] 已成功删除`, "success");
+        loadAdminUsersTable();
+    })
+    .catch(err => {
+        hideLoading();
+        showToast("删除用户失败: " + err.message, "error");
+    });
+}
+
+// 新增用户模态框控制
+function openCreateUserModal() {
+    const modal = document.getElementById("modal-create-user");
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    }
+}
+
+function closeCreateUserModal() {
+    const modal = document.getElementById("modal-create-user");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function submitCreateUserForm() {
+    const nameEl = document.getElementById("modal-new-user-name");
+    const fullnameEl = document.getElementById("modal-new-user-fullname");
+    const roleEl = document.getElementById("modal-new-user-role");
+    const wechatEl = document.getElementById("modal-new-user-wechat");
+    const pwdEl = document.getElementById("modal-new-user-password");
+
+    const username = nameEl ? nameEl.value.trim() : "";
+    const fullname = fullnameEl ? fullnameEl.value.trim() : "";
+    const role = roleEl ? roleEl.value : "project_owner";
+    const wechat = wechatEl ? wechatEl.value.trim() : "";
+    const password = pwdEl && pwdEl.value ? pwdEl.value.trim() : "admin123";
+
+    if (!username || !fullname) {
+        showToast("请填写完整的账号名与姓名", "warning");
+        return;
+    }
+
+    showLoading("正在创建系统新用户...");
+    apiFetch("/api/system/users", {
+        method: "POST",
+        body: { username, name: fullname, role, wechat_id: wechat, password: password }
+    })
+    .then(res => res.json())
+    .then(data => {
+        hideLoading();
+        showToast(`✅ 用户 [${username}] 创建成功！`, "success");
+        if (nameEl) nameEl.value = "";
+        if (fullnameEl) fullnameEl.value = "";
+        if (wechatEl) wechatEl.value = "";
+        if (pwdEl) pwdEl.value = "";
+        closeCreateUserModal();
+        loadAdminUsersTable();
+    })
+    .catch(err => {
+        hideLoading();
         showToast("创建失败: " + err.message, "error");
+    });
+}
+
+// 修改密码模态框控制
+function changeUserPassword(username) {
+    const modal = document.getElementById("modal-change-password");
+    const targetUserEl = document.getElementById("change-pwd-target-username");
+    const displayEl = document.getElementById("change-pwd-user-display");
+    const newPwdEl = document.getElementById("new-password-input");
+    const confirmPwdEl = document.getElementById("confirm-password-input");
+
+    if (targetUserEl) targetUserEl.value = username;
+    if (displayEl) displayEl.textContent = username;
+    if (newPwdEl) newPwdEl.value = "";
+    if (confirmPwdEl) confirmPwdEl.value = "";
+
+    if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+    }
+}
+
+function closeChangePasswordModal() {
+    const modal = document.getElementById("modal-change-password");
+    if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+    }
+}
+
+function submitChangePasswordForm() {
+    const targetUserEl = document.getElementById("change-pwd-target-username");
+    const newPwdEl = document.getElementById("new-password-input");
+    const confirmPwdEl = document.getElementById("confirm-password-input");
+
+    const username = targetUserEl ? targetUserEl.value : "";
+    const newPwd = newPwdEl ? newPwdEl.value.trim() : "";
+    const confirmPwd = confirmPwdEl ? confirmPwdEl.value.trim() : "";
+
+    if (!username) {
+        showToast("未指定修改密码的目标账号", "warning");
+        return;
+    }
+    if (!newPwd) {
+        showToast("请输入新密码", "warning");
+        return;
+    }
+    if (newPwd.length < 6) {
+        showToast("新密码长度不能少于 6 位", "warning");
+        return;
+    }
+    if (newPwd !== confirmPwd) {
+        showToast("两次输入的密码不一致，请重新检查", "warning");
+        return;
+    }
+
+    showLoading(`正在更新用户 [${username}] 的登录密码...`);
+    apiFetch(`/api/system/users/${username}/change-password`, {
+        method: "POST",
+        body: { new_password: newPwd }
+    })
+    .then(res => res.json())
+    .then(data => {
+        hideLoading();
+        showToast(data.message || `✅ 用户 [${username}] 的密码修改成功！`, "success");
+        closeChangePasswordModal();
+    })
+    .catch(err => {
+        hideLoading();
+        showToast("修改密码失败: " + err.message, "error");
     });
 }
 
@@ -642,12 +989,6 @@ function loadAdminAuditLog() {
         });
 }
 
-// 重置用户密码
-function resetUserPassword(username) {
-    if (!confirm(`确定要将用户 [${username}] 的登录密码重置为 admin123 吗？`)) return;
-    showToast(`✅ 用户 [${username}] 密码已重置为 admin123`, "success");
-}
-
 // 停用/启用用户
 function toggleUserStatus(username, disable) {
     showToast(`✅ 用户 [${username}] 状态已更新`, "success");
@@ -667,9 +1008,18 @@ function exportCSVDirectly(type) {
 
 // 导出给全局调用
 window.loadAdminUsersTable = loadAdminUsersTable;
-window.createAdminUser = createAdminUser;
+window.openCreateUserModal = openCreateUserModal;
+window.closeCreateUserModal = closeCreateUserModal;
+window.submitCreateUserForm = submitCreateUserForm;
+window.openEditUserModal = openEditUserModal;
+window.closeEditUserModal = closeEditUserModal;
+window.submitEditUserForm = submitEditUserForm;
+window.deleteSystemUser = deleteSystemUser;
+window.changeUserPassword = changeUserPassword;
+window.openChangePasswordModal = changeUserPassword;
+window.closeChangePasswordModal = closeChangePasswordModal;
+window.submitChangePasswordForm = submitChangePasswordForm;
 window.loadAdminAuditLog = loadAdminAuditLog;
-window.resetUserPassword = resetUserPassword;
 window.toggleUserStatus = toggleUserStatus;
 window.exportCSVDirectly = exportCSVDirectly;
 
@@ -825,26 +1175,41 @@ function loadAdminLearningDashboard() {
 
             const totalFiles = stats.total_files || 0;
             const learnedFiles = stats.learned_files || 0;
+            const filePercent = totalFiles > 0 ? (learnedFiles / totalFiles) * 100 : 100;
 
             const projectsList = stats.projects_learning || [];
             const totalProjects = stats.active_projects || projectsList.length;
             const evaluatedCount = projectsList.filter(p => p.has_eval || (p.eval_score && p.eval_score > 0)).length;
             const evalPercent = totalProjects > 0 ? (evaluatedCount / totalProjects) * 100 : 100;
 
-            if (vectorCountEl) vectorCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
-            if (kgCountEl) kgCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
-            if (summaryCountEl) summaryCountEl.textContent = `${learnedFiles * 2} / ${totalFiles * 2} 段`;
+            // 1. 向量化入库
+            const stepVectorCountEl = document.getElementById("step-vector-count");
+            const stepVectorBarEl = document.getElementById("step-vector-bar");
+            const stepVectorPercentEl = document.getElementById("step-vector-percent");
+            if (stepVectorCountEl) stepVectorCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
+            if (stepVectorBarEl) stepVectorBarEl.style.width = `${filePercent}%`;
+            if (stepVectorPercentEl) stepVectorPercentEl.textContent = `${filePercent.toFixed(2)}%`;
 
+            // 2. 知识图谱提取
+            const stepKgCountEl = document.getElementById("step-kg-count");
+            const stepKgBarEl = document.getElementById("step-kg-bar");
+            const stepKgPercentEl = document.getElementById("step-kg-percent");
+            if (stepKgCountEl) stepKgCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
+            if (stepKgBarEl) stepKgBarEl.style.width = `${filePercent}%`;
+            if (stepKgPercentEl) stepKgPercentEl.textContent = `${filePercent.toFixed(2)}%`;
+
+            // 3. 图谱社区摘要
+            const stepSummaryCountEl = document.getElementById("step-summary-count");
+            const stepSummaryBarEl = document.getElementById("step-summary-bar");
+            const stepSummaryPercentEl = document.getElementById("step-summary-percent");
+            if (stepSummaryCountEl) stepSummaryCountEl.textContent = `${learnedFiles * 2} / ${totalFiles * 2} 段`;
+            if (stepSummaryBarEl) stepSummaryBarEl.style.width = `${filePercent}%`;
+            if (stepSummaryPercentEl) stepSummaryPercentEl.textContent = `${filePercent.toFixed(2)}%`;
+
+            // 4. 项目评测
             if (evalCountEl) evalCountEl.textContent = `${evaluatedCount} / ${totalProjects} 项目`;
             if (evalBarEl) evalBarEl.style.width = `${evalPercent}%`;
-            if (evalPercentEl) {
-                evalPercentEl.textContent = `${evalPercent.toFixed(2)}%`;
-                if (evalPercent >= 100) {
-                    evalPercentEl.className = "step-percent";
-                } else {
-                    evalPercentEl.className = "step-percent text-muted";
-                }
-            }
+            if (evalPercentEl) evalPercentEl.textContent = `${evalPercent.toFixed(2)}%`;
 
             // 自动判断是否有处于学习中/排队中的项目，同步锁定顶部全量学习按钮并启动轮询
             const hasActiveLearning = (stats.projects_learning || []).some(p => p.status === "learning" || p.status === "queued");
@@ -905,7 +1270,15 @@ function renderLearningProjectCards(projects) {
         return;
     }
 
-    box.innerHTML = projects.map(p => {
+    // 严密按入库时间倒序（最新入库排最前面），防止轮询更新时列表乱序动来动去
+    const sortedProjects = [...projects].sort((a, b) => {
+        if (a.created_at && b.created_at && a.created_at !== b.created_at) {
+            return b.created_at.localeCompare(a.created_at);
+        }
+        return (b.project_id || "").localeCompare(a.project_id || "");
+    });
+
+    box.innerHTML = sortedProjects.map(p => {
         const isLearned = p.status === "learned";
         const isLearning = p.status === "learning";
         const isQueued = p.status === "queued";
@@ -1505,6 +1878,10 @@ function hashCode(str) {
     return hash;
 }
 
+window.switchAdminTab = switchAdminTab;
+window.loadAdminProjectsTable = loadAdminProjectsTable;
+window.renderAdminProjectsTable = renderAdminProjectsTable;
+window.filterAdminProjects = filterAdminProjects;
 window.loadAdminLearningDashboard = loadAdminLearningDashboard;
 window.triggerAdminProjectLearn = triggerAdminProjectLearn;
 window.triggerLearnAllProjects = triggerLearnAllProjects;
@@ -1514,3 +1891,12 @@ window.resetGraphView = resetGraphView;
 window.loadSettingsForm = loadSettingsForm;
 window.saveSecurityConfig = saveSecurityConfig;
 window.saveLLMConfig = saveLLMConfig;
+
+// DOM 加载完成保障触发项目表格数据装载
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(() => { if (typeof loadAdminProjectsTable === "function") loadAdminProjectsTable(); }, 100);
+} else {
+    document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => { if (typeof loadAdminProjectsTable === "function") loadAdminProjectsTable(); }, 100);
+    });
+}

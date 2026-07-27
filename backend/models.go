@@ -99,10 +99,32 @@ type Project struct {
 	Chunks                []DocumentChunk       `json:"chunks"`          // 项目文档切片知识库
 	Priority              int                   `json:"priority"`        // 学习优先级 (1级/2级/3级)
 	IsPaused              int                   `json:"is_paused"`       // 学习挂起标志 (0正常, 1暂停)
-	IsStageManual         bool                  `json:"is_stage_manual"` // 是否手动覆盖项目阶段
+	IsStageManual         bool             `json:"is_stage_manual"`        // 是否手动覆盖项目阶段
+	Todos                 []ProjectTodo    `json:"todos"`                  // 关联文档履行的代办事项
+	ChatHistory           []ChatMessage    `json:"chat_history"`           // 持久化保存的大模型对话历史
 	CreatedAt             string           `json:"created_at"`
 	StartDate             string           `json:"start_date"`             // 开始日期 (YYYY-MM-DD)
 	PlannedCompletionDate string           `json:"planned_completion_date"` // 计划完工日期 (YYYY-MM-DD)
+}
+
+// ProjectTodo 项目针对真实文档与节点整理的待办事项
+type ProjectTodo struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	Done      bool   `json:"done"`
+	Category  string `json:"category"`   // 缺件 / 审核 / 合规 / 节点
+	DocTarget string `json:"doc_target"` // 关联文档
+	CreatedAt string `json:"created_at"`
+}
+
+// ChatMessage 对话历史消息持久化结构
+type ChatMessage struct {
+	ID         string   `json:"id"`
+	Sender     string   `json:"sender"`     // user / ai / system
+	Text       string   `json:"text"`       // 消息正文
+	Model      string   `json:"model"`      // 模型名称
+	References []string `json:"references"` // 参考源文档列表
+	Timestamp  string   `json:"timestamp"`  // 发生时间
 }
 
 // DocumentChunk 智能文档语义切片

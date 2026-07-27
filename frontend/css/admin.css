@@ -333,9 +333,7 @@
 }
 
 .todo-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: block;
     padding: 10px 14px;
     border-bottom: 1px solid #f1f5f9;
 }

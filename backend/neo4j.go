@@ -139,3 +139,20 @@ func (n *Neo4jClient) SyncProjectGraphToNeo4j(projID string, projName string, en
 
 	return nil
 }
+
+// DeleteProjectGraph 从 Neo4j 图数据库中物理删除项目的实体节点与关系三元组
+func (n *Neo4jClient) DeleteProjectGraph(projID string) error {
+	if n == nil {
+		return nil
+	}
+	// 1. 删除该项目关联的所有 Entity 节点及其关系
+	delEntitiesCypher := `MATCH (e:Entity {project_id: $proj_id}) DETACH DELETE e`
+	_, _ = n.ExecuteCypher(delEntitiesCypher, map[string]interface{}{"proj_id": projID})
+
+	// 2. 删除 Project 根节点
+	delProjCypher := `MATCH (p:Project {id: $proj_id}) DETACH DELETE p`
+	_, _ = n.ExecuteCypher(delProjCypher, map[string]interface{}{"proj_id": projID})
+
+	return nil
+}
+

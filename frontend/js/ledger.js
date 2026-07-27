@@ -3,8 +3,21 @@
 // ==========================================================================
 
 var currentCardFilter = "all";
-var currentSortField = "start_date";
+var currentSortField = "created_at";
 var currentSortOrder = "desc";
+var ledgerCurrentPage = 1;
+var ledgerPageSize = 20;
+
+function changeLedgerPage(delta) {
+    ledgerCurrentPage += delta;
+    renderLedgerTable();
+}
+
+function changeLedgerPageSize(newSize) {
+    ledgerPageSize = parseInt(newSize, 10) || 20;
+    ledgerCurrentPage = 1;
+    renderLedgerTable();
+}
 
 function initLedgerPage() {
     loadProjectLedger();
@@ -50,6 +63,7 @@ function updateMetricsDashboard(projects) {
 
 function setCardFilter(type) {
     currentCardFilter = type || "all";
+    ledgerCurrentPage = 1;
 
     document.querySelectorAll(".filter-card").forEach(c => c.classList.remove("active"));
     const cardId = (type === "all" ? "card-filter-all" : (type === "acceptance" ? "card-filter-acceptance" : (type === "payment" ? "card-filter-payment" : "card-filter-risk")));
@@ -78,7 +92,7 @@ function sortLedgerBy(field) {
         currentSortOrder = (currentSortOrder === "asc" ? "desc" : "asc");
     } else {
         currentSortField = field;
-        currentSortOrder = "asc";
+        currentSortOrder = field === "created_at" ? "desc" : "asc";
     }
 
     renderLedgerTable();
@@ -86,7 +100,7 @@ function sortLedgerBy(field) {
 
 function renderLedgerTable() {
     // 动态同步更新表头所有排序状态图标
-    ["name", "stage", "start_date", "planned_completion_date", "days", "health", "owner", "budget"].forEach(f => {
+    ["name", "stage", "start_date", "planned_completion_date", "days", "health", "owner", "budget", "created_at"].forEach(f => {
         const iconEl = document.getElementById("sort-icon-" + f);
         if (iconEl) {
             if (f === currentSortField) {
@@ -100,6 +114,7 @@ function renderLedgerTable() {
             }
         }
     });
+
 
     const tbody = document.getElementById("project-ledger-table-body");
     if (!tbody) return;
@@ -171,12 +186,35 @@ function renderLedgerTable() {
         });
     }
 
-    if (filtered.length === 0) {
+    // 4. 分页控制
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / ledgerPageSize) || 1;
+    if (ledgerCurrentPage > totalPages) ledgerCurrentPage = totalPages;
+    if (ledgerCurrentPage < 1) ledgerCurrentPage = 1;
+
+    const countEl = document.getElementById("ledger-total-count");
+    const curPageEl = document.getElementById("ledger-current-page");
+    const totalPageEl = document.getElementById("ledger-total-pages");
+    const btnPrev = document.getElementById("ledger-btn-prev");
+    const btnNext = document.getElementById("ledger-btn-next");
+    const pageSizeEl = document.getElementById("ledger-page-size");
+
+    if (countEl) countEl.textContent = totalCount;
+    if (curPageEl) curPageEl.textContent = ledgerCurrentPage;
+    if (totalPageEl) totalPageEl.textContent = totalPages;
+    if (btnPrev) btnPrev.disabled = ledgerCurrentPage <= 1;
+    if (btnNext) btnNext.disabled = ledgerCurrentPage >= totalPages;
+    if (pageSizeEl) pageSizeEl.value = String(ledgerPageSize);
+
+    if (totalCount === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 40px;">暂无匹配的信息化项目台账记录</td></tr>`;
         return;
     }
 
-    filtered.forEach(p => {
+    const startIndex = (ledgerCurrentPage - 1) * ledgerPageSize;
+    const pageItems = filtered.slice(startIndex, startIndex + ledgerPageSize);
+
+    pageItems.forEach(p => {
         const tr = document.createElement("tr");
         
         let daysRemaining = "暂无临期";
@@ -209,14 +247,13 @@ function renderLedgerTable() {
             <td>${p.planned_completion_date || "—"}</td>
             <td style="font-weight: 600;">${daysRemaining}</td>
             <td>${riskTip}</td>
-            <td>${escapeHtml(p.owner.split(" ")[0])}</td>
+            <td>${escapeHtml((p.owner || "").split(" ")[0])}</td>
             <td style="font-weight: 600;">${formatCurrency(p.budget)}</td>
-            <td>
-                <button class="btn-gov-secondary" onclick="window.location.href='/detail.html?id=${p.id}'" style="padding: 3px 8px; font-size: 12px;">查看档案</button>
-            </td>
+            <td style="font-size: 12px; color: var(--text-muted);">${(p.created_at || "—").slice(0, 10)}</td>
         `;
         tbody.appendChild(tr);
     });
+
 }
 
 // 导出全局
@@ -224,6 +261,9 @@ window.initLedgerPage = initLedgerPage;
 window.setCardFilter = setCardFilter;
 window.sortLedgerBy = sortLedgerBy;
 window.renderLedgerTable = renderLedgerTable;
+window.changeLedgerPage = changeLedgerPage;
+window.changeLedgerPageSize = changeLedgerPageSize;
+
 
 function generateWeeklyLedgerBrief() {
     const modal = document.getElementById("modal-doc-preview");
