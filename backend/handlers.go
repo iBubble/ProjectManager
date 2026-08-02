@@ -265,9 +265,6 @@ func AutoCalculateProjectStage(files []FileMetadata) string {
 
 	cfg := GlobalDB.GetConfig()
 	modelName := cfg.LLMModel
-	if modelName == "" {
-		modelName = "qwen3.6:35b-q4"
-	}
 
 	systemPrompt := "你是一个政务信息化项目生命周期分析专家。请根据已归档的项目资料清单，推演并判定该项目当前处于 8 大生命周期阶段（立项/设计/实施/监理/设备/财务/验收/运维）中的哪一个。请直接输出阶段名称（仅2个汉字），不要包含任何标点符号或额外说明。"
 	userPrompt := fmt.Sprintf("已归档文件列表：\n%s\n\n请判定项目当前推进到的最新阶段名称（立项/设计/实施/监理/设备/财务/验收/运维）：", strings.Join(fileInfos, "\n"))
@@ -1281,6 +1278,9 @@ func HandlerSystemConfig(w http.ResponseWriter, r *http.Request) {
 		_ = GlobalDB.SaveConfig(req)
 		GlobalDB.AddAuditLog(user.Name, "更新系统配置", r.RemoteAddr, "修改了大模型配置及安全访问白名单策略")
 
+		// 异步热加载并常驻选中的大模型至 GPU VRAM
+		WarmupLLMModel(req.LLMEndpoint, req.LLMAPIKey, req.LLMModel)
+
 		sendJSON(w, map[string]string{"message": "安全配置已生效"})
 		return
 	}
@@ -1498,11 +1498,8 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 	cfg := GlobalDB.GetConfig()
 	if cfg.LLMProvider != "mock" && cfg.LLMEndpoint != "" {
 		modelName := cfg.LLMModel
-		if modelName == "" {
-			modelName = "qwen3.6:35b-q4"
-		}
 
-		systemPrompt := "你是一个高度专业的政务信息化项目生命周期智能管控Agent助手【小智】。请基于给出的项目真实数据指标与归档文件知识库，对用户的问询进行深度推理、严谨解答，给出结构化数据清单与审计分析结论。绝对不要输出 <think> 思考过程、'Here's a thinking process' 或英文推理步骤！"
+		systemPrompt := "你是一个高度专业的政务信息化项目生命周期智能管控Agent助手【小智】。请基于给出的项目真实数据指标与归档文件知识库，对用户的问询进行深度推理、严谨解答。请使用优雅通俗的 Markdown 文本排版（包含 ### 标题、- 列表项、**加粗重点**），严禁输出裸 JSON 代码块或对象！绝对不要输出 <think> 思考过程、'Here's a thinking process' 或英文推理步骤！"
 
 		// 挑选与用户 Query 最相关的高质量 3-4 份核心切片文件进行精确 RAG 注入
 		var contextTexts []string
@@ -1594,7 +1591,7 @@ func HandlerProjectChat(w http.ResponseWriter, r *http.Request, projectID string
 
 【用户提问】：%s
 
-请结合上述项目数据与归档知识库进行专业分析推导，直接给出清晰、严谨的结构化解答：`,
+请结合上述项目数据与归档知识库进行专业分析推导，使用清晰规范的 Markdown 自然语言文本（包含标题、列表与重点加粗）给出专业解答（切勿输出裸 JSON 代码块）：`,
 			project.Name,
 			project.Budget,
 			project.WinAmount,
@@ -2194,9 +2191,6 @@ func HandlerLedgerBrief(w http.ResponseWriter, r *http.Request) {
 		total, avgScore, stageMap, strings.Join(projSummaries, "\n"))
 
 	modelName := cfg.LLMModel
-	if modelName == "" {
-		modelName = "qwen2:1.5b"
-	}
 
 	briefLLM, errLLM := CallLLMGeneric(cfg.LLMEndpoint, cfg.LLMAPIKey, modelName, systemPrompt, userPrompt)
 	if errLLM == nil && strings.TrimSpace(briefLLM) != "" {
@@ -2760,7 +2754,7 @@ func HandlerTestLLM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := SafeHTTPClient(10 * time.Second)
 	var models []string
 	var testURL string
 

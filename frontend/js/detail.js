@@ -933,6 +933,20 @@ function renderPersistentChatHistory(p) {
             }
             cleanResp = cleanResp.trim();
 
+            const charCount = cleanResp.length;
+            const durationSec = msg.duration_sec || 3.5;
+            const speed = (charCount / (parseFloat(durationSec) || 1)).toFixed(1);
+            const timeStr = msg.timestamp || (new Date().toISOString().replace('T', ' ').substring(0, 19));
+
+            const metricsHtml = `
+                <div style="margin-top:10px; font-size:11px; color:#94a3b8; border-top:1px dashed #cbd5e1; padding-top:6px; display:flex; gap:16px; align-items:center;">
+                    <span>用时: ${durationSec}s</span>
+                    <span>长度: ${charCount} 字</span>
+                    <span>速度: ${speed} 字符/s</span>
+                    <span>时间: ${timeStr}</span>
+                </div>
+            `;
+
             return `
                 <div class="chat-msg ai" data-msg-id="${msgId}">
                     <div class="msg-avatar">🤖</div>
@@ -941,6 +955,7 @@ function renderPersistentChatHistory(p) {
                         <p style="font-weight:700; color:var(--text-muted); font-size:11px; margin:0 0 4px 0;">小智 • ${msg.model || "默认模型"}</p>
                         <div style="white-space: pre-wrap; font-size:13px; line-height:1.6;">${escapeHtml(cleanResp)}</div>
                         ${refHtml}
+                        ${metricsHtml}
                     </div>
                 </div>
             `;
@@ -1100,6 +1115,8 @@ function sendChatMessage() {
     historyEl.appendChild(aiLoading);
     historyEl.scrollTop = historyEl.scrollHeight;
 
+    const chatStartTime = Date.now();
+
     // 3. 向后端发起 RAG 会话
     apiFetch(`/api/projects/${currentDetailProjectId}/chat`, {
         method: "POST",
@@ -1112,6 +1129,8 @@ function sendChatMessage() {
     .then(data => {
         const placeholder = document.getElementById("chat-loading-placeholder");
         if (placeholder) placeholder.remove();
+
+        const durationSec = ((Date.now() - chatStartTime) / 1000).toFixed(1);
 
         const aiMsg = document.createElement("div");
         aiMsg.className = "chat-msg ai";
@@ -1150,6 +1169,20 @@ function sendChatMessage() {
         }
         cleanResp = cleanResp.trim();
 
+        const charCount = cleanResp.length;
+        const speed = (charCount / (parseFloat(durationSec) || 0.1)).toFixed(1);
+        const now = new Date();
+        const timeStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0') + " " + String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0') + ":" + String(now.getSeconds()).padStart(2, '0');
+
+        const metricsHtml = `
+            <div style="margin-top:10px; font-size:11px; color:#94a3b8; border-top:1px dashed #cbd5e1; padding-top:6px; display:flex; gap:16px; align-items:center;">
+                <span>用时: ${durationSec}s</span>
+                <span>长度: ${charCount} 字</span>
+                <span>速度: ${speed} 字符/s</span>
+                <span>时间: ${timeStr}</span>
+            </div>
+        `;
+
         aiMsg.innerHTML = `
             <div class="msg-avatar">🤖</div>
             <div class="msg-bubble">
@@ -1158,6 +1191,7 @@ function sendChatMessage() {
                 ${thinkingMsg}
                 <div style="white-space: pre-wrap; font-size:13px; line-height:1.6;">${escapeHtml(cleanResp)}</div>
                 ${referencesHtml}
+                ${metricsHtml}
             </div>
         `;
         historyEl.appendChild(aiMsg);
@@ -1280,8 +1314,12 @@ function triggerYunnanEval(isForce = true) {
     const projId = window.currentProjectId || currentDetailProjectId || 'p1';
     const btn = document.getElementById('btn-yn-eval-trigger');
     const box = document.getElementById('yn-annex-content-box');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "⏳ 大模型评测打分中...";
+    }
     if (box) {
-        box.innerHTML = '<div style="text-align:center; padding:40px; color:#1d4ed8; font-weight:600;"><span class="spinner">⏳</span> 正在调用大模型依据《云南省重点建设项目档案验收实施办法》提取文档要件并持久化存盘...</div>';
+        box.innerHTML = '<div style="text-align:center; padding:40px; color:#1d4ed8; font-weight:600;"><span class="spinner">⏳</span> 正在调用 AI 大模型依据《云南省重点建设项目档案验收实施办法》提取文档要件并重新研判打分...</div>';
     }
 
     const url = isForce ? `/api/projects/${projId}/yunnan-eval?force=true` : `/api/projects/${projId}/yunnan-eval`;
@@ -1302,7 +1340,6 @@ function triggerYunnanEval(isForce = true) {
         .then(data => {
             window.currentYunnanEvalResult = data;
 
-            if (btn) btn.innerText = "🚀 重新评测打分";
             const scoreEl = document.getElementById('yn-eval-score-num');
             const badgeEl = document.getElementById('yn-eval-result-badge');
 
@@ -1328,6 +1365,12 @@ function triggerYunnanEval(isForce = true) {
             console.error('Yunnan eval error:', err);
             if (box) {
                 box.innerHTML = `<div style="color:#ef4444; padding:20px; text-align:center;">测评计算失败: ${err.message}</div>`;
+            }
+        })
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "🚀 重新评测打分";
             }
         });
 }

@@ -1194,7 +1194,9 @@ function loadAdminLearningDashboard() {
             const stepKgCountEl = document.getElementById("step-kg-count");
             const stepKgBarEl = document.getElementById("step-kg-bar");
             const stepKgPercentEl = document.getElementById("step-kg-percent");
-            if (stepKgCountEl) stepKgCountEl.textContent = `${learnedFiles} / ${totalFiles} 文件`;
+            const totalKgEntities = stats.total_kg_entities || 0;
+            const totalKgRelations = stats.total_kg_relations || 0;
+            if (stepKgCountEl) stepKgCountEl.textContent = `${totalKgEntities} 实体 (${totalKgRelations} 关系)`;
             if (stepKgBarEl) stepKgBarEl.style.width = `${filePercent}%`;
             if (stepKgPercentEl) stepKgPercentEl.textContent = `${filePercent.toFixed(2)}%`;
 
@@ -1202,7 +1204,7 @@ function loadAdminLearningDashboard() {
             const stepSummaryCountEl = document.getElementById("step-summary-count");
             const stepSummaryBarEl = document.getElementById("step-summary-bar");
             const stepSummaryPercentEl = document.getElementById("step-summary-percent");
-            if (stepSummaryCountEl) stepSummaryCountEl.textContent = `${learnedFiles * 2} / ${totalFiles * 2} 段`;
+            if (stepSummaryCountEl) stepSummaryCountEl.textContent = `${learnedFiles} / ${totalFiles} 篇摘要`;
             if (stepSummaryBarEl) stepSummaryBarEl.style.width = `${filePercent}%`;
             if (stepSummaryPercentEl) stepSummaryPercentEl.textContent = `${filePercent.toFixed(2)}%`;
 
@@ -1354,11 +1356,11 @@ function renderLearningProjectCards(projects) {
                 <div class="pipeline-col">
                     <div class="col-head">
                         <span>🔗 2. 知识图谱提取</span>
-                        <span class="badge-col-green">${p.entities_count || 0} 实体</span>
+                        <span class="badge-col-green">${p.entities_count || 0} 实体 / ${p.relations_count || 0} 关系</span>
                     </div>
                     <div class="col-subtext">${isLearned ? "实体关系提取完毕" : (isLearning ? "三元组抽取中..." : "待处理")}</div>
                     <div class="col-stat-row">
-                        <span>${processedFiles} / ${p.files_count || 0}</span>
+                        <span>${processedFiles} / ${p.files_count || 0} 文件</span>
                         <span class="col-percent">${percentStr}</span>
                     </div>
                     <div class="progress-bar-thick">
@@ -1373,7 +1375,7 @@ function renderLearningProjectCards(projects) {
                     </div>
                     <div class="col-subtext">${isLearned ? "全局知识摘要完毕" : (isLearning ? "图社区聚类提炼中..." : "待处理")}</div>
                     <div class="col-stat-row">
-                        <span>${isLearned ? (p.files_count || 0) * 2 : 0} / ${(p.files_count || 0) * 2}</span>
+                        <span>${processedFiles} / ${p.files_count || 0} 篇摘要</span>
                         <span class="col-percent">${percentStr}</span>
                     </div>
                     <div class="progress-bar-thick">

@@ -32,9 +32,7 @@ func InitNeo4j(endpoint, user, password string) *Neo4jClient {
 		Username: user,
 		Password: password,
 		Enabled:  true,
-		client: &http.Client{
-			Timeout: 4 * time.Second,
-		},
+		client:   SafeHTTPClient(4 * time.Second),
 	}
 	return GlobalNeo4j
 }

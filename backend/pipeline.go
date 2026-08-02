@@ -175,9 +175,6 @@ func ExtractKnowledgeGraphFromText(proj Project, file FileMetadata, text string)
 	// 5. 真实调用大模型提取复杂实体与三元组关系
 	cfg := GlobalDB.GetConfig()
 	modelName := cfg.LLMModel
-	if modelName == "" {
-		modelName = "qwen3.6:35b-q4"
-	}
 
 	systemPrompt := "你是一个政务知识图谱三元组抽取专家。请从给出的公文正文片段中提取核心实体（类别：项目/部门/供应商/金额/技术规范/里程碑节点）及三元组关系(source, relation, target)。请输出 JSON 格式。"
 	userPrompt := fmt.Sprintf("项目名称: %s, 文件名: %s\n文本片段:\n%s\n\n请输出纯 JSON 数组 (格式: [{\"source\":\"A\",\"relation\":\"R\",\"target\":\"B\",\"target_category\":\"单位\"}])，不要包含 markdown 包裹:",

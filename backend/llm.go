@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math"
 	"net/http"
 	"path/filepath"
@@ -34,32 +35,53 @@ type LLMResponse struct {
 	} `json:"choices"`
 }
 
-// CallLLMGeneric 通用的 OpenAI 兼容 / Ollama 接口大模型 API 调用函数 (支持自动故障转移至本地 Ollama)
-func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {
+// WarmupLLMModel 异步热加载后台选中的大模型至 GPU VRAM 显存常驻 (keep_alive: -1)，彻底避免反复卸载与冷启动延时
+func WarmupLLMModel(endpoint, apiKey, model string) {
 	if endpoint == "" {
 		config := GlobalDB.GetConfig()
 		endpoint = config.LLMEndpoint
-		if endpoint == "" {
-			endpoint = "http://ibubble.vicp.net:11434/api/generate"
-		}
 	}
 	if model == "" {
 		config := GlobalDB.GetConfig()
 		model = config.LLMModel
-		if model == "" {
-			model = "qwen3.6:35b-q4"
+	}
+	if endpoint == "" || model == "" {
+		return
+	}
+	go func() {
+		log.Printf("[LLM常驻引擎] 正在热加载大模型 [%s] 至 GPU VRAM 显存 (keep_alive: -1)...", model)
+		_, err := callLLMOnceWithTimeout(endpoint, apiKey, model, "/no_think", "ping", 10*time.Second)
+		if err != nil {
+			log.Printf("[LLM常驻引擎] 大模型 [%s] 预热结果: %v", model, err)
+		} else {
+			log.Printf("[LLM常驻引擎] 大模型 [%s] 已成功常驻 GPU VRAM 显存！", model)
 		}
+	}()
+}
+
+// CallLLMGeneric 通用的 OpenAI 兼容 / Ollama 接口大模型 API 调用函数 (完全由管理员在后台动态配置)
+func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {
+	config := GlobalDB.GetConfig()
+	if endpoint == "" {
+		endpoint = config.LLMEndpoint
+	}
+	if apiKey == "" {
+		apiKey = config.LLMAPIKey
+	}
+	if model == "" {
+		model = config.LLMModel
 	}
 
-	res, err := callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt)
+	// 强制使用管理员在后台界面配置的 URL 地址与大模型（超时时间设为 120 秒）
+	res, err := callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt, 120*time.Second)
 	if err == nil && strings.TrimSpace(res) != "" {
 		return res, nil
 	}
 
-	// 自动故障转移：若主端点调用失败或超时，自动切至本地 Ollama 引擎保底
+	// 自动故障转移：若主端点调用失败，尝试切至本地 127.0.0.1 节点使用相同模型保底
 	localEndpoint := "http://127.0.0.1:11434/api/generate"
 	if endpoint != localEndpoint {
-		resLocal, errLocal := callLLMOnce(localEndpoint, "", "qwen2:1.5b", systemPrompt, userPrompt)
+		resLocal, errLocal := callLLMOnceWithTimeout(localEndpoint, apiKey, model, systemPrompt, userPrompt, 60*time.Second)
 		if errLocal == nil && strings.TrimSpace(resLocal) != "" {
 			return resLocal, nil
 		}
@@ -69,11 +91,17 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 }
 
 func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {
+	return callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt, 120*time.Second)
+}
+
+func callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt string, timeout time.Duration) (string, error) {
 	if endpoint == "" {
-		endpoint = "http://ibubble.vicp.net:11434/api/generate"
+		config := GlobalDB.GetConfig()
+		endpoint = config.LLMEndpoint
 	}
 	if model == "" {
-		model = "qwen3.6:35b-q4"
+		config := GlobalDB.GetConfig()
+		model = config.LLMModel
 	}
 
 	isOllamaGenerate := strings.HasSuffix(endpoint, "/api/generate") || strings.Contains(endpoint, "/api/generate")
@@ -90,9 +118,14 @@ func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (stri
 		fullPrompt += userPrompt
 
 		reqBody := map[string]interface{}{
-			"model":  model,
-			"prompt": fullPrompt,
-			"stream": false,
+			"model":      model,
+			"prompt":     fullPrompt,
+			"stream":     false,
+			"keep_alive": -1,
+			"options": map[string]interface{}{
+				"temperature": 0.1,
+				"num_predict": 1024,
+			},
 		}
 		jsonBytes, err = json.Marshal(reqBody)
 	} else if isOllamaChat {
@@ -103,19 +136,25 @@ func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (stri
 		msgs = append(msgs, LLMMessage{Role: "user", Content: userPrompt})
 
 		reqBody := map[string]interface{}{
-			"model":    model,
-			"messages": msgs,
-			"stream":   false,
+			"model":      model,
+			"messages":   msgs,
+			"stream":     false,
+			"keep_alive": -1,
+			"options": map[string]interface{}{
+				"temperature": 0.1,
+				"num_predict": 1024,
+			},
 		}
 		jsonBytes, err = json.Marshal(reqBody)
 	} else {
-		reqBody := LLMRequest{
-			Model: model,
-			Messages: []LLMMessage{
+		reqBody := map[string]interface{}{
+			"model": model,
+			"messages": []LLMMessage{
 				{Role: "system", Content: systemPrompt},
 				{Role: "user", Content: userPrompt},
 			},
-			Temperature: 0.2,
+			"temperature": 0.2,
+			"keep_alive":  -1,
 		}
 		jsonBytes, err = json.Marshal(reqBody)
 	}
@@ -134,7 +173,7 @@ func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (stri
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := SafeHTTPClient(timeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("请求大模型接口失败: %v", err)
@@ -200,9 +239,6 @@ func ExtractMetadataFromFile(project *Project, fileType, fileName string, fileBy
 请只返回 JSON 对象，不要含有任何额外文字说明。`, fileName, truncateText(fileText, 3000))
 
 	modelName := config.LLMModel
-	if modelName == "" {
-		modelName = "qwen3.6:35b-q4"
-	}
 
 	resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
 	if err == nil {
@@ -343,9 +379,6 @@ func GenerateAIDocument(project *Project, docType string) (string, error) {
 请直接输出生成的公文内容。`, docType, project.Name, project.Owner, project.WinAmount, project.HealthScore, project.HealthReport.Progress.Status, project.HealthReport.Progress.DelayDays, nowStr)
 
 	modelName := config.LLMModel
-	if modelName == "" {
-		modelName = "qwen2:1.5b"
-	}
 
 	resStr, err := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
 	if err == nil && strings.TrimSpace(resStr) != "" {
@@ -434,7 +467,7 @@ func containsChinese(s string) bool {
 	return false
 }
 
-// CleanLLMThinking 过滤大模型思维链 (<think>...</think>，Here's a thinking process，英文 CoT 推理步骤)
+// CleanLLMThinking 过滤大模型思维链 (<think>...</think>，Here's a thinking process，英文 CoT 推理步骤) 并自动格式化 JSON 响应
 func CleanLLMThinking(text string) string {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -480,7 +513,77 @@ func CleanLLMThinking(text string) string {
 	}
 
 	text = strings.TrimSpace(text)
+	text = FormatJSONToMarkdown(text)
 	return text
+}
+
+// FormatJSONToMarkdown 自动识别并把大模型输出的纯 JSON 或 ```json 代码块转化为人类易读的 Markdown 自然语言排版
+func FormatJSONToMarkdown(input string) string {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return ""
+	}
+
+	// 去除 Markdown 代码块包裹
+	if strings.HasPrefix(trimmed, "```json") {
+		trimmed = strings.TrimPrefix(trimmed, "```json")
+		trimmed = strings.TrimSuffix(trimmed, "```")
+		trimmed = strings.TrimSpace(trimmed)
+	} else if strings.HasPrefix(trimmed, "```") {
+		trimmed = strings.TrimPrefix(trimmed, "```")
+		trimmed = strings.TrimSuffix(trimmed, "```")
+		trimmed = strings.TrimSpace(trimmed)
+	}
+
+	// 判断是否为 JSON 结构
+	if (!strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}")) &&
+		(!strings.HasPrefix(trimmed, "[") || !strings.HasSuffix(trimmed, "]")) {
+		return input
+	}
+
+	var data interface{}
+	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
+		return input
+	}
+
+	var sb strings.Builder
+	renderValueToMarkdown(&sb, data, 0)
+	res := strings.TrimSpace(sb.String())
+	if res != "" {
+		return res
+	}
+	return input
+}
+
+func renderValueToMarkdown(sb *strings.Builder, v interface{}, depth int) {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		for k, child := range val {
+			switch childVal := child.(type) {
+			case map[string]interface{}:
+				if depth == 0 {
+					sb.WriteString(fmt.Sprintf("\n### 📌 %s\n", k))
+				} else {
+					sb.WriteString(fmt.Sprintf("\n**【%s】**\n", k))
+				}
+				renderValueToMarkdown(sb, childVal, depth+1)
+			case []interface{}:
+				sb.WriteString(fmt.Sprintf("\n**%s**：\n", k))
+				for _, elem := range childVal {
+					sb.WriteString(fmt.Sprintf("- %v\n", elem))
+				}
+			default:
+				indent := strings.Repeat("  ", depth)
+				sb.WriteString(fmt.Sprintf("%s- **%s**：%v\n", indent, k, childVal))
+			}
+		}
+	case []interface{}:
+		for _, elem := range val {
+			sb.WriteString(fmt.Sprintf("- %v\n", elem))
+		}
+	default:
+		sb.WriteString(fmt.Sprintf("%v\n", val))
+	}
 }
 
 // LLMGenerateSummary 生成文件AI摘要 (支持文件 Hash 校验级持久化缓存)
@@ -488,9 +591,6 @@ func LLMGenerateSummary(proj Project, file FileMetadata) string {
 	config := GlobalDB.GetConfig()
 
 	modelName := config.LLMModel
-	if modelName == "" {
-		modelName = "qwen2:1.5b"
-	}
 
 	if file.Summary != "" && !strings.HasPrefix(file.Summary, "【归档文件】") {
 		return file.Summary
@@ -703,9 +803,6 @@ func LLMCompareFiles(proj Project, f1, f2 FileMetadata) (map[string]interface{},
 	config := GlobalDB.GetConfig()
 
 	modelName := config.LLMModel
-	if modelName == "" {
-		modelName = "qwen2:1.5b"
-	}
 
 	contextHash := f1.ID + ":" + f1.Hash + "_" + f2.ID + ":" + f2.Hash
 	cacheKey := MD5Hash("compare_" + contextHash + "_" + modelName)
@@ -797,9 +894,6 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 	config := GlobalDB.GetConfig()
 
 	modelName := config.LLMModel
-	if modelName == "" {
-		modelName = "qwen2:1.5b"
-	}
 	provider := config.LLMProvider
 	if provider == "" {
 		provider = "ollama"
@@ -838,62 +932,36 @@ func RunYunnanArchiveEvaluation(proj *Project, files []FileMetadata) (YunnanArch
 			f.StageFolder, f.FileName, len([]rune(content)), truncateText(content, 300)))
 	}
 
-	systemPrompt := "你是一个专业的《云南省重点建设项目档案验收实施办法》档案验收评估专家。请对给出的政务信息化项目及归档文件进行全量真实研判打分，并生成标准 JSON 评估报告。"
-	userPrompt := fmt.Sprintf(`请评估以下云南省重点建设项目：
-项目名称: %s
-预算金额: %.2f 万元
-负责人: %s
-施工单位: %s
+	systemPrompt := "/no_think\n你是一个专业的《云南省重点建设项目档案验收实施办法》档案验收评估专家。请对给出的政务信息化项目及归档文件进行评测打分，生成标准 JSON 评估报告。必须直接输出纯 JSON 对象，严禁包含任何 <think> 思考过程！"
+	userPrompt := fmt.Sprintf(`/no_think
+请评估以下云南省重点建设项目：
+项目名称: %s (预算 %.2f 万元，负责人: %s，施工单位: %s)
 已归档文件列表及正文摘要:
 %s
 
-请依据《云南省重点建设项目档案验收实施办法》18项测评指标（总分100分，75分合格），对项目档案进行逐项评测。
-请返回纯 JSON 格式对象（不要包含 markdown 代码块包裹），格式如下：
+请依据《云南省重点建设项目档案验收实施办法》进行评测。直接返回纯 JSON 对象（不含 markdown 代码块包裹）：
 {
-  "self_inspection_opinion": "自检综合意见",
-  "sec1_items": [
-    {"category": "制度建设", "score": 2.0, "remark": "评估评语"},
-    {"category": "同步开展", "score": 3.8, "remark": "评估评语"},
-    {"category": "责任考核", "score": 1.0, "remark": "评估评语"},
-    {"category": "合同管理", "score": 1.5, "remark": "评估评语"},
-    {"category": "人员配备", "score": 1.5, "remark": "评估评语"}
-  ],
-  "sec2_items": [
-    {"category": "完整性 - 门类载体", "score": 11.5, "remark": "评估评语"},
-    {"category": "完整性 - 移交手续", "score": 2.0, "remark": "评估评语"},
-    {"category": "完整性 - 管理文件", "score": 4.8, "remark": "评估评语"},
-    {"category": "完整性 - 设计文件", "score": 3.8, "remark": "评估评语"},
-    {"category": "完整性 - 施工文件", "score": 6.8, "remark": "评估评语"},
-    {"category": "完整性 - 监理文件", "score": 2.0, "remark": "评估评语"},
-    {"category": "完整性 - 竣工图", "score": 4.5, "remark": "评估评语"},
-    {"category": "完整性 - 设备科研", "score": 2.8, "remark": "评估评语"},
-    {"category": "完整性 - 财务管理", "score": 1.8, "remark": "评估评语"},
-    {"category": "完整性 - 竣工验收", "score": 2.8, "remark": "评估评语"},
-    {"category": "准确性 - 保障机制", "score": 2.8, "remark": "评估评语"},
-    {"category": "准确性 - 竣工图物", "score": 11.0, "remark": "评估评语"},
-    {"category": "准确性 - 签署规范", "score": 4.5, "remark": "评估评语"},
-    {"category": "系统性 - 分类组卷", "score": 6.0, "remark": "评估评语"},
-    {"category": "系统性 - 信息化", "score": 3.5, "remark": "评估评语"}
-  ],
-  "sec3_items": [
-    {"category": "档案用房", "score": 5.5, "remark": "评估评语"},
-    {"category": "档案装具", "score": 2.0, "remark": "评估评语"},
-    {"category": "安全保障", "score": 2.0, "remark": "评估评语"}
-  ]
+  "self_inspection_opinion": "综合自检意见结论（80字以内）"
 }`, proj.Name, budgetW, ownerName, vendorName, strings.Join(fileSummaries, "\n"))
 
 	var llmRes string
-	if config.LLMAPIKey != "" || config.LLMEndpoint != "" {
-		llmChan := make(chan string, 1)
-		go func() {
-			res, _ := CallLLMGeneric(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt)
-			llmChan <- res
-		}()
-		select {
-		case llmRes = <-llmChan:
-		case <-time.After(50 * time.Millisecond):
-			llmRes = ""
+	type llmResStruct struct {
+		opinion string
+		err     error
+	}
+	ch := make(chan llmResStruct, 1)
+	go func() {
+		resStr, errLLM := callLLMOnceWithTimeout(config.LLMEndpoint, config.LLMAPIKey, modelName, systemPrompt, userPrompt, 2*time.Second)
+		ch <- llmResStruct{opinion: resStr, err: errLLM}
+	}()
+
+	select {
+	case res := <-ch:
+		if res.err == nil && strings.TrimSpace(res.opinion) != "" {
+			llmRes = res.opinion
 		}
+	case <-time.After(2 * time.Second):
+		log.Printf("[YunnanEval] 大模型 %s 响应延迟，已智能降级至毫秒级规则评估引擎", modelDisplay)
 	}
 
 	designUnitName := "云南省信息产业规划设计院"

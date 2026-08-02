@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
@@ -11,6 +12,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -150,4 +153,62 @@ func SanitizeInput(input string) string {
 		}
 	}
 	return string(out)
+}
+
+// SafeHTTPClient 创建带有 DNS 自动重试与公共 DNS 容错特性的 http.Client
+// 当本地系统 DNS (如 systemd-resolved 127.0.0.53) 解析花生壳等动态域名 (vicp.net) 临时失败时，自动切换至公共 DNS 再次解析
+func SafeHTTPClient(timeout time.Duration) *http.Client {
+	dialer := &net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			// 1. 优先使用系统默认 DNS 解析与连接
+			conn, err := dialer.DialContext(ctx, network, addr)
+			if err == nil {
+				return conn, nil
+			}
+
+			// 2. 若默认 DNS 出现 Lookup 失败，提取 host/port 并尝试备用公共 DNS 服务器解析
+			host, port, splitErr := net.SplitHostPort(addr)
+			if splitErr != nil {
+				return nil, err
+			}
+
+			if net.ParseIP(host) != nil {
+				return nil, err
+			}
+
+			dnsServers := []string{"223.5.5.5:53", "114.114.114.114:53", "8.8.8.8:53", "1.1.1.1:53"}
+			for _, dnsServer := range dnsServers {
+				dnsAddr := dnsServer
+				r := &net.Resolver{
+					PreferGo: true,
+					Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+						d := net.Dialer{Timeout: 2 * time.Second}
+						return d.DialContext(ctx, "udp", dnsAddr)
+					},
+				}
+				ips, lookupErr := r.LookupIPAddr(ctx, host)
+				if lookupErr == nil && len(ips) > 0 {
+					targetAddr := net.JoinHostPort(ips[0].IP.String(), port)
+					targetConn, dialErr := dialer.DialContext(ctx, network, targetAddr)
+					if dialErr == nil {
+						return targetConn, nil
+					}
+				}
+			}
+
+			return nil, err
+		},
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
 }

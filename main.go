@@ -307,6 +307,10 @@ func main() {
 	// 启动后台定时自动预评测任务 (对未评测项目自动评估并落盘)
 	backend.StartBackgroundAutoEvaluator()
 
+	// 启动大模型显存热加载与永久常驻引擎 (keep_alive: -1)，消除反复加载延迟
+	cfg := backend.GlobalDB.GetConfig()
+	backend.WarmupLLMModel(cfg.LLMEndpoint, cfg.LLMAPIKey, cfg.LLMModel)
+
 	// 单入口请求监听，使用 RecoveryMiddleware 包装以提供崩溃防护
 	http.HandleFunc("/", RecoveryMiddleware(DispatcherRequest))
 
