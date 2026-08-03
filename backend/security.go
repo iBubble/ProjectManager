@@ -180,6 +180,7 @@ func SafeHTTPClient(timeout time.Duration) *http.Client {
 				return nil, err
 			}
 
+			var lastDialErr error
 			dnsServers := []string{"223.5.5.5:53", "114.114.114.114:53", "8.8.8.8:53", "1.1.1.1:53"}
 			for _, dnsServer := range dnsServers {
 				dnsAddr := dnsServer
@@ -197,9 +198,13 @@ func SafeHTTPClient(timeout time.Duration) *http.Client {
 					if dialErr == nil {
 						return targetConn, nil
 					}
+					lastDialErr = dialErr
 				}
 			}
 
+			if lastDialErr != nil {
+				return nil, lastDialErr
+			}
 			return nil, err
 		},
 		MaxIdleConns:        100,

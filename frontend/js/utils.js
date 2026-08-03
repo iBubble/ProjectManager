@@ -299,20 +299,43 @@ function applyWatermark() {
 
 window.applyWatermark = applyWatermark;
 
-function updateStatusIndicator() {
+// 网关连通状态探测（带自动重试机制）
+let _statusRetryTimer = null;
+let _statusRetryCount = 0;
+const _STATUS_MAX_RETRIES = 5;
+const _STATUS_RETRY_DELAYS = [10000, 20000, 30000, 60000, 60000]; // 10s, 20s, 30s, 60s, 60s
+
+function updateStatusIndicator(isAutoRetry) {
     const indicator = document.getElementById("engine-status-indicator") || document.getElementById("ai-status-indicator");
     if (!indicator) return;
+
+    // 手动调用时重置重试计数
+    if (!isAutoRetry) {
+        _statusRetryCount = 0;
+        if (_statusRetryTimer) {
+            clearTimeout(_statusRetryTimer);
+            _statusRetryTimer = null;
+        }
+    }
 
     // 默认显示黄色闪烁 (正在加载)
     indicator.innerHTML = `
         <span class="status-dot dot-yellow-pulse" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #eab308; box-shadow: 0 0 8px #eab308; animation: pulse 1.5s infinite;"></span>
     `;
-    indicator.setAttribute("title", "正在探测网关通信状态...");
+    indicator.setAttribute("title", _statusRetryCount > 0
+        ? `正在重新探测网关通信状态... (第 ${_statusRetryCount} 次重试)`
+        : "正在探测网关通信状态...");
 
     apiFetch("/api/system/llm/test")
         .then(res => res.json())
         .then(data => {
             if (data.status === "success") {
+                // 连接成功，停止重试
+                _statusRetryCount = 0;
+                if (_statusRetryTimer) {
+                    clearTimeout(_statusRetryTimer);
+                    _statusRetryTimer = null;
+                }
                 if (data.provider === "mock") {
                     indicator.innerHTML = `
                         <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #eab308; box-shadow: 0 0 6px #eab308;"></span>
@@ -331,18 +354,31 @@ function updateStatusIndicator() {
                         });
                 }
             } else {
-                indicator.innerHTML = `
-                    <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
-                `;
-                indicator.setAttribute("title", `🔴 远端网关连通失败\n错误：${data.message}`);
+                _scheduleStatusRetry(indicator, data.message);
             }
         })
         .catch(err => {
-            indicator.innerHTML = `
-                <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
-            `;
-            indicator.setAttribute("title", `🔴 网关通信故障\n错误：${err.message}`);
+            _scheduleStatusRetry(indicator, err.message);
         });
+}
+
+function _scheduleStatusRetry(indicator, errorMsg) {
+    if (_statusRetryCount < _STATUS_MAX_RETRIES) {
+        const delay = _STATUS_RETRY_DELAYS[_statusRetryCount] || 60000;
+        const nextSec = Math.round(delay / 1000);
+        indicator.innerHTML = `
+            <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
+        `;
+        indicator.setAttribute("title", `🔴 远端网关连通失败\n错误：${errorMsg}\n⏳ 将在 ${nextSec} 秒后自动重试 (${_statusRetryCount + 1}/${_STATUS_MAX_RETRIES})`);
+        _statusRetryCount++;
+        _statusRetryTimer = setTimeout(() => updateStatusIndicator(true), delay);
+    } else {
+        // 重试用尽，显示最终错误
+        indicator.innerHTML = `
+            <span class="status-dot" style="width: 12px; height: 12px; border-radius: 50%; display: inline-block; background-color: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
+        `;
+        indicator.setAttribute("title", `🔴 远端网关连通失败 (已重试 ${_STATUS_MAX_RETRIES} 次)\n错误：${errorMsg}\n💡 请检查 Ollama 宿主机网络后刷新页面`);
+    }
 }
 
 window.updateStatusIndicator = updateStatusIndicator;

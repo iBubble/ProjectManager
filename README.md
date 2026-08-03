@@ -92,6 +92,7 @@ graph TD
   - 基于会话 Cookie (`SessionToken`) 与跨站防御 (`X-CSRF-Token`) 的统一安全封装请求器 `apiFetch`。
 - **数据库**：轻量级本地 JSON 数据库 (`data/database.json`)，避免了外部大型数据库的部署成本与数据安全隐患，迁移备份极其简单。
 - **接入大模型**：完全由管理员在后台面板动态配置（如 `qwen3:8b` / `qwen3.6:35b-q4` 等），支持 OpenAI 兼容与 Ollama 接口。内置 `keep_alive: -1` GPU 显存常驻与 2s 极速混合响应引擎。
+- **高可用网关容错与 DNS 负缓存自愈**：后端网络层封装 `SafeHTTPClient`，针对宿主机（如 MacBook Pro / 局域网节点）休眠唤醒、手启动 Ollama 或动态 DDNS（如花生壳）导致的临时 DNS 负缓存与端口就绪延时，支持直连公共 DNS (223.5.5.5 / 114.114.114.114) 探针与 3 次退避重试；手动点击【测试 Gateway 连通性】可强行绕过负缓存秒级连通并实时同步全站指示灯。
 
 ---
 

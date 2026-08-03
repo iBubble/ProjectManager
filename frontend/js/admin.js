@@ -450,6 +450,7 @@ function testLLMConnection() {
         hideLoading();
         if (data.status === "success") {
             showToast(data.message || "接口握手成功！", "success");
+            if (typeof updateStatusIndicator === "function") updateStatusIndicator();
             const modelSelect = document.getElementById("setting-llm-model");
             if (modelSelect) {
                 modelSelect.innerHTML = "";

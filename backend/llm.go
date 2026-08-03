@@ -72,10 +72,22 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 		model = config.LLMModel
 	}
 
-	// 强制使用管理员在后台界面配置的 URL 地址与大模型（超时时间设为 120 秒）
-	res, err := callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt, 120*time.Second)
-	if err == nil && strings.TrimSpace(res) != "" {
-		return res, nil
+	// 带重试的主端点调用：DNS 解析 / 连接超时等瞬态故障自动重试最多 3 次
+	var res string
+	var err error
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		res, err = callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt, 120*time.Second)
+		if err == nil && strings.TrimSpace(res) != "" {
+			return res, nil
+		}
+		// 仅对瞬态网络错误重试（DNS / 连接超时 / 连接被拒）
+		if err != nil && attempt < maxRetries && isTransientError(err) {
+			log.Printf("[LLM调用] 第 %d 次尝试失败 (%v)，%d 秒后重试...", attempt, err, 2*attempt)
+			time.Sleep(time.Duration(2*attempt) * time.Second)
+			continue
+		}
+		break
 	}
 
 	// 自动故障转移：若主端点调用失败，尝试切至本地 127.0.0.1 节点使用相同模型保底
@@ -88,6 +100,30 @@ func CallLLMGeneric(endpoint, apiKey, model, systemPrompt, userPrompt string) (s
 	}
 
 	return res, err
+}
+
+// isTransientError 判断是否为可重试的瞬态网络错误（DNS 解析失败 / 连接超时 / 连接被拒）
+func isTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	transientPatterns := []string{
+		"name resolution",
+		"no such host",
+		"connection refused",
+		"connection reset",
+		"i/o timeout",
+		"dial tcp",
+		"TLS handshake timeout",
+		"EOF",
+	}
+	for _, p := range transientPatterns {
+		if strings.Contains(strings.ToLower(msg), strings.ToLower(p)) {
+			return true
+		}
+	}
+	return false
 }
 
 func callLLMOnce(endpoint, apiKey, model, systemPrompt, userPrompt string) (string, error) {

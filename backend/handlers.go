@@ -2780,24 +2780,32 @@ func HandlerTestLLM(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tReq, errT := http.NewRequest("GET", testURL, nil)
-	if errT != nil {
-		sendJSON(w, map[string]interface{}{
-			"status":  "error",
-			"message": fmt.Sprintf("❌ 构建握手请求对象失败: %v", errT),
-		})
-		return
-	}
 
-	if cfg.LLMAPIKey != "" && cfg.LLMAPIKey != "******" {
-		tReq.Header.Set("Authorization", "Bearer "+cfg.LLMAPIKey)
-	}
 
-	resp, err := client.Do(tReq)
+	// 带重试的网关连通测试：DNS 解析失败 / 连接超时 / 连接被拒 等瞬态故障自动重试最多 3 次
+	var resp *http.Response
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// 每次重试重新构造请求（Body 不需要，GET 请求无 Body）
+		retryReq, _ := http.NewRequest("GET", testURL, nil)
+		if cfg.LLMAPIKey != "" && cfg.LLMAPIKey != "******" {
+			retryReq.Header.Set("Authorization", "Bearer "+cfg.LLMAPIKey)
+		}
+		resp, err = client.Do(retryReq)
+		if err == nil {
+			break
+		}
+		if attempt < maxRetries {
+			log.Printf("[LLM网关测试] 第 %d 次尝试失败 (%v)，%d 秒后重试...", attempt, err, 2*attempt)
+			time.Sleep(time.Duration(2*attempt) * time.Second)
+			// 重建 HTTP Client 以刷新 DNS 解析缓存
+			client = SafeHTTPClient(10 * time.Second)
+		}
+	}
 	if err != nil {
 		sendJSON(w, map[string]interface{}{
 			"status":  "error",
-			"message": fmt.Sprintf("❌ 大模型网关连接超时或被拒绝: %v", err),
+			"message": fmt.Sprintf("❌ 大模型网关连接超时或被拒绝 (已重试 %d 次): %v", maxRetries, err),
 		})
 		return
 	}
