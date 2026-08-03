@@ -18439,6 +18439,15 @@
       "wechat_id": "wx_director_zhang",
       "is_disabled": false
     },
+    "34867592d539bd9f6bdb3910904f1b3b93cecf9bb0e6f91591c0349f0ffa993f": {
+      "id": "u1",
+      "username": "admin",
+      "password_hash": "4a33294d42e79c6d8d437ce8e160c45df68cc77516851c20e3601353a2e7fe49",
+      "role": "super_admin",
+      "name": "张主任 (信息中心主任)",
+      "wechat_id": "wx_director_zhang",
+      "is_disabled": false
+    },
     "6b88842bfc52c5a0bad7b0a62e185c36f7bc3e6f21fd4b1146447c9dd8a02e96": {
       "id": "u1",
       "username": "admin",
@@ -18474,9 +18483,98 @@
       "name": "张主任 (信息中心主任)",
       "wechat_id": "wx_director_zhang",
       "is_disabled": false
+    },
+    "dee3a702bcbbae225a8379ea989a541c114f09c4bb998001a1682ba3bf063c0e": {
+      "id": "u1",
+      "username": "admin",
+      "password_hash": "4a33294d42e79c6d8d437ce8e160c45df68cc77516851c20e3601353a2e7fe49",
+      "role": "super_admin",
+      "name": "张主任 (信息中心主任)",
+      "wechat_id": "wx_director_zhang",
+      "is_disabled": false
     }
   },
   "audit_logs": [
+    {
+      "id": "log_1785768086856790790",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:57202",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-08-03 14:41:26"
+    },
+    {
+      "id": "log_1785768086475715484",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:57202",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-08-03 14:41:26"
+    },
+    {
+      "id": "log_1785768079097121420",
+      "user": "张主任 (信息中心主任)",
+      "action": "登出系统",
+      "ip": "127.0.0.1:57202",
+      "details": "安全注销",
+      "created_at": "2026-08-03 14:41:19"
+    },
+    {
+      "id": "log_1785768076364882137",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:57202",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-08-03 14:41:16"
+    },
+    {
+      "id": "log_1785768075909399407",
+      "user": "张主任 (信息中心主任)",
+      "action": "登录系统",
+      "ip": "127.0.0.1:57202",
+      "details": "成功登录项目管理平台",
+      "created_at": "2026-08-03 14:41:15"
+    },
+    {
+      "id": "log_1785768074124867907",
+      "user": "张主任 (信息中心主任)",
+      "action": "登出系统",
+      "ip": "127.0.0.1:57202",
+      "details": "安全注销",
+      "created_at": "2026-08-03 14:41:14"
+    },
+    {
+      "id": "log_1785768070404274252",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:57202",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-08-03 14:41:10"
+    },
+    {
+      "id": "log_1785768069895518352",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:57202",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-08-03 14:41:09"
+    },
+    {
+      "id": "log_1785768056345848443",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:57200",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-08-03 14:40:56"
+    },
+    {
+      "id": "log_1785768055904936238",
+      "user": "张主任 (信息中心主任)",
+      "action": "测试LLM通信",
+      "ip": "127.0.0.1:57200",
+      "details": "测试大模型 Provider: ollama",
+      "created_at": "2026-08-03 14:40:55"
+    },
     {
       "id": "log_1785767411665450623",
       "user": "张主任 (信息中心主任)",
