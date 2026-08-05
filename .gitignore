@@ -2,6 +2,7 @@ server
 server_bin
 server_test
 main
+app
 cookies.txt
 jar.txt
 .DS_Store
