@@ -160,7 +160,7 @@ func callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt st
 			"keep_alive": -1,
 			"options": map[string]interface{}{
 				"temperature": 0.1,
-				"num_predict": 4096,
+				"num_predict": 8192,
 			},
 		}
 		jsonBytes, err = json.Marshal(reqBody)
@@ -178,7 +178,7 @@ func callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt st
 			"keep_alive": -1,
 			"options": map[string]interface{}{
 				"temperature": 0.1,
-				"num_predict": 4096,
+				"num_predict": 8192,
 			},
 		}
 		jsonBytes, err = json.Marshal(reqBody)
@@ -190,7 +190,7 @@ func callLLMOnceWithTimeout(endpoint, apiKey, model, systemPrompt, userPrompt st
 				{Role: "user", Content: userPrompt},
 			},
 			"temperature": 0.2,
-			"max_tokens":  4096,
+			"max_tokens":  8192,
 			"keep_alive":  -1,
 		}
 		jsonBytes, err = json.Marshal(reqBody)
